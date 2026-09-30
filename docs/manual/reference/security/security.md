@@ -165,14 +165,6 @@ Every string in tool parameters and responses is then stripped of invisible char
 
 Blacklist checking always runs after this strip, see [Prompt injection hardening](#prompt-injection-hardening).
 
-### PrivX
-
-- **TODO**: We need confirmation about how PrivX handles this (It is probably done through some OpenAPI (Swagger) or similar library)
-
 ## SQL injection
 
 This is not applicable to the MCP server.
-
-### PrivX
-
-- **TODO**: We need confirmation about how PrivX handles this
