@@ -1,0 +1,89 @@
+# This docker-compose.yml file can be used for running a demo environment.
+# See deploy/docker/demo/README.md for more details.
+services:
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3
+    container_name: keycloak
+    command: start-dev
+    ports:
+      - "8080:8080"
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "{ printf 'HEAD /health/ready HTTP/1.0\r\n\r\n' >&0; grep 'HTTP/1.0 200'; } 0<>/dev/tcp/localhost/9000"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 40s
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+
+  privx-mcp-server:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.glibc
+    container_name: privx-mcp-server
+    depends_on:
+      keycloak:
+        condition: service_healthy
+    ports:
+      - "8181:8181"
+    volumes:
+      # Host path from .env is the bind source; inside the container the key always lives here.
+      - ${PRIVX_RSA_KEY_FILE}:/etc/privx-mcp/private-key.pem:ro
+    environment:
+      # PRIVX_MCP_CONFIG: ${PRIVX_MCP_CONFIG}
+
+      # [server]
+      SERVER_NAME: ${SERVER_NAME}
+      SERVER_VERSION: ${SERVER_VERSION}
+      SERVER_PUBLIC_URL: ${SERVER_PUBLIC_URL}
+      # SERVER_LISTEN_ADDR: ${SERVER_LISTEN_ADDR}
+      # SERVER_LOG_FILE: ${SERVER_LOG_FILE}
+      # SERVER_LOG_LEVEL: ${SERVER_LOG_LEVEL}
+      # SERVER_DISABLE_LOCALHOST_PROTECTION: ${SERVER_DISABLE_LOCALHOST_PROTECTION}
+      # SERVER_STATELESS: ${SERVER_STATELESS}
+      # SERVER_TLS_CERT_FILE: ${SERVER_TLS_CERT_FILE}
+      # SERVER_TLS_KEY_FILE: ${SERVER_TLS_KEY_FILE}
+
+      # [privx_auth]
+      PRIVX_PRIVX_BASE_URL: ${PRIVX_PRIVX_BASE_URL}
+      PRIVX_RSA_KEY_FILE: /etc/privx-mcp/private-key.pem
+      # PRIVX_RSA_PUBLIC_KEY_FILE: ${PRIVX_RSA_PUBLIC_KEY_FILE}
+      PRIVX_RSA_KEY_ID: privx-aws-mcp-demo
+      PRIVX_AUDIENCE: ${PRIVX_AUDIENCE}
+      PRIVX_TOKEN_ISSUER: ${PRIVX_TOKEN_ISSUER}
+      PRIVX_SUBJECT_FORMAT: ${PRIVX_SUBJECT_FORMAT}
+      PRIVX_API_OAUTH_CLIENT_ID: ${PRIVX_API_OAUTH_CLIENT_ID}
+      PRIVX_API_OAUTH_CLIENT_SECRET: ${PRIVX_API_OAUTH_CLIENT_SECRET}
+      PRIVX_API_CLIENT_ID: ${PRIVX_API_CLIENT_ID}
+      PRIVX_API_CLIENT_SECRET: ${PRIVX_API_CLIENT_SECRET}
+      # PRIVX_CA_CERT: ${PRIVX_CA_CERT}
+
+      # [oauth]
+      OAUTH_ISSUER_URL: "${OAUTH_ISSUER_URL}"
+      OAUTH_SCOPES: ${OAUTH_SCOPES}
+      OAUTH_AUDIENCE: ${OAUTH_AUDIENCE}
+      OAUTH_ID_CLAIM_FIELD: ${OAUTH_ID_CLAIM_FIELD}
+      OAUTH_ID_MAPPING_RULE: ${OAUTH_ID_MAPPING_RULE}
+      OAUTH_JWKS_URI: http://keycloak:8080/realms/mcp/protocol/openid-connect/certs
+      # OAUTH_JWKS_CACHE_TTL: ${OAUTH_JWKS_CACHE_TTL}
+      # OAUTH_DCR_STUB_CLIENT_ID: ${OAUTH_DCR_STUB_CLIENT_ID}
+      # OAUTH_DCR_STUB_CLIENT_SECRET: ${OAUTH_DCR_STUB_CLIENT_SECRET}
+
+      # [permissions]
+      PERMISSIONS_DEFAULT_READ_ONLY: ${PERMISSIONS_DEFAULT_READ_ONLY}
+      # PERMISSIONS_WHITELIST: ${PERMISSIONS_WHITELIST}
+      # PERMISSIONS_BLACKLIST: ${PERMISSIONS_BLACKLIST}
+      PERMISSIONS_SOURCE_TYPE: ${PERMISSIONS_SOURCE_TYPE}
+      PERMISSIONS_SESSION_CACHE_TTL: ${PERMISSIONS_SESSION_CACHE_TTL}
+      PERMISSIONS_REQUEST_WINDOW_SECONDS: ${PERMISSIONS_REQUEST_WINDOW_SECONDS}
+      PERMISSIONS_MAX_REQUESTS_PER_WINDOW: ${PERMISSIONS_MAX_REQUESTS_PER_WINDOW}
+      # PERMISSIONS_MAXED_WINDOW_WAIT_SECONDS: ${PERMISSIONS_MAXED_WINDOW_WAIT_SECONDS}
+
+volumes:
+  keycloak_data:

@@ -1,0 +1,31 @@
+{
+  "count": 1001,
+  "items": [
+    {
+      "service_id": "6b72404a-de07-49d5-65e0-0a62976d4784",
+      "service_name": "AUTH",
+      "event_id": "106",
+      "event_name": "Access-token-granted",
+      "created": "2026-08-12T10:46:34.104161Z",
+      "message": {
+        "SSH-PrivX-service": "AUTH",
+        "audit-exposure": "SSH-PRIVX-AUDIT",
+        "backend": "",
+        "domain": "privx-ui",
+        "instanceName": "PreSalesEntraDemoPrivXNode",
+        "remoteAddress": "85.76.136.199",
+        "sessionID": "e46a7bb6-79e1-402d-6a79-95fc6fb706b1",
+        "severity": "6",
+        "timestamp": "2026-08-12T10:46:34.104021Z",
+        "userID": "940fbaa7-93d0-489f-6793-1110f1b5377e",
+        "username": "mcp-user",
+        "version": "44.0-58"
+      }
+    }
+  ],
+  "limit": 1,
+  "offset": 0,
+  "pagesRemaining": 1000,
+  "remaining": 1000,
+  "returned": 1
+}

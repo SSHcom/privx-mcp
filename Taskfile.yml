@@ -1,0 +1,104 @@
+version: "3"
+
+env:
+  GOTOOLCHAIN: go1.26.5
+  
+vars:
+  REPO_ROOT: "{{.ROOT_DIR}}"
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  lint:
+    desc: Run golangci-lint on project sources
+    cmds:
+      - golangci-lint run ./...
+
+  test:
+    desc: Run Go tests
+    cmds:
+      - go test ./...
+
+  format:
+    desc: Format Go code
+    cmds:
+      - gofmt -w ./internal ./cmd/privx-mcp-server ./cmd/privx-mcp-proxy
+
+  dep:
+    desc: Fetch dependencies, tidy and vendor
+    cmds:
+      - go get ./... {{.CLI_ARGS}}
+      - go mod tidy
+      - go mod vendor
+
+  race:
+    desc: Run the race detector
+    cmds:
+      - go test -race ./...
+      
+  build:
+    desc: Build the provider
+    cmds:
+      - mkdir -p bin
+      - go build -o bin/privx-mcp-server ./cmd/privx-mcp-server
+
+  build:proxy:
+    desc: Build the stdio MCP proxy
+    cmds:
+      - mkdir -p bin
+      - go build -o bin/privx-mcp-proxy ./cmd/privx-mcp-proxy
+
+  image:glibc:
+    desc: Build the glibc Docker image
+    cmds:
+      - docker build -f deploy/docker/Dockerfile.glibc -t privx-mcp-server:dev .
+
+  image:musl:
+    desc: Build the musl Docker image
+    cmds:
+      - docker build -f deploy/docker/Dockerfile.musl -t privx-mcp-server:dev .
+
+  build:linux:amd64:
+    desc: Build Linux amd64 binary
+    cmds:
+      - mkdir -p bin
+      - CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o bin/privx-mcp-server-linux-amd64 ./cmd/privx-mcp-server
+
+  build:linux:arm64:
+    desc: Build Linux arm64 binary
+    cmds:
+      - mkdir -p bin
+      - CC=${CC_ARM64:-aarch64-linux-gnu-gcc} CGO_ENABLED=1 GOOS=linux GOARCH=arm64 go build -o bin/privx-mcp-server-linux-arm64 ./cmd/privx-mcp-server
+
+  build:linux:amd64-musl:
+    desc: Build Linux amd64 musl-compatible binary
+    cmds:
+      - mkdir -p bin
+      - CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/privx-mcp-server-linux-amd64-musl ./cmd/privx-mcp-server
+
+  build:linux:arm64-musl:
+    desc: Build Linux arm64 musl-compatible binary
+    cmds:
+      - mkdir -p bin
+      - CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o bin/privx-mcp-server-linux-arm64-musl ./cmd/privx-mcp-server
+
+  build:darwin:amd64:
+    desc: Build macOS amd64 binary
+    cmds:
+      - mkdir -p bin
+      - CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -o bin/privx-mcp-server-darwin-amd64 ./cmd/privx-mcp-server
+
+  build:darwin:arm64:
+    desc: Build macOS arm64 binary
+    cmds:
+      - mkdir -p bin
+      - CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -o bin/privx-mcp-server-darwin-arm64 ./cmd/privx-mcp-server
+
+  build:windows:amd64:
+    desc: Build Windows amd64 binary
+    cmds:
+      - mkdir -p bin
+      - CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -o bin/privx-mcp-server-windows-amd64.exe ./cmd/privx-mcp-server

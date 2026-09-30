@@ -1,0 +1,60 @@
+# Go build output
+/privx-mcp-server
+/privx-mcp-proxy
+/bin
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary
+*.test
+
+# Go coverage
+*.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment / secrets
+.env
+*.pem
+*.pem2
+*.key
+deploy/k8s/secret.yaml
+
+# Vendor (if not committed)
+# vendor/
+
+privx-mcp-proxy.*
+privx-mcp-config.*
+
+# Agent files
+.agents/
+.cursor/
+.kilo/
+.kiro/
+.roo/
+
+# Other
+research_do_not_search/
+/.tls
+
+# Transient AWS Load Balancer Controller IAM policy (downloaded via curl in the
+# EKS deploy guide; regenerated per controller version, not vendored).
+alb-iam-policy.json
+# Security-scan run output (script is tracked; runs are not)
+security-scan-*/
+security-scan-*.json
+security-scan-*.md
+security-scan-*.cdx.json

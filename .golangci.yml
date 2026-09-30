@@ -1,0 +1,108 @@
+version: "2"
+
+run:
+  tests: true
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+linters:
+  default: standard
+  enable:
+    - errorlint
+    - gocritic
+    - revive
+    - wsl_v5
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      # An explicit `_ =` assignment is how this project marks a deliberately
+      # ignored error, so it should not be reported.
+      check-blank: false
+
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+        - opinionated
+      disabled-checks:
+        # Reports every non-trivial if/else as a switch candidate; too noisy for
+        # the short two-branch validation blocks used throughout the tools.
+        - ifElseChain
+        # Both fire almost exclusively on PrivX SDK structs (hoststore.Host,
+        # rolestore.User, …) passed or ranged over by value. Converting those to
+        # pointers would spread SDK-owned aliasing through the tool layer.
+        - hugeParam
+        - rangeValCopy
+        # Naming results would force named returns on multi-return helpers whose
+        # bodies already declare the same identifiers; the doc comment carries
+        # the meaning instead.
+        - unnamedResult
+
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: empty-block
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: exported
+          arguments:
+            # Package-qualified stutter (auth.AuthContext, privx.PrivXTokenExchanger)
+            # is left as is; renaming those types is tracked separately.
+            - disableStutteringCheck
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: package-comments
+          disabled: true
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+        - name: time-naming
+        - name: unexported-return
+        - name: unreachable-code
+        - name: unused-parameter
+        - name: var-declaration
+        - name: var-naming
+
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2
+
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+      - std-error-handling
+    rules:
+      # Table-driven tests intentionally shadow helper params and keep dense
+      # literal blocks; whitespace and parameter rules add no value there.
+      - path: _test\.go
+        linters:
+          - wsl_v5
+          - revive
+      # Unchecked type assertions on decoded JSON (`m["count"].(float64)`) are the
+      # assertion style used by the handler tests: a wrong type must panic the test.
+      # This only matches errcheck's type-assertion message, not unchecked calls.
+      - path: _test\.go
+        linters:
+          - errcheck
+        text: ^Error return value is not checked$
+
+formatters:
+  enable:
+    - gofmt

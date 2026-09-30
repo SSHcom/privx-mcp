@@ -1,0 +1,41 @@
+{
+  "author": "00000000-0000-4000-8000-000000000003",
+  "comment": "example comment",
+  "created": "2026-01-01T12:00:00.000000Z",
+  "disabled": "FALSE",
+  "dst": [
+    {
+      "nat": {
+        "addr": "example-extender/10.0.0.30",
+        "port": 22
+      },
+      "selector": {
+        "ip": {
+          "end": "10.0.0.30",
+          "start": "10.0.0.30"
+        },
+        "port": {
+          "end": 22,
+          "start": 22
+        },
+        "proto": "TCP"
+      }
+    }
+  ],
+  "id": "00000000-0000-4000-8000-000000000004",
+  "integration_type": "",
+  "name": "example-network-target",
+  "roles": [
+    {
+      "id": "00000000-0000-4000-8000-000000000020",
+      "name": "example-role"
+    }
+  ],
+  "src_nat": true,
+  "tags": [
+    "env=example"
+  ],
+  "updated": "2026-01-01T12:00:00.000000Z",
+  "updated_by": "",
+  "user_instructions": "example instructions"
+}

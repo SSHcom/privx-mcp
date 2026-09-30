@@ -1,0 +1,49 @@
+# TLS is terminated here at the Ingress; the Service and pod speak plain HTTP.
+# The host below must match SERVER_PUBLIC_URL in the ConfigMap and the OAuth
+# resource/audience, since the MCP OAuth discovery flow depends on that URL.
+#
+# This manifest is written for the ingress-nginx controller with cert-manager.
+# It is portable — swap ingressClassName and annotations for your environment:
+#
+#   - AWS EKS (AWS Load Balancer Controller / ALB): use ingressClassName "alb"
+#     and the alb.ingress.kubernetes.io/* annotations shown commented below,
+#     and drop the nginx/cert-manager annotations. ACM handles TLS on the ALB.
+#   - Traefik / other: set the matching ingressClassName and its annotations.
+#   - On-prem: any ingress controller works; provide TLS via cert-manager or a
+#     pre-created TLS Secret referenced under spec.tls.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: privx-mcp-server
+  namespace: privx-mcp
+  labels:
+    app.kubernetes.io/name: privx-mcp-server
+  annotations:
+    # --- ingress-nginx + cert-manager (default in this manifest) ---
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+
+    # --- AWS EKS / ALB alternative (uncomment, and set ingressClassName: alb) ---
+    # alb.ingress.kubernetes.io/scheme: internet-facing
+    # alb.ingress.kubernetes.io/target-type: ip
+    # alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    # alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:REGION:ACCOUNT:certificate/REPLACE_ME"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - REPLACE_ME.example.com
+      # cert-manager writes the cert here. For a pre-created cert, create this
+      # Secret yourself (kubectl create secret tls ...) and skip cert-manager.
+      secretName: privx-mcp-tls
+  rules:
+    - host: REPLACE_ME.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: privx-mcp-server
+                port:
+                  number: 8181

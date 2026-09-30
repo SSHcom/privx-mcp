@@ -1,0 +1,22 @@
+# PrivX MCP stdio proxy configuration.
+# Tokens and DCR client_info are not stored here.
+# Issued tokens live under $PRIVX_MCP_PROXY_AUTH_DIR or ~/.mcp-auth/privx-mcp-proxy-v1.
+# Startup discovery uses mcp_url (probe + RFC 9728) and optional [client].scopes.
+
+mcp_url = "https://mcp.example.example/mcp"
+allow_http = false
+log_level = "info"
+# log_file = ""
+
+[callback]
+host = "localhost"
+port = 3334
+path = "/oauth/callback"
+auth_timeout_seconds = 60
+
+[client]
+client_id = ""
+client_secret = ""
+scopes = []
+# Required when both client_id and client_secret are set:
+# token_endpoint_auth_method = "client_secret_post"

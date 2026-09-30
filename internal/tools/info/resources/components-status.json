@@ -1,0 +1,63 @@
+{
+  "10.10.10.10.eu-north-1.compute.internal": [
+    {
+      "component_name": "API-PROXY",
+      "component_type": "MICROSERVICE",
+      "created": "2026-08-20T10:58:13.761508Z",
+      "hostname": "10.10.10.10.eu-north-1.compute.internal",
+      "status": {
+        "api_version": "v1",
+        "app_id": "539d9099-e3c9-44c2-bd96-c3caa43773d8",
+        "start_time": "2026-08-07T20:00:07.797850125Z",
+        "status": "RUNNING",
+        "status_details": [
+          {
+            "k": "Build date",
+            "v": "2026-03-12T19:50:22+0200"
+          },
+          {
+            "k": "Server mode",
+            "v": "default"
+          },
+          {
+            "k": "Number of sessions",
+            "v": "0"
+          }
+        ],
+        "status_message": "",
+        "version": "43.0-72 (9875eb0c987c67b4f34393djd6a63cbls8c135b2)",
+        "zdu": {
+          "details": {
+            "api": {
+              "policy_name": "restricted_api_off",
+              "ready": true,
+              "restricting": false,
+              "timestamp": "2026-08-20T10:58:13.661362538Z"
+            },
+            "housekeeping": {
+              "details": {
+                "can_start": 1,
+                "can_stop": 1,
+                "pending_start": 0,
+                "pending_stop": 0,
+                "restricting": false
+              },
+              "policy_name": "housekeeping_control_off",
+              "ready": true,
+              "timestamp": "2026-08-20T10:58:13.661381718Z"
+            },
+            "migration": {
+              "phase": "idle",
+              "policy_name": "migration_control_idle",
+              "ready": true,
+              "timestamp": "2026-08-20T10:58:13.66139398Z"
+            }
+          },
+          "phase": "idle",
+          "ready": true
+        }
+      },
+      "status_uri": "https://localhost/api-proxy/api/v1/status"
+    }
+  ]
+}

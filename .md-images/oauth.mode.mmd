@@ -1,0 +1,10 @@
+flowchart LR
+    Client["MCP Client"] -- "1: request" --> HTTP["HTTP /mcp"]
+    HTTP -- "2: 401" --> Client
+    Client -- "3: sign in" --> IdP["IdP"]
+    IdP -- "4: token" --> Client
+    Client -- "5: token" --> HTTP -- token --> Extract
+    subgraph Server["MCP Server"]
+        Extract["Extract identity"] --> Conn["User connection"]
+    end
+    Conn <--> PrivX["PrivX API"]

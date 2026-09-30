@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "MCP tools/call to response",
+    "quality_profile": "showcase",
+    "viewBox": [1000, 840],
+    "column_fit": "spread"
+  },
+  "participants": [
+    { "id": "client", "type": "external", "label": "MCP client", "sublabel": "agent" },
+    { "id": "http", "type": "frontend", "label": "HTTP /mcp", "sublabel": "JWT edge" },
+    { "id": "runtime", "type": "backend", "label": "MCP runtime", "sublabel": "authMiddleware" },
+    { "id": "harden", "type": "security", "label": "security", "sublabel": "Prepare / Wrap" },
+    { "id": "tool", "type": "backend", "label": "Tool handler", "sublabel": "e.g. user-get" },
+    { "id": "privx", "type": "cloud", "label": "PrivX API", "sublabel": "SDK connector" }
+  ],
+  "segments": [
+    { "from": 150, "to": 330, "label": "Edge + auth" },
+    { "from": 345, "to": 555, "label": "Tool + PrivX" },
+    { "from": 568, "to": 670, "label": "Envelope + reply" }
+  ],
+  "messages": [
+    { "id": "post-mcp", "from": "client", "to": "http", "y": 185, "label": "POST /mcp tools/call", "variant": "emphasis" },
+    { "id": "verify-jwt", "from": "http", "to": "runtime", "y": 225, "label": "verified claims in context", "variant": "security" },
+    { "id": "authenticate", "from": "runtime", "to": "privx", "y": 265, "label": "Authenticate connector" },
+    { "id": "auth-context", "from": "privx", "to": "runtime", "y": 300, "label": "AuthContext", "variant": "return" },
+    { "id": "prepare-in", "from": "runtime", "to": "harden", "y": 350, "label": "Prepare params", "variant": "security" },
+    { "id": "prepare-ok", "from": "harden", "to": "runtime", "y": 385, "label": "input allowed", "variant": "return" },
+    { "id": "invoke", "from": "runtime", "to": "tool", "y": 430, "label": "handler(ctx, params)", "variant": "emphasis" },
+    { "id": "sdk-call", "from": "tool", "to": "privx", "y": 470, "label": "SDK e.g. GetUser" },
+    { "id": "sdk-data", "from": "privx", "to": "tool", "y": 505, "label": "resource JSON", "variant": "return" },
+    { "id": "payload", "from": "tool", "to": "runtime", "y": 538, "label": "plain payload", "variant": "return" },
+    { "id": "wrap", "from": "runtime", "to": "harden", "y": 585, "label": "PrepareOutput + Wrap", "variant": "security" },
+    { "id": "envelope", "from": "harden", "to": "runtime", "y": 618, "label": "{meta, data}", "variant": "return" },
+    { "id": "wire", "from": "runtime", "to": "http", "y": 650, "label": "CallToolResult", "variant": "return" },
+    { "id": "reply", "from": "http", "to": "client", "y": 675, "label": "MCP response", "variant": "return" }
+  ],
+  "activations": [
+    { "participant": "http", "from": 180, "to": 680, "type": "frontend" },
+    { "participant": "runtime", "from": 220, "to": 658, "type": "backend" },
+    { "participant": "privx", "from": 260, "to": 308, "type": "cloud" },
+    { "participant": "harden", "from": 345, "to": 392, "type": "security" },
+    { "participant": "tool", "from": 425, "to": 552, "type": "backend" },
+    { "participant": "privx", "from": 465, "to": 512, "type": "cloud" },
+    { "participant": "harden", "from": 580, "to": 625, "type": "security" }
+  ],
+  "cards": [
+    {
+      "dot": "rose",
+      "title": "HTTP edge",
+      "items": [
+        "POST /mcp is the streamable MCP endpoint",
+        "Bearer JWT is verified before the MCP SDK sees the body",
+        "Claims stay on the request context for ClaimsSource"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Call pipeline",
+      "items": [
+        "authMiddleware: Authenticate, rate limit, IsAllowed",
+        "createToolHandler: inbound Prepare, then the tool",
+        "Trusted tools skip Prepare and the response envelope"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Response",
+      "items": [
+        "Success JSON is sanitized, blacklist-checked, then wrapped",
+        "Error results stay unwrapped MCP error text",
+        "List/search may drop failing rows instead of rejecting the page"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "access_group_id": "00000000-0000-4000-8000-000000000010",
+  "audit_enabled": true,
+  "author": "00000000-0000-4000-8000-000000000003",
+  "authorized_endpoints": [
+    {
+      "allow_unauthenticated": false,
+      "host": "api.example.com:443",
+      "methods": [
+        "GET"
+      ],
+      "paths": [
+        "**"
+      ],
+      "protocols": [
+        "*"
+      ]
+    }
+  ],
+  "created": "2026-01-01T12:00:00.000000Z",
+  "disabled": "FALSE",
+  "id": "00000000-0000-4000-8000-000000000005",
+  "name": "example-api-target",
+  "roles": [
+    {
+      "id": "00000000-0000-4000-8000-000000000020",
+      "name": "example-role"
+    }
+  ],
+  "tags": [],
+  "target_credential": {
+    "ephemeral_certificate_san": "",
+    "ephemeral_certificate_subject": "",
+    "ephemeral_certificate_template": "",
+    "type": "token"
+  },
+  "tls_insecure_skip_verify": true,
+  "unauthorized_endpoints": [],
+  "updated": "2026-01-01T12:05:00.000000Z",
+  "updated_by": "00000000-0000-4000-8000-000000000003"
+}

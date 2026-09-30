@@ -1,0 +1,42 @@
+# == Build stage ==
+
+# musl image: compile on Alpine so the binary links against musl libc.
+FROM alpine:3.24.1 AS build
+
+ARG GO_VERSION=1.26.5
+
+# gcompat lets the official (glibc) Go toolchain run; gcc/musl-dev produce a musl-linked binary.
+RUN apk add --no-cache ca-certificates curl gcc musl-dev gcompat
+
+RUN curl -fsSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o /tmp/go.tgz \
+    && echo "5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053  /tmp/go.tgz" | sha256sum -c - \
+    && tar -C /usr/local -xzf /tmp/go.tgz \
+    && rm /tmp/go.tgz
+
+ENV PATH=/usr/local/go/bin:${PATH} \
+    GOTOOLCHAIN=local \
+    CGO_ENABLED=1 \
+    GOOS=linux
+
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN go build -o /out/privx-mcp-server ./cmd/privx-mcp-server
+
+# == Runtime stage ==
+
+FROM alpine:3.24.1
+
+RUN apk add --no-cache ca-certificates libgcc \
+    && addgroup -S -g 65532 privx \
+    && adduser -S -D -H -h /app -u 65532 -G privx privx \
+    && mkdir -p /app /etc/privx-mcp \
+    && chown privx:privx /app /etc/privx-mcp
+
+COPY --from=build --chown=privx:privx /out/privx-mcp-server /usr/local/bin/privx-mcp-server
+
+USER privx
+WORKDIR /app
+EXPOSE 8181
+ENTRYPOINT ["/usr/local/bin/privx-mcp-server"]

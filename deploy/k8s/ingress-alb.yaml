@@ -1,0 +1,54 @@
+# AWS EKS Ingress using the AWS Load Balancer Controller (ALB).
+#
+# TLS is terminated on the ALB with an ACM certificate — cert-manager and the
+# spec.tls block are NOT used in this variant. The ALB forwards plain HTTP to
+# the Service/pod on port 8181.
+#
+# Prerequisites:
+#   - AWS Load Balancer Controller installed in the cluster.
+#   - An ACM certificate in the SAME region as the cluster, covering the host.
+#   - The host's DNS record pointed at the ALB (see README / step 8).
+#
+# The host below MUST match SERVER_PUBLIC_URL in the ConfigMap and the OAuth
+# resource/audience, or the MCP OAuth discovery flow breaks.
+#
+# Replace: REGION, ACCOUNT, the ACM certificate id, and REPLACE_ME.example.com.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: privx-mcp-server
+  namespace: privx-mcp
+  labels:
+    app.kubernetes.io/name: privx-mcp-server
+  annotations:
+    # Internet-facing ALB with IP targets (required for Fargate; works on EC2 too).
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    # Terminate TLS on the ALB with this ACM cert; only listen on HTTPS 443.
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:eu-north-1:606369954382:certificate/afe70c25-ac42-4944-b201-18b4ef638e01"
+    # Redirect any plain HTTP:80 hit to HTTPS (optional but recommended).
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
+    # Backend is plain HTTP on the pod port.
+    alb.ingress.kubernetes.io/backend-protocol: HTTP
+    # The app has no dedicated /healthz. The public RFC 9728 metadata route
+    # returns 200 without auth, so use it as the ALB target-group health check.
+    # (Do NOT use "/" or "/mcp" — those return 404/401 and would mark all
+    # targets unhealthy, causing the ALB to serve 503s.)
+    alb.ingress.kubernetes.io/healthcheck-protocol: HTTP
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
+    alb.ingress.kubernetes.io/healthcheck-path: /.well-known/oauth-protected-resource
+    alb.ingress.kubernetes.io/success-codes: "200"
+spec:
+  ingressClassName: alb
+  rules:
+    - host: privx-mcp.privxssh.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: privx-mcp-server
+                port:
+                  number: 8181

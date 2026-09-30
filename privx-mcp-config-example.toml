@@ -1,0 +1,277 @@
+# Copy this file to privx-mcp-config.toml and fill in the values for your
+# environment.
+#
+# Example:
+#   cp privx-mcp-config-example.toml privx-mcp-config.toml
+#
+# This file intentionally lists every supported TOML config key.
+# Optional keys are shown as commented examples.
+
+# ===========================================================================
+# [server] — MCP server metadata, network, and TLS
+# ===========================================================================
+[server]
+name = "privx-mcp-server"
+version = "dev"
+
+# auth_mode is "oauth" (default) or "m2m". One process uses one mode.
+# oauth requires [oauth] issuer_url and audience, and service_secrets must be empty.
+# m2m requires service_secrets and forbids issuer_url, audience, jwks_uri, scopes,
+# and the DCR stub settings. An http public_url is allowed in both modes
+# (for example TLS terminated at a proxy) and logs a startup warning.
+# auth_mode = "oauth"
+
+# service_secrets binds each PrivX username to one secret of at least 32 characters.
+# "|" separates mappings. The first space separates the username from the secret.
+# The same username may appear twice, for rotation. The same secret may not.
+# Usernames and secrets cannot contain a space or "|".
+# Prefer SERVER_SERVICE_SECRETS so the value stays out of this file.
+# openssl rand -hex 32
+# service_secrets = "svc-ci <secret>|svc-nightly <secret>"
+
+# Externally reachable base URL for this server.
+# Preferably use https or put behind a reverse proxy
+public_url = "http://localhost:8181"
+
+# Disable MCP SDK localhost Host-header protection (DNS rebinding guard).
+# Protects local MCP servers from DNS rebinding attacks, where a malicious website
+# could trick your browser into sending requests to the server.
+# Disable only if you understand and accept this risk.
+disable_localhost_protection = false
+
+# Serve /mcp as stateless streamable HTTP.
+stateless = true
+
+# Override the listen address when running behind a reverse proxy.
+# Defaults to the port taken from public_url.
+#
+# listen_addr = ":8181"
+
+# --------- Logging ---------
+#
+# log_file is the active log path. Empty (default) writes to stdout.
+# When set, logs are appended to this file and rotated in-process
+# (100MB max size, 5 backups, no compression). Rotated files are
+# timestamped beside the active path.
+#
+# log_level is the slog minimum level: "error" | "warn" | "info" | "debug".
+# Defaults to "info".
+#
+# log_file = "/var/log/privx-mcp/privx-mcp.log"
+# log_level = "info"
+
+# --------- TLS Configuration ---------
+#
+# When both tls_cert_file and tls_key_file are set, the server starts with
+# HTTPS instead of plain HTTP. TLS is required for MCP clients (e.g. Kiro)
+# that reject non-localhost HTTP URLs.
+#
+# Generate locally-trusted certificates with mkcert (recommended):
+#   brew install mkcert && mkcert -install
+#   mkcert -cert-file ~/.ssh/mcp-tls-cert.pem \
+#          -key-file ~/.ssh/mcp-tls-key.pem \
+#          example-mcp.demo.net localhost 127.0.0.1
+#
+# Then point public_url at "https://example-mcp.demo.net:8181" and set the cert paths.
+#
+# tls_cert_file = "/path/to/mcp-tls-cert.pem"
+# tls_key_file = "/path/to/mcp-tls-key.pem"
+
+# ===========================================================================
+# [privx_auth] — PrivX authentication and JWT minting
+# ===========================================================================
+[privx_auth]
+
+# Base URL of the PrivX instance.
+privx_base_url = "https://privx.example.com"
+
+# RSA private key used to sign JWTs minted for PrivX.
+rsa_key_file = "/path/to/private-key.pem"
+
+# Optional: path to the RSA public key paired with rsa_key_file. When set, the
+# loader verifies the two files form a matching keypair and fails fast if they
+# have drifted (e.g. one regenerated without the other). This is a local check
+# only; it does not verify the key registered in PrivX.
+#
+# rsa_public_key_file = "/path/to/public-key.pem"
+
+# kid header placed in minted JWTs.
+# Must match the Key ID configured in the PrivX External Token Provider.
+#
+rsa_key_id = "privx-mcp-key-1"
+
+# audience and token_issuer are placed into minted JWTs.
+# Both must match the PrivX External Token Provider configuration in the
+# PrivX admin UI.
+#
+audience = "privx-mcp-client"
+token_issuer = "privx-mcp"
+
+# Subject format for minted JWTs.
+# Allowed values: "plain" | "dn"
+#
+subject_format = "plain"
+
+# ------- API credentials flow --------
+#
+# Separate from the external JWT exchange path.
+# Leave commented unless you explicitly use ConnectWithAPICredentials.
+#
+api_oauth_client_id = "privx-external"
+api_oauth_client_secret = "replace-with-secret"
+api_client_id = "replace-with-api-client-id"
+api_client_secret = "replace-with-api-client-secret"
+
+# Optional CA certificate for PrivX TLS trust.
+# Accepts PEM content or a file path.
+#
+# ca_cert = ""
+
+# ===========================================================================
+# [oauth] — upstream OIDC provider, identity mapping, and DCR stub
+# ===========================================================================
+[oauth]
+
+# OIDC discovery URL of the upstream IdP (Keycloak realm, Auth0 tenant, etc.).
+# Advertised via /.well-known/oauth-protected-resource and enforced as the
+# expected `iss` claim on incoming bearer JWTs.
+#
+issuer_url = "https://idp.example.com"
+
+# Optional compatibility hint for MCP clients. Not used for token verification.
+# Clients may still choose their own scopes; this is only a fallback hint.
+#
+scopes = ["openid", "profile", "email", "offline_access"]
+
+# Expected `aud` claim on bearer JWTs sent to /mcp.
+# Set this to the resource audience minted by your IdP.
+#
+audience = "privx-mcp-client"
+
+# Override the JWKS endpoint instead of relying on auto-discovery.
+# jwks_uri = "https://idp.example.com/.well-known/jwks.json"
+
+# How long cached JWKS keys are kept. Defaults to 1h.
+# jwks_cache_ttl = "1h"
+
+# --------- Identity mapping ----------
+#
+# Claim path used to derive the PrivX username from incoming IdP tokens.
+identity_claim_field = "email"
+
+# Mapping rule applied to the claim value before PrivX lookup.
+# Allowed values: "as-is" | "strip-domain"
+#
+identity_mapping_rule = "as-is"
+
+# ------------- DCR stub --------------
+#
+# Stub Dynamic Client Registration for MCP clients that require DCR (e.g.
+# Kiro) when the upstream IdP does not support it (e.g. Azure Entra ID).
+#
+# When dcr_stub_client_id is set, the server exposes /register and
+# /.well-known/oauth-authorization-server endpoints returning these static
+# credentials.
+#
+# This is practically equivalent to adding CLIENT_ID and CLIENT_SECRET to
+# mcp.json; the difference is that the AI MCP client is not aware of, and is
+# not responsible for providing, these parameters.
+#
+# dcr_stub_client_id = "your-oauth-client-app-id"
+# dcr_stub_client_secret = "your-oauth-client-app-secret"
+
+# ------ Cursor MCP client setup ------
+#
+# Cursor auto-discovers the IdP via the 401 challenge on /mcp and the
+# RFC 9728 metadata at /.well-known/oauth-protected-resource.
+#
+# For static credentials (no DCR), add an `auth` block in
+# ~/.cursor/mcp.json:
+#
+#   {
+#     "mcpServers": {
+#       "privx-mcp": {
+#         "url": "http://localhost:8181/mcp",
+#         "auth": {
+#           "CLIENT_ID": "privx-mcp-client",
+#           "CLIENT_SECRET": "replace-with-client-secret",
+#           "scopes": ["openid", "profile", "email", "offline_access"]
+#         }
+#       }
+#     }
+#   }
+#
+# Cursor uses a loopback redirect URI for all MCP servers:
+#   http://localhost:8787/callback
+# Older Cursor versions may use:
+#   cursor://anysphere.cursor-mcp/oauth/callback
+#
+# Register this URI in the IdP client's allowed redirect URIs.
+# For Keycloak: Clients -> privx-mcp-client -> Valid Redirect URIs.
+
+# ===========================================================================
+# [permissions] — tool access control
+# ===========================================================================
+[permissions]
+
+# Tool-name guards applied at registration time (independent of PrivX roles).
+# Only tools that survive this filter are listed or callable.
+#
+# Resolve order (first to last; each step filters the previous result):
+#   1. default_read_only — when true, drop all write tools
+#   2. whitelist         — keep only tools matching a prefix (empty = no filter)
+#   3. blacklist         — drop tools matching a prefix (empty = no filter)
+#
+# Priority notes:
+#   - default_read_only supersedes whitelist: write tools are removed before
+#     whitelist is applied, so a write tool prefix in whitelist (e.g. "host-create")
+#     has no effect while default_read_only = true.
+#   - blacklist is applied on top of the whitelist result.
+#
+# Tool names are resource-first (e.g. host-list, user-get, request-list),
+# so prefixes typically select a resource group ("host-", "user-", "request-")
+# rather than an operation ("list-", "get-").
+#
+default_read_only = true
+
+# Prefix whitelist matched left-to-right against tool names.
+# With default_read_only = true above, write tools are already dropped.
+whitelist = ["-list", "-get", "-search", "echo", "mcp-info"]
+
+# Prefix blacklist matched left-to-right against tool names.
+# Example: with whitelist = ["-list", "-get", "-search"] and blacklist = ["user-list"],
+#          user-get and user-search remain but user-list is dropped.
+blacklist = ["-delete"]
+
+# PrivX user directory used when resolving the authenticated identity to a
+# PrivX user. Required. When the same identifier exists in multiple sources,
+# only the user whose source_type matches this value is selected.
+# Typical values: "AD", "LOCAL", "MICROSOFTGRAPH".
+#
+source_type = "MICROSOFTGRAPH"
+
+# Cache TTL for the identity -> resolved PrivX user/permission context.
+# Use "0" to disable caching.
+#
+session_cache_ttl = "30s"
+
+# Minimum interval between on-deny PrivX role refreshes for the same identity.
+# On a cache-hit tool-call deny, the server re-fetches that user's roles and
+# retries the call at most once per this interval. Use "0" to disable.
+# After a completed refresh the call result includes a restart payload;
+# the official SDK cannot notify a single session with tools/list_changed.
+#
+refresh_cooldown = "1m"
+
+# Per-identity tool-call rate limit (fixed window).
+# request_window_seconds and max_requests_per_window must both be > 0 to
+# enable; leave at 0 (or omit) to disable.
+#
+# maxed_window_wait_seconds is extra cooldown after a window that used the
+# full quota. The next window cannot start until the request window ends
+# and this wait has elapsed. Omit or 0 to keep current reset-at-window-end
+# behaviour. Requires rate limiting to be enabled.
+#
+# request_window_seconds = 15
+# max_requests_per_window = 5
+# maxed_window_wait_seconds = 15

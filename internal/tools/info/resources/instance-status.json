@@ -1,0 +1,16 @@
+{
+  "component_name": "EXTENDER-SERVICE",
+  "component_type": "MICROSERVICE",
+  "created": "2026-08-20T10:54:39.907176Z",
+  "hostname": "10.10.10.10.eu-north-1.compute.internal",
+  "status": {
+    "app_id": "a598b201-3994-4136-b332-84ee0065ff7d",
+    "start_time": "2026-08-20T07:00:42.357945987Z",
+    "status": "RUNNING",
+    "status_message": "",
+    "zdu": {
+      "phase": "idle",
+      "ready": false
+    }
+  }
+}

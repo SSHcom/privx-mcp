@@ -1,0 +1,1327 @@
+{
+  "0": {
+    "event_id": 0,
+    "event_name": "License-error",
+    "event_desc": "The system license does not allow operation."
+  },
+  "1": {
+    "event_id": 1,
+    "event_name": "Configuration-error",
+    "event_desc": "The system configuration is invalid."
+  },
+  "10": {
+    "event_id": 10,
+    "event_name": "Service-starting",
+    "event_desc": "The service is starting."
+  },
+  "11": {
+    "event_id": 11,
+    "event_name": "Service-running",
+    "event_desc": "The service is running."
+  },
+  "12": {
+    "event_id": 12,
+    "event_name": "Service-stopped",
+    "event_desc": "The service has been stopped."
+  },
+  "20": {
+    "event_id": 20,
+    "event_name": "Background-migration-started",
+    "event_desc": "Data migration will be running in the background"
+  },
+  "21": {
+    "event_id": 21,
+    "event_name": "Background-migration-completed",
+    "event_desc": "Data migration is completed"
+  },
+  "99": {
+    "event_id": 99,
+    "event_name": "Unknown-event",
+    "event_desc": "Unknown event ID"
+  },
+  "100": {
+    "event_id": 100,
+    "event_name": "User-logged-in",
+    "event_desc": "User has logged in to the system."
+  },
+  "101": {
+    "event_id": 101,
+    "event_name": "User-logged-out",
+    "event_desc": "User has logged out from the system."
+  },
+  "102": {
+    "event_id": 102,
+    "event_name": "User-login-failed",
+    "event_desc": "User login operation failed."
+  },
+  "103": {
+    "event_id": 103,
+    "event_name": "User-MFA-challenge-sent",
+    "event_desc": "Challenge is sent to the user for login."
+  },
+  "104": {
+    "event_id": 104,
+    "event_name": "User-MFA-challenge-accepted",
+    "event_desc": "User successfully authenticated with MFA pin code."
+  },
+  "105": {
+    "event_id": 105,
+    "event_name": "User-MFA-challenge-setup-sent",
+    "event_desc": "User was MFA setup information."
+  },
+  "106": {
+    "event_id": 106,
+    "event_name": "Access-token-granted",
+    "event_desc": "Access token granted."
+  },
+  "107": {
+    "event_id": 107,
+    "event_name": "User-Mobile-MFA-challenge-sent",
+    "event_desc": "Challenge is sent to the user for login."
+  },
+  "108": {
+    "event_id": 108,
+    "event_name": "User-Mobile-MFA-challenge-accepted",
+    "event_desc": "User successfully authenticated with Mobile MFA"
+  },
+  "109": {
+    "event_id": 109,
+    "event_name": "User-Mobile-MFA-challenge-setup-sent",
+    "event_desc": "User was Mobile MFA setup information."
+  },
+  "110": {
+    "event_id": 110,
+    "event_name": "User-access-token-refreshed",
+    "event_desc": "User refreshed the access token."
+  },
+  "111": {
+    "event_id": 111,
+    "event_name": "User-access-token-refresh-failed",
+    "event_desc": "User access token refresh failed."
+  },
+  "121": {
+    "event_id": 121,
+    "event_name": "OAuth-client-authenticated",
+    "event_desc": "OAuth client authenticated."
+  },
+  "122": {
+    "event_id": 122,
+    "event_name": "OAuth-client-authentication-failed",
+    "event_desc": "OAuth client authentication failed."
+  },
+  "130": {
+    "event_id": 130,
+    "event_name": "User-login-attempt-rate-limited",
+    "event_desc": "User login attempt rate limited."
+  },
+  "131": {
+    "event_id": 131,
+    "event_name": "IDP-client-config-created",
+    "event_desc": "IDPClient config created."
+  },
+  "132": {
+    "event_id": 132,
+    "event_name": "IDP-client-config-modified",
+    "event_desc": "IDPClient config modified."
+  },
+  "133": {
+    "event_id": 133,
+    "event_name": "IDP-client-config-removed",
+    "event_desc": "IDPClient config removed."
+  },
+  "134": {
+    "event_id": 134,
+    "event_name": "IDP-client-credentials-regenerated",
+    "event_desc": "IDPClient credentials regenerated."
+  },
+  "135": {
+    "event_id": 135,
+    "event_name": "IDP-client-config-registered",
+    "event_desc": "IDPClient config registered."
+  },
+  "136": {
+    "event_id": 136,
+    "event_name": "IDP-client-config-registration-failed",
+    "event_desc": "IDPClient config registration failed."
+  },
+  "137": {
+    "event_id": 137,
+    "event_name": "IDP-client-config-unregistered",
+    "event_desc": "IDPClient config unregistered."
+  },
+  "138": {
+    "event_id": 138,
+    "event_name": "IDP-client-config-unregistration-failed",
+    "event_desc": "IDPClient config unregistration failed."
+  },
+  "140": {
+    "event_id": 140,
+    "event_name": "Session-terminated",
+    "event_desc": "Session terminated."
+  },
+  "141": {
+    "event_id": 141,
+    "event_name": "Session-password-generated",
+    "event_desc": "Session password generated."
+  },
+  "142": {
+    "event_id": 142,
+    "event_name": "Session-inactivity-invalidated",
+    "event_desc": "Session invalidated on user inactivity."
+  },
+  "201": {
+    "event_id": 201,
+    "event_name": "Role-added",
+    "event_desc": "New role added to the system."
+  },
+  "202": {
+    "event_id": 202,
+    "event_name": "Role-modified",
+    "event_desc": "Role has been modified."
+  },
+  "203": {
+    "event_id": 203,
+    "event_name": "Role-removed",
+    "event_desc": "Role has been removed."
+  },
+  "210": {
+    "event_id": 210,
+    "event_name": "Directory-added",
+    "event_desc": "New directory added to the system."
+  },
+  "211": {
+    "event_id": 211,
+    "event_name": "Directory-modified",
+    "event_desc": "Directory has been modified."
+  },
+  "212": {
+    "event_id": 212,
+    "event_name": "Directory-removed",
+    "event_desc": "Directory has been removed."
+  },
+  "213": {
+    "event_id": 213,
+    "event_name": "Directory-authentication-failed",
+    "event_desc": "Directory authentication failed."
+  },
+  "220": {
+    "event_id": 220,
+    "event_name": "User-roles-modified",
+    "event_desc": "The user's role associations were changed."
+  },
+  "230": {
+    "event_id": 230,
+    "event_name": "AWS-token-granted",
+    "event_desc": "AWS token was granted to a user."
+  },
+  "231": {
+    "event_id": 231,
+    "event_name": "AWS-token-grant-failed",
+    "event_desc": "AWS token grant failed."
+  },
+  "232": {
+    "event_id": 232,
+    "event_name": "LogConf-collector-created",
+    "event_desc": "LogConf collector created."
+  },
+  "233": {
+    "event_id": 233,
+    "event_name": "LogConf-collector-modified",
+    "event_desc": "LogConf collector modified."
+  },
+  "234": {
+    "event_id": 234,
+    "event_name": "LogConf-collector-removed",
+    "event_desc": "LogConf collector removed."
+  },
+  "235": {
+    "event_id": 235,
+    "event_name": "LogConf-collector-failed",
+    "event_desc": "LogConf collector failed."
+  },
+  "250": {
+    "event_id": 250,
+    "event_name": "RoleContext-usage-alert",
+    "event_desc": "RoleContext limitations were violated."
+  },
+  "251": {
+    "event_id": 251,
+    "event_name": "RoleContext-role-blocked",
+    "event_desc": "RoleContext limitations were violated, role blocked."
+  },
+  "260": {
+    "event_id": 260,
+    "event_name": "Authorized-key-added",
+    "event_desc": "Authorized key added."
+  },
+  "261": {
+    "event_id": 261,
+    "event_name": "Authorized-key-modified",
+    "event_desc": "Authorized key modified."
+  },
+  "262": {
+    "event_id": 262,
+    "event_name": "Authorized-key-removed",
+    "event_desc": "Authorized key removed."
+  },
+  "270": {
+    "event_id": 270,
+    "event_name": "Identity-provider-added",
+    "event_desc": "New IDP added to the system."
+  },
+  "271": {
+    "event_id": 271,
+    "event_name": "Identity-provider-modified",
+    "event_desc": "IDP has been modified."
+  },
+  "272": {
+    "event_id": 272,
+    "event_name": "Identity-provider-removed",
+    "event_desc": "IDP has been removed."
+  },
+  "280": {
+    "event_id": 280,
+    "event_name": "WebAuthn-Credential-added",
+    "event_desc": "WebAuthn Credential added."
+  },
+  "281": {
+    "event_id": 281,
+    "event_name": "WebAuthn-Credential-modified",
+    "event_desc": "WebAuthn Credential modified."
+  },
+  "282": {
+    "event_id": 282,
+    "event_name": "WebAuthn-Credential-removed",
+    "event_desc": "WebAuthn Credential removed."
+  },
+  "283": {
+    "event_id": 283,
+    "event_name": "Multi-factor-authentication-generated",
+    "event_desc": "Multi-factor-authentication has been generated for user"
+  },
+  "284": {
+    "event_id": 284,
+    "event_name": "Multi-factor-authentication-configured",
+    "event_desc": "Multi-factor-authentication has been configured for user"
+  },
+  "290": {
+    "event_id": 290,
+    "event_name": "Housekeeping-user-data",
+    "event_desc": "Completed housekeeping user data."
+  },
+  "291": {
+    "event_id": 291,
+    "event_name": "Housekeeping-OIDC-user-cache",
+    "event_desc": "Completed housekeeping OIDC user cache."
+  },
+  "292": {
+    "event_id": 292,
+    "event_name": "Housekeeping-SCIM-roles",
+    "event_desc": "Initiating housekeeping SCIM roles."
+  },
+  "293": {
+    "event_id": 293,
+    "event_name": "Housekeeping-authorized-keys",
+    "event_desc": "Initiating housekeeping authorized keys."
+  },
+  "296": {
+    "event_id": 296,
+    "event_name": "Users-license-grace-period-started",
+    "event_desc": "Grace period started for users overflowing license limit"
+  },
+  "297": {
+    "event_id": 297,
+    "event_name": "Users-blocked-by-license",
+    "event_desc": "Users overflowing license limit are blocked"
+  },
+  "298": {
+    "event_id": 298,
+    "event_name": "Users-license-ok",
+    "event_desc": "Users count complies with license limits"
+  },
+  "300": {
+    "event_id": 300,
+    "event_name": "Connection-requested",
+    "event_desc": "Connection was requested."
+  },
+  "301": {
+    "event_id": 301,
+    "event_name": "Connection-authenticated",
+    "event_desc": "Connection was authenticated."
+  },
+  "302": {
+    "event_id": 302,
+    "event_name": "Connection-rejected",
+    "event_desc": "Connection was rejected."
+  },
+  "303": {
+    "event_id": 303,
+    "event_name": "Connection-closed",
+    "event_desc": "Connection was closed."
+  },
+  "304": {
+    "event_id": 304,
+    "event_name": "Connection-failed",
+    "event_desc": "Connection closed with an error."
+  },
+  "305": {
+    "event_id": 305,
+    "event_name": "Client-authenticated",
+    "event_desc": "Client was authenticated."
+  },
+  "306": {
+    "event_id": 306,
+    "event_name": "Client-authentication-warning",
+    "event_desc": "Client authentication warning."
+  },
+  "310": {
+    "event_id": 310,
+    "event_name": "Session-added",
+    "event_desc": "A session was added to a connection."
+  },
+  "311": {
+    "event_id": 311,
+    "event_name": "Session-removed",
+    "event_desc": "A session was removed from a connection."
+  },
+  "312": {
+    "event_id": 312,
+    "event_name": "Session-rejected",
+    "event_desc": "A session was rejected."
+  },
+  "320": {
+    "event_id": 320,
+    "event_name": "File-upload",
+    "event_desc": "File upload performed."
+  },
+  "321": {
+    "event_id": 321,
+    "event_name": "File-download",
+    "event_desc": "File download performed."
+  },
+  "322": {
+    "event_id": 322,
+    "event_name": "File-upload-rejected",
+    "event_desc": "File upload was rejected."
+  },
+  "323": {
+    "event_id": 323,
+    "event_name": "File-download-rejected",
+    "event_desc": "File download was rejected."
+  },
+  "324": {
+    "event_id": 324,
+    "event_name": "Host-key-matched",
+    "event_desc": "Host key matched."
+  },
+  "325": {
+    "event_id": 325,
+    "event_name": "Host-key-denied",
+    "event_desc": "Host key denied."
+  },
+  "326": {
+    "event_id": 326,
+    "event_name": "Host-key-accepted",
+    "event_desc": "Host key accepted."
+  },
+  "327": {
+    "event_id": 327,
+    "event_name": "Host-key-saved",
+    "event_desc": "Host key saved."
+  },
+  "328": {
+    "event_id": 328,
+    "event_name": "Extender-connected",
+    "event_desc": "Extender connected."
+  },
+  "329": {
+    "event_id": 329,
+    "event_name": "Extender-disconnected",
+    "event_desc": "Extender disconnected."
+  },
+  "330": {
+    "event_id": 330,
+    "event_name": "File-removed",
+    "event_desc": "File removed via SSH."
+  },
+  "331": {
+    "event_id": 331,
+    "event_name": "Folder-removed",
+    "event_desc": "Folder removed via SSH."
+  },
+  "332": {
+    "event_id": 332,
+    "event_name": "File-moved",
+    "event_desc": "File moved."
+  },
+  "333": {
+    "event_id": 333,
+    "event_name": "Folder-created",
+    "event_desc": "Folder created."
+  },
+  "334": {
+    "event_id": 334,
+    "event_name": "Connection-audit-started",
+    "event_desc": "Connection audit started."
+  },
+  "335": {
+    "event_id": 335,
+    "event_name": "Connection-audit-failed",
+    "event_desc": "Connection audit failed."
+  },
+  "336": {
+    "event_id": 336,
+    "event_name": "Host-certificate-trusted",
+    "event_desc": "Host certificate trusted."
+  },
+  "337": {
+    "event_id": 337,
+    "event_name": "Host-certificate-matched",
+    "event_desc": "Host certificate matched."
+  },
+  "338": {
+    "event_id": 338,
+    "event_name": "Host-certificate-denied",
+    "event_desc": "Host certificate denied."
+  },
+  "339": {
+    "event_id": 339,
+    "event_name": "Host-certificate-accepted",
+    "event_desc": "Host certificate accepted."
+  },
+  "340": {
+    "event_id": 340,
+    "event_name": "Host-certificate-saved",
+    "event_desc": "Host certificate saved."
+  },
+  "341": {
+    "event_id": 341,
+    "event_name": "Connection-accepted",
+    "event_desc": "Connection accepted."
+  },
+  "342": {
+    "event_id": 342,
+    "event_name": "File-upload-blocked",
+    "event_desc": "File upload blocked by ICAP."
+  },
+  "343": {
+    "event_id": 343,
+    "event_name": "File-download-blocked",
+    "event_desc": "File download blocked by ICAP."
+  },
+  "344": {
+    "event_id": 344,
+    "event_name": "File-move-rejected",
+    "event_desc": "File move was rejected."
+  },
+  "345": {
+    "event_id": 345,
+    "event_name": "File-remove-rejected",
+    "event_desc": "File removal was rejected."
+  },
+  "346": {
+    "event_id": 346,
+    "event_name": "Folder-create-rejected",
+    "event_desc": "Folder create was rejected."
+  },
+  "347": {
+    "event_id": 347,
+    "event_name": "Folder-remove-rejected",
+    "event_desc": "Folder removal was rejected."
+  },
+  "348": {
+    "event_id": 348,
+    "event_name": "Monitoring-session-started",
+    "event_desc": "A monitoring session is started"
+  },
+  "349": {
+    "event_id": 349,
+    "event_name": "Monitoring-session-ended",
+    "event_desc": "A monitoring session has ended"
+  },
+  "400": {
+    "event_id": 400,
+    "event_name": "Authorization-requested",
+    "event_desc": "A client requested an authorization."
+  },
+  "401": {
+    "event_id": 401,
+    "event_name": "Authorization-certificate-granted",
+    "event_desc": "An authorization certificate granted."
+  },
+  "402": {
+    "event_id": 402,
+    "event_name": "Authorization-role-key-granted",
+    "event_desc": "An authorization role key granted."
+  },
+  "403": {
+    "event_id": 403,
+    "event_name": "Authorization-role-key-sign-operation-rejected",
+    "event_desc": "An authorization role key sign operation was rejected."
+  },
+  "404": {
+    "event_id": 404,
+    "event_name": "Authorization-role-key-sign-operation-accepted",
+    "event_desc": "An authorization role key sign operation was accepted."
+  },
+  "405": {
+    "event_id": 405,
+    "event_name": "Authorization-rejected",
+    "event_desc": "An authorization was rejected."
+  },
+  "406": {
+    "event_id": 406,
+    "event_name": "Authorization-certificate-warning",
+    "event_desc": "Authorization certificate creation generated warnings."
+  },
+  "407": {
+    "event_id": 407,
+    "event_name": "Authorization-passphrase-returned",
+    "event_desc": "Authorization passphrase was returned."
+  },
+  "410": {
+    "event_id": 410,
+    "event_name": "Principal-added",
+    "event_desc": "A principal was added."
+  },
+  "411": {
+    "event_id": 411,
+    "event_name": "Principal-removed",
+    "event_desc": "A principal was removed."
+  },
+  "420": {
+    "event_id": 420,
+    "event_name": "Trusted-client-added",
+    "event_desc": "A trusted client was added."
+  },
+  "421": {
+    "event_id": 421,
+    "event_name": "Trusted-client-modified",
+    "event_desc": "A trusted client was modified."
+  },
+  "423": {
+    "event_id": 423,
+    "event_name": "Trusted-client-removed",
+    "event_desc": "A trusted client was removed."
+  },
+  "424": {
+    "event_id": 424,
+    "event_name": "API-client-added",
+    "event_desc": "An API client was added."
+  },
+  "425": {
+    "event_id": 425,
+    "event_name": "API-client-modified",
+    "event_desc": "An API client was modified."
+  },
+  "426": {
+    "event_id": 426,
+    "event_name": "API-client-removed",
+    "event_desc": "An API client was removed."
+  },
+  "430": {
+    "event_id": 430,
+    "event_name": "License-updated",
+    "event_desc": "The service license was updated."
+  },
+  "440": {
+    "event_id": 440,
+    "event_name": "CA-certificate-created",
+    "event_desc": "CA certificate was created."
+  },
+  "441": {
+    "event_id": 441,
+    "event_name": "CA-certificate-deleted",
+    "event_desc": "CA certificate was deleted."
+  },
+  "442": {
+    "event_id": 442,
+    "event_name": "EE-certificate-enrolled",
+    "event_desc": "End entity certificate was enrolled."
+  },
+  "443": {
+    "event_id": 443,
+    "event_name": "EE-certificate-revoked",
+    "event_desc": "End entity certificate was revoked."
+  },
+  "444": {
+    "event_id": 444,
+    "event_name": "CA-certificate-enrolled",
+    "event_desc": "CA certificate was enrolled."
+  },
+  "445": {
+    "event_id": 445,
+    "event_name": "CA-certificate-revoked",
+    "event_desc": "CA certificate was revoked."
+  },
+  "446": {
+    "event_id": 446,
+    "event_name": "EE-certificate-deleted",
+    "event_desc": "EE certificate was deleted."
+  },
+  "450": {
+    "event_id": 450,
+    "event_name": "Access-group-created",
+    "event_desc": "Access group created."
+  },
+  "451": {
+    "event_id": 451,
+    "event_name": "Access-group-modified",
+    "event_desc": "Access group modified."
+  },
+  "452": {
+    "event_id": 452,
+    "event_name": "Access-group-deleted",
+    "event_desc": "Access group deleted."
+  },
+  "453": {
+    "event_id": 453,
+    "event_name": "Component-CA-config-modified",
+    "event_desc": "Component CA config modified"
+  },
+  "500": {
+    "event_id": 500,
+    "event_name": "User-added",
+    "event_desc": "New user added to the system."
+  },
+  "501": {
+    "event_id": 501,
+    "event_name": "User-modified",
+    "event_desc": "User has been modified."
+  },
+  "502": {
+    "event_id": 502,
+    "event_name": "User-removed",
+    "event_desc": "User has been removed."
+  },
+  "510": {
+    "event_id": 510,
+    "event_name": "User-password-modified",
+    "event_desc": "User password has been modified."
+  },
+  "600": {
+    "event_id": 600,
+    "event_name": "Workflow-added",
+    "event_desc": "A workflow was added."
+  },
+  "601": {
+    "event_id": 601,
+    "event_name": "Workflow-modified",
+    "event_desc": "A workflow was modified."
+  },
+  "602": {
+    "event_id": 602,
+    "event_name": "Workflow-removed",
+    "event_desc": "A workflow was removed."
+  },
+  "610": {
+    "event_id": 610,
+    "event_name": "Request-added",
+    "event_desc": "A request was added."
+  },
+  "612": {
+    "event_id": 612,
+    "event_name": "Request-removed",
+    "event_desc": "A request was removed."
+  },
+  "620": {
+    "event_id": 620,
+    "event_name": "Decision-made",
+    "event_desc": "A decision has been made on a request."
+  },
+  "630": {
+    "event_id": 630,
+    "event_name": "Email-sent",
+    "event_desc": "A email notification has been sent."
+  },
+  "631": {
+    "event_id": 631,
+    "event_name": "Email-configuration-modified",
+    "event_desc": "Email configuration has been modified."
+  },
+  "632": {
+    "event_id": 632,
+    "event_name": "Email-not-sent",
+    "event_desc": "Email not sent."
+  },
+  "700": {
+    "event_id": 700,
+    "event_name": "Log-downloaded",
+    "event_desc": "Log files have been downloaded."
+  },
+  "710": {
+    "event_id": 710,
+    "event_name": "Log-level-modified",
+    "event_desc": "The log level was modified."
+  },
+  "801": {
+    "event_id": 801,
+    "event_name": "Host-added",
+    "event_desc": "A host was added."
+  },
+  "802": {
+    "event_id": 802,
+    "event_name": "Host-modified",
+    "event_desc": "A host was modified."
+  },
+  "803": {
+    "event_id": 803,
+    "event_name": "Host-removed",
+    "event_desc": "A host was removed."
+  },
+  "804": {
+    "event_id": 804,
+    "event_name": "Host-service-connection-re-established",
+    "event_desc": "A host service connection re-established."
+  },
+  "805": {
+    "event_id": 805,
+    "event_name": "Host-service-connection-failure",
+    "event_desc": "A host service connection failed."
+  },
+  "806": {
+    "event_id": 806,
+    "event_name": "Host-disabled-state-changed",
+    "event_desc": "Host disabled state changed."
+  },
+  "811": {
+    "event_id": 811,
+    "event_name": "White-list-added",
+    "event_desc": "A white list was added."
+  },
+  "812": {
+    "event_id": 812,
+    "event_name": "White-list-modified",
+    "event_desc": "A white list was modified."
+  },
+  "813": {
+    "event_id": 813,
+    "event_name": "White-list-removed",
+    "event_desc": "A white list was removed."
+  },
+  "814": {
+    "event_id": 814,
+    "event_name": "SessionHost-Certificate-Added",
+    "event_desc": "SessionHost certificate added"
+  },
+  "815": {
+    "event_id": 815,
+    "event_name": "SessionHost-Certificate-Removed",
+    "event_desc": "SessionHost certificate removed"
+  },
+  "900": {
+    "event_id": 900,
+    "event_name": "Connection-terminated",
+    "event_desc": "Connection terminated."
+  },
+  "901": {
+    "event_id": 901,
+    "event_name": "Connection-terminated-for-host",
+    "event_desc": "Connection terminated for host."
+  },
+  "902": {
+    "event_id": 902,
+    "event_name": "Connection-terminated-for-user",
+    "event_desc": "Connection terminated for user."
+  },
+  "903": {
+    "event_id": 903,
+    "event_name": "Licensed-connection-count-exceeded",
+    "event_desc": "Licensed connection count exceeded."
+  },
+  "910": {
+    "event_id": 910,
+    "event_name": "Access-role-granted",
+    "event_desc": "Access role granted."
+  },
+  "911": {
+    "event_id": 911,
+    "event_name": "Access-role-revoked",
+    "event_desc": "Access role revoked."
+  },
+  "920": {
+    "event_id": 920,
+    "event_name": "Connections-meta-removed",
+    "event_desc": "Connections meta removed."
+  },
+  "921": {
+    "event_id": 921,
+    "event_name": "Connections-detached",
+    "event_desc": "Connections partition detached."
+  },
+  "930": {
+    "event_id": 930,
+    "event_name": "Connection-blocked-by-ueba",
+    "event_desc": "Connection blocked by Ueba."
+  },
+  "931": {
+    "event_id": 931,
+    "event_name": "Connection-unusual-behavior-by-ueba",
+    "event_desc": "Connection marked as unusual by Ueba."
+  },
+  "932": {
+    "event_id": 932,
+    "event_name": "Connection-marked-anomaly-by-ueba",
+    "event_desc": "Connection marked as anomaly by Ueba."
+  },
+  "1000": {
+    "event_id": 1000,
+    "event_name": "Trail-opened",
+    "event_desc": "Trail opened."
+  },
+  "1001": {
+    "event_id": 1001,
+    "event_name": "Trail-open-failed",
+    "event_desc": "Failed to open trail."
+  },
+  "1002": {
+    "event_id": 1002,
+    "event_name": "Trail-file-open-failed",
+    "event_desc": "Failed to open trail file."
+  },
+  "1003": {
+    "event_id": 1003,
+    "event_name": "Trail-file-read-failed",
+    "event_desc": "Failed to read trail file."
+  },
+  "1004": {
+    "event_id": 1004,
+    "event_name": "Trail-removed",
+    "event_desc": "Trail removed."
+  },
+  "1005": {
+    "event_id": 1005,
+    "event_name": "Trail-remove-failed",
+    "event_desc": "Failed to remove trail."
+  },
+  "1006": {
+    "event_id": 1006,
+    "event_name": "Trail-file-integrity-failed",
+    "event_desc": "Trail file integrity check failed."
+  },
+  "1007": {
+    "event_id": 1007,
+    "event_name": "Trail-file-downloaded",
+    "event_desc": "Trail file downloaded."
+  },
+  "1100": {
+    "event_id": 1100,
+    "event_name": "Config-checksum-added",
+    "event_desc": "A config file checksum was added."
+  },
+  "1101": {
+    "event_id": 1101,
+    "event_name": "Config-checksum-changed",
+    "event_desc": "A config file checksum has changed."
+  },
+  "1201": {
+    "event_id": 1201,
+    "event_name": "Transcript-status-scheduled",
+    "event_desc": "Transcript status: scheduled."
+  },
+  "1202": {
+    "event_id": 1202,
+    "event_name": "Transcript-status-indexing",
+    "event_desc": "Transcript status: indexing."
+  },
+  "1203": {
+    "event_id": 1203,
+    "event_name": "Transcript-status-indexed",
+    "event_desc": "Transcript status: indexed."
+  },
+  "1204": {
+    "event_id": 1204,
+    "event_name": "Transcript-status-error",
+    "event_desc": "Transcript status: error."
+  },
+  "1205": {
+    "event_id": 1205,
+    "event_name": "Transcript-status-not-indexed",
+    "event_desc": "Transcript status: not indexed."
+  },
+  "1206": {
+    "event_id": 1206,
+    "event_name": "Transcript-trail-removed",
+    "event_desc": "Transcript trail removed."
+  },
+  "1207": {
+    "event_id": 1207,
+    "event_name": "Transcript-opened",
+    "event_desc": "Transcript opened."
+  },
+  "1301": {
+    "event_id": 1301,
+    "event_name": "Disk-full",
+    "event_desc": "Disk full."
+  },
+  "1302": {
+    "event_id": 1302,
+    "event_name": "Auditevent-removed",
+    "event_desc": "Auditevent removed."
+  },
+  "1303": {
+    "event_id": 1303,
+    "event_name": "PrivX-restarted",
+    "event_desc": "PrivX restarted."
+  },
+  "1304": {
+    "event_id": 1304,
+    "event_name": "PrivX-db-clock-out-of-sync",
+    "event_desc": "PrivX and Database clocks are out of sync."
+  },
+  "1305": {
+    "event_id": 1305,
+    "event_name": "PrivX-external-component-hard-disk-full",
+    "event_desc": "PrivX external component hard disk is full."
+  },
+  "1400": {
+    "event_id": 1400,
+    "event_name": "Secret-created",
+    "event_desc": "Secret created."
+  },
+  "1401": {
+    "event_id": 1401,
+    "event_name": "Secret-removed",
+    "event_desc": "Secret removed."
+  },
+  "1402": {
+    "event_id": 1402,
+    "event_name": "Secret-accessed",
+    "event_desc": "Secret accessed."
+  },
+  "1403": {
+    "event_id": 1403,
+    "event_name": "Secret-changed",
+    "event_desc": "Secret changed."
+  },
+  "1404": {
+    "event_id": 1404,
+    "event_name": "Secret-metadata-changed",
+    "event_desc": "Secret's metadata changed."
+  },
+  "1501": {
+    "event_id": 1501,
+    "event_name": "Settings-modified",
+    "event_desc": "Settings modified."
+  },
+  "1600": {
+    "event_id": 1600,
+    "event_name": "Network-target-created",
+    "event_desc": "Network target created."
+  },
+  "1601": {
+    "event_id": 1601,
+    "event_name": "Network-target-modified",
+    "event_desc": "Network target modified."
+  },
+  "1602": {
+    "event_id": 1602,
+    "event_name": "Network-target-removed",
+    "event_desc": "Network target removed."
+  },
+  "1603": {
+    "event_id": 1603,
+    "event_name": "Router-initialized",
+    "event_desc": "Router initialized for network access manager."
+  },
+  "1604": {
+    "event_id": 1604,
+    "event_name": "Router-init-failed",
+    "event_desc": "Router initialization for network access manager failed."
+  },
+  "1605": {
+    "event_id": 1605,
+    "event_name": "Network-session-opened",
+    "event_desc": "Network session opened."
+  },
+  "1606": {
+    "event_id": 1606,
+    "event_name": "Network-session-closed",
+    "event_desc": "Network session closed."
+  },
+  "1607": {
+    "event_id": 1607,
+    "event_name": "Network-session-failure",
+    "event_desc": "Network session failure."
+  },
+  "1608": {
+    "event_id": 1608,
+    "event_name": "Network-session-fatal-failure",
+    "event_desc": "Network session fatal failure."
+  },
+  "1609": {
+    "event_id": 1609,
+    "event_name": "Network-target-disabled-state-changed",
+    "event_desc": "Network target disabled state changed."
+  },
+  "1700": {
+    "event_id": 1700,
+    "event_name": "Password-rotation-policy-created",
+    "event_desc": "Password rotation policy created."
+  },
+  "1701": {
+    "event_id": 1701,
+    "event_name": "Password-rotation-policy-modified",
+    "event_desc": "Password rotation policy modified."
+  },
+  "1702": {
+    "event_id": 1702,
+    "event_name": "Password-rotation-policy-removed",
+    "event_desc": "Password rotation policy removed."
+  },
+  "1703": {
+    "event_id": 1703,
+    "event_name": "Password-rotation-script-created",
+    "event_desc": "Password rotation script created."
+  },
+  "1704": {
+    "event_id": 1704,
+    "event_name": "Password-rotation-script-modified",
+    "event_desc": "Password rotation script modified."
+  },
+  "1705": {
+    "event_id": 1705,
+    "event_name": "Password-rotation-script-removed",
+    "event_desc": "Password rotation script removed."
+  },
+  "1706": {
+    "event_id": 1706,
+    "event_name": "Password-rotation-failure",
+    "event_desc": "Password rotation failure."
+  },
+  "1707": {
+    "event_id": 1707,
+    "event_name": "Password-rotation-success",
+    "event_desc": "Password rotation success."
+  },
+  "1710": {
+    "event_id": 1710,
+    "event_name": "Target-domain-created",
+    "event_desc": "Target domain created."
+  },
+  "1711": {
+    "event_id": 1711,
+    "event_name": "Target-domain-modified",
+    "event_desc": "Target domain modified."
+  },
+  "1712": {
+    "event_id": 1712,
+    "event_name": "Target-domain-deleted",
+    "event_desc": "Target domain deleted."
+  },
+  "1713": {
+    "event_id": 1713,
+    "event_name": "Target-domain-account-scan-success",
+    "event_desc": "Target domain account scan success."
+  },
+  "1714": {
+    "event_id": 1714,
+    "event_name": "Target-domain-account-scan-failure",
+    "event_desc": "Target domain account scan failure."
+  },
+  "1715": {
+    "event_id": 1715,
+    "event_name": "Target-domain-account-onboarding-failure",
+    "event_desc": "Target domain account onboarding failure."
+  },
+  "1720": {
+    "event_id": 1720,
+    "event_name": "Managed-account-created",
+    "event_desc": "Managed account created."
+  },
+  "1721": {
+    "event_id": 1721,
+    "event_name": "Managed-account-modified",
+    "event_desc": "Managed account modified."
+  },
+  "1722": {
+    "event_id": 1722,
+    "event_name": "Managed-account-deleted",
+    "event_desc": "Managed account deleted."
+  },
+  "1723": {
+    "event_id": 1723,
+    "event_name": "Managed-account-batch-created",
+    "event_desc": "Managed account batch created."
+  },
+  "1724": {
+    "event_id": 1724,
+    "event_name": "Managed-account-batch-modified",
+    "event_desc": "Managed account batch modified."
+  },
+  "1725": {
+    "event_id": 1725,
+    "event_name": "Managed-account-batch-deleted",
+    "event_desc": "Managed account batch deleted."
+  },
+  "1730": {
+    "event_id": 1730,
+    "event_name": "Target-domain-account-modified",
+    "event_desc": "Target domain account modified."
+  },
+  "1740": {
+    "event_id": 1740,
+    "event_name": "Secret-checked-out",
+    "event_desc": "Secret checked out."
+  },
+  "1741": {
+    "event_id": 1741,
+    "event_name": "Secret-released",
+    "event_desc": "Secret released."
+  },
+  "1742": {
+    "event_id": 1742,
+    "event_name": "Secret-checkout-expired",
+    "event_desc": "Secret checkedout expired."
+  },
+  "1800": {
+    "event_id": 1800,
+    "event_name": "SSH-live-event",
+    "event_desc": "SSH live event"
+  },
+  "1801": {
+    "event_id": 1801,
+    "event_name": "SSH-whitelisted-command-allowed",
+    "event_desc": "SSH whitelisted command allowed"
+  },
+  "1802": {
+    "event_id": 1802,
+    "event_name": "SSH-non-whitelisted-command-allowed",
+    "event_desc": "SSH non-whitelisted command allowed"
+  },
+  "1803": {
+    "event_id": 1803,
+    "event_name": "SSH-command-blocked",
+    "event_desc": "SSH command blocked"
+  },
+  "1900": {
+    "event_id": 1900,
+    "event_name": "Invalidated-session-cache-full",
+    "event_desc": "The invalidated session cache is full"
+  },
+  "2000": {
+    "event_id": 2000,
+    "event_name": "Database-session-started",
+    "event_desc": "Database session started"
+  },
+  "2001": {
+    "event_id": 2001,
+    "event_name": "Database-session-closed",
+    "event_desc": "Database session closed"
+  },
+  "2002": {
+    "event_id": 2002,
+    "event_name": "Database-session-failure",
+    "event_desc": "Database-session failure"
+  },
+  "2003": {
+    "event_id": 2003,
+    "event_name": "Database-session-terminated",
+    "event_desc": "Database-session-terminated"
+  },
+  "2004": {
+    "event_id": 2004,
+    "event_name": "Database-session-rejected",
+    "event_desc": "Database-session-rejected"
+  },
+  "2100": {
+    "event_id": 2100,
+    "event_name": "MobileGW-privx-registration-success",
+    "event_desc": "Mobile gateway privx registrations success"
+  },
+  "2101": {
+    "event_id": 2101,
+    "event_name": "MobileGW-privx-registration-failure",
+    "event_desc": "Mobile gateway privx registrations failure"
+  },
+  "2102": {
+    "event_id": 2102,
+    "event_name": "MobileGW-privx-registration-terminated",
+    "event_desc": "Mobile gateway privx registrations terminated"
+  },
+  "2103": {
+    "event_id": 2103,
+    "event_name": "MobileGW-user-paired-device",
+    "event_desc": "Mobile gateway user paired device"
+  },
+  "2104": {
+    "event_id": 2104,
+    "event_name": "MobileGW-user-unpaired-device",
+    "event_desc": "Mobile gateway user unpaired device"
+  },
+  "2200": {
+    "event_id": 2200,
+    "event_name": "PrivX-extender-remote-update-triggered",
+    "event_desc": "PrivX Extender remote update triggered."
+  },
+  "2201": {
+    "event_id": 2201,
+    "event_name": "Rpm-package-uploaded",
+    "event_desc": "Rpm package was uploaded."
+  },
+  "2202": {
+    "event_id": 2202,
+    "event_name": "Rpm-package-removed",
+    "event_desc": "Rpm package was removed."
+  },
+  "2300": {
+    "event_id": 2300,
+    "event_name": "API-target-created",
+    "event_desc": "API target created."
+  },
+  "2301": {
+    "event_id": 2301,
+    "event_name": "API-target-modified",
+    "event_desc": "API target modified."
+  },
+  "2302": {
+    "event_id": 2302,
+    "event_name": "API-target-deleted",
+    "event_desc": "API target deleted."
+  },
+  "2303": {
+    "event_id": 2303,
+    "event_name": "API-client-credential-created",
+    "event_desc": "API client credential created."
+  },
+  "2304": {
+    "event_id": 2304,
+    "event_name": "API-client-credential-modified",
+    "event_desc": "API client credential modified."
+  },
+  "2305": {
+    "event_id": 2305,
+    "event_name": "API-client-credential-deleted",
+    "event_desc": "API client credential deleted."
+  },
+  "2306": {
+    "event_id": 2306,
+    "event_name": "API-proxy-session-started",
+    "event_desc": "API proxy session started."
+  },
+  "2307": {
+    "event_id": 2307,
+    "event_name": "API-proxy-session-closed",
+    "event_desc": "API proxy session closed."
+  },
+  "2308": {
+    "event_id": 2308,
+    "event_name": "API-proxy-session-fatal-failure",
+    "event_desc": "API proxy session fatal failure."
+  },
+  "2309": {
+    "event_id": 2309,
+    "event_name": "API-proxy-session-recording-started",
+    "event_desc": "API proxy session recording started."
+  },
+  "2310": {
+    "event_id": 2310,
+    "event_name": "API-proxy-session-recording-closed",
+    "event_desc": "API proxy session recording closed."
+  },
+  "2311": {
+    "event_id": 2311,
+    "event_name": "API-proxy-session-recording-fatal-failure",
+    "event_desc": "API proxy session recording fatal failure."
+  }
+}

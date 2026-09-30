@@ -1,0 +1,16 @@
+flowchart TB
+    USER["User"]
+
+    subgraph ENTRA["Entra ID"]
+        direction LR
+        CLIENTAPP["Client app"]
+        RESAPP["Resource app"]
+    end
+
+    TOKEN["Access token<br/>aud · appid · upn"]
+    SRV["PrivX MCP Server"]
+
+    USER -->|"sign in"| CLIENTAPP
+    CLIENTAPP -->|"token for"| RESAPP
+    ENTRA -->|"issues"| TOKEN
+    TOKEN -->|"Bearer on /mcp"| SRV

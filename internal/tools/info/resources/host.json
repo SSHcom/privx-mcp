@@ -1,0 +1,114 @@
+{
+  "access_group_id": "00000000-0000-4000-8000-000000000010",
+  "addresses": [
+    "10.0.0.10"
+  ],
+  "audit_enabled": false,
+  "cloud_provider": "AZURE",
+  "cloud_provider_region": "northeurope",
+  "comment": "",
+  "common_name": "example-host",
+  "contact_address": "",
+  "created": "2026-01-01T12:00:00.000000Z",
+  "deployable": false,
+  "disabled": "FALSE",
+  "distinguished_name": "",
+  "external_id": "00000000-0000-4000-8000-000000000011",
+  "host_classification": "",
+  "host_type": "",
+  "id": "00000000-0000-4000-8000-000000000001",
+  "instance_id": "",
+  "organization": "",
+  "organizational_unit": "",
+  "principals": [
+    {
+      "applications": [],
+      "command_restrictions": {
+        "default_whitelist": {},
+        "enabled": false,
+        "whitelists": []
+      },
+      "principal": "example-user",
+      "roles": [
+        {
+          "id": "00000000-0000-4000-8000-000000000020",
+          "name": "example-role"
+        }
+      ],
+      "service_options": {
+        "ssh": {
+          "exec": true,
+          "file_transfer": true,
+          "other": true,
+          "shell": true,
+          "tunnels": true,
+          "x11": true
+        }
+      },
+      "source": "SCAN",
+      "use_user_account": false,
+      "username_attribute": ""
+    }
+  ],
+  "scope": [],
+  "services": [
+    {
+      "address": "10.0.0.10",
+      "allow_modified_web_params": false,
+      "allowed_domains": null,
+      "auth_type": "",
+      "autohide_navibar": false,
+      "browser": "",
+      "created": "0001-01-01T00:00:00Z",
+      "db": {
+        "audit_skip_bytes": 0,
+        "protocol": ""
+      },
+      "enable_devtools": false,
+      "enable_navibar": false,
+      "enable_popups": false,
+      "enable_urlbar": false,
+      "enable_web_compatibility_mode": false,
+      "idle_time_limit": 0,
+      "kiosk_mode": false,
+      "login_page_url": "",
+      "login_request_password_property": "",
+      "login_request_url": "",
+      "password_field_name": "",
+      "port": 22,
+      "rds_broker": {},
+      "rds_lb": {},
+      "rds_type": "",
+      "service": "SSH",
+      "service_version": "",
+      "source": "SCAN",
+      "ssh_tunnel_port": 0,
+      "status": "OK",
+      "status_updated": "2026-01-01T12:00:00.000000Z",
+      "timezone": "",
+      "tls_max_version": "",
+      "tls_min_version": "",
+      "updated": "0001-01-01T00:00:00Z",
+      "use_legacy_cipher_suites": false,
+      "use_plaintext_vnc": false,
+      "username_field_name": "",
+      "web_x11_backend": ""
+    }
+  ],
+  "session_recording_options": {
+    "disable_clipboard_recording": false,
+    "disable_file_transfer_recording": false
+  },
+  "source_id": "00000000-0000-4000-8000-000000000012",
+  "stand_alone_host": false,
+  "status": [],
+  "tags": [
+    "env=example"
+  ],
+  "toch": false,
+  "tofu": false,
+  "updated": "2026-01-01T12:05:00.000000Z",
+  "updated_by": "",
+  "user_message": "",
+  "zone": "1"
+}

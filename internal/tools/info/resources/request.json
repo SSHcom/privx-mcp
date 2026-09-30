@@ -1,0 +1,46 @@
+{
+  "action": "GRANT",
+  "approver_can_revoke": false,
+  "author": "00000000-0000-4000-8000-000000000003",
+  "created": "2026-01-01T12:00:00.000000Z",
+  "grant_type": "PERMANENT",
+  "id": "00000000-0000-4000-8000-000000000006",
+  "name": "",
+  "request_justification": "example justification",
+  "requested_role": {
+    "id": "00000000-0000-4000-8000-000000000020",
+    "name": "example-role"
+  },
+  "requester": {
+    "deleted": false,
+    "display_name": "alice@example.com",
+    "id": "00000000-0000-4000-8000-000000000003"
+  },
+  "status": "WAITING",
+  "steps": [
+    {
+      "approvers": [
+        {
+          "comment": "",
+          "decision": "WAITING",
+          "id": "00000000-0000-4000-8000-000000000050",
+          "role": {
+            "id": "00000000-0000-4000-8000-000000000021",
+            "name": "example-admin-role"
+          }
+        }
+      ],
+      "id": "00000000-0000-4000-8000-000000000051",
+      "match": "ANY",
+      "name": "Step1"
+    }
+  ],
+  "target_role_revoked": false,
+  "target_user": {
+    "deleted": false,
+    "display_name": "alice@example.com",
+    "id": "00000000-0000-4000-8000-000000000003"
+  },
+  "updated": "2026-01-01T12:00:00.000000Z",
+  "updated_by": "00000000-0000-4000-8000-000000000003"
+}

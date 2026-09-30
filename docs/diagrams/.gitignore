@@ -1,0 +1,4 @@
+# Local review artifacts written by `archify visual-check` next to the HTML.
+*.visual-check.json
+*.visual-check.html
+*.visual-check.*.png

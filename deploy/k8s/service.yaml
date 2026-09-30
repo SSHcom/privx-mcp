@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: privx-mcp-server
+  namespace: privx-mcp
+  labels:
+    app.kubernetes.io/name: privx-mcp-server
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: privx-mcp-server
+  ports:
+    - name: http
+      port: 8181
+      targetPort: http
+      protocol: TCP

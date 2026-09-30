@@ -1,0 +1,97 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: privx-mcp-server
+  namespace: privx-mcp
+  labels:
+    app.kubernetes.io/name: privx-mcp-server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: privx-mcp-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: privx-mcp-server
+      annotations:
+        # Roll pods when config or secret changes. Replace with real checksums
+        # in a CI/CD templating step, or bump manually to force a restart.
+        # checksum/config: ""
+        # checksum/secret: ""
+    spec:
+      # Match the non-root user baked into the image (uid/gid 65532).
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: privx-mcp-server
+          # Placeholder — replace with your registry/image:tag and push first.
+          image: REPLACE_ME/privx-mcp-server:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8181
+              protocol: TCP
+          # Non-secret config from the ConfigMap, secret env from the Secret.
+          # Secret values with the same key override the ConfigMap.
+          envFrom:
+            - configMapRef:
+                name: privx-mcp-config
+            - secretRef:
+                name: privx-mcp-secret
+          volumeMounts:
+            # RSA signing key from the Secret, read-only, at the path the
+            # ConfigMap points PRIVX_RSA_KEY_FILE to.
+            - name: signing-key
+              mountPath: /etc/privx-mcp
+              readOnly: true
+            # Writable scratch dir since the root filesystem is read-only.
+            - name: tmp
+              mountPath: /tmp
+          # No HTTP health endpoint exists yet, so probe the TCP port. Once a
+          # /healthz route is added, switch these to httpGet.
+          startupProbe:
+            tcpSocket:
+              port: http
+            failureThreshold: 30
+            periodSeconds: 2
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: signing-key
+          secret:
+            secretName: privx-mcp-secret
+            items:
+              - key: private-key.pem
+                path: private-key.pem
+            defaultMode: 0400
+        - name: tmp
+          emptyDir: {}

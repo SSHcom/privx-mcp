@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "PrivX MCP Server",
+    "locale": "en",
+    "quality_profile": "showcase",
+    "viewBox": [1324, 690],
+    "views": [
+      {
+        "id": "tool-call-path",
+        "label": "Tool call path",
+        "focus": ["mcp-client", "http-server", "mcp-runtime", "call-auth", "tools", "user-client", "privx"],
+        "note": "Runtime authorizes tools/call, then the handler runs as the PrivX user."
+      },
+      {
+        "id": "identity",
+        "label": "OIDC and JWT exchange",
+        "focus": ["mcp-client", "idp", "http-server", "mcp-runtime", "user-client", "privx"],
+        "note": "The client logs in at the IdP; the server verifies JWKS and mints a PrivX external JWT."
+      },
+      {
+        "id": "tool-listing",
+        "label": "List and visibility",
+        "focus": ["mcp-runtime", "registry", "visibility", "call-auth", "api-client", "privx"],
+        "note": "List and call checks share a per-user session: cached roles and permissions."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "mcp-client",
+      "type": "external",
+      "label": "MCP Client",
+      "sublabel": "HTTP MCP host",
+      "tag": "OIDC + /mcp",
+      "pos": [40, 348],
+      "size": [140, 68]
+    },
+    {
+      "id": "idp",
+      "type": "security",
+      "label": "OIDC IdP",
+      "sublabel": "Keycloak / Entra",
+      "tag": "issuer + JWKS",
+      "pos": [40, 88],
+      "size": [140, 68]
+    },
+    {
+      "id": "http-server",
+      "type": "backend",
+      "label": "HTTP Server",
+      "sublabel": "streamable HTTP",
+      "tag": "/mcp",
+      "pos": [252, 348],
+      "size": [148, 68]
+    },
+    {
+      "id": "mcp-runtime",
+      "type": "backend",
+      "label": "MCP Runtime",
+      "sublabel": "auth · quota",
+      "tag": "Core",
+      "pos": [468, 340],
+      "size": [164, 84]
+    },
+    {
+      "id": "registry",
+      "type": "backend",
+      "label": "Tool Registry",
+      "sublabel": "names · schemas",
+      "pos": [468, 88],
+      "size": [164, 64]
+    },
+    {
+      "id": "visibility",
+      "type": "security",
+      "label": "Tool visibility",
+      "sublabel": "toolFilter",
+      "tag": "tools/list",
+      "pos": [700, 88],
+      "size": [156, 64]
+    },
+    {
+      "id": "tools",
+      "type": "backend",
+      "label": "Tools",
+      "sublabel": "hosts · users",
+      "tag": "handlers",
+      "pos": [720, 348],
+      "size": [148, 68]
+    },
+    {
+      "id": "call-auth",
+      "type": "security",
+      "label": "Call permissions",
+      "sublabel": "authMiddleware",
+      "tag": "tools/call",
+      "pos": [900, 88],
+      "size": [156, 68]
+    },
+    {
+      "id": "api-client",
+      "type": "backend",
+      "label": "API Client",
+      "sublabel": "API credentials",
+      "tag": "roles",
+      "pos": [468, 544],
+      "size": [164, 64]
+    },
+    {
+      "id": "user-client",
+      "type": "backend",
+      "label": "User Client",
+      "sublabel": "JWT exchange",
+      "tag": "as user",
+      "pos": [720, 544],
+      "size": [148, 64]
+    },
+    {
+      "id": "privx",
+      "type": "external",
+      "label": "PrivX",
+      "sublabel": "API + token provider",
+      "pos": [1136, 428],
+      "size": [148, 76]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "privx-mcp-server",
+      "wraps": ["http-server", "mcp-runtime", "registry", "visibility", "tools", "call-auth", "api-client", "user-client"]
+    },
+    {
+      "kind": "security-group",
+      "label": "MCP",
+      "wraps": ["mcp-runtime", "registry", "visibility", "tools", "call-auth"]
+    },
+    {
+      "kind": "security-group",
+      "label": "session",
+      "wraps": ["visibility", "call-auth"]
+    }
+  ],
+  "connections": [
+    { "id": "client-http", "from": "mcp-client", "to": "http-server", "label": "POST /mcp", "variant": "emphasis", "labelDy": -28 },
+    { "id": "client-idp", "from": "mcp-client", "to": "idp", "label": "OIDC login", "variant": "dashed", "fromSide": "top", "toSide": "bottom" },
+    { "id": "http-idp", "from": "http-server", "to": "idp", "label": "JWKS verify", "variant": "security", "fromSide": "top", "toSide": "right" },
+    { "id": "http-runtime", "from": "http-server", "to": "mcp-runtime", "label": "JSON-RPC", "labelDy": -28 },
+    { "id": "runtime-registry", "from": "mcp-runtime", "to": "registry", "label": "tools/list", "fromSide": "top", "toSide": "bottom" },
+    { "id": "registry-visibility", "from": "registry", "to": "visibility", "label": "filter", "variant": "security" },
+    { "id": "runtime-tools", "from": "mcp-runtime", "to": "tools", "label": "tools/call", "variant": "emphasis", "labelDy": -28 },
+    { "id": "tools-call-auth", "from": "tools", "to": "call-auth", "label": "IsAllowed", "variant": "security", "fromSide": "top", "toSide": "bottom" },
+    { "id": "tools-user", "from": "tools", "to": "user-client", "label": "SDK as user", "fromSide": "bottom", "toSide": "top", "labelDy": 24 },
+    { "id": "runtime-api", "from": "mcp-runtime", "to": "api-client", "label": "resolve user and permissions", "fromSide": "bottom", "toSide": "top", "labelDy": 24 },
+    { "id": "api-privx", "from": "api-client", "to": "privx", "label": "API credentials", "fromSide": "bottom", "toSide": "bottom" },
+    { "id": "user-privx", "from": "user-client", "to": "privx", "label": "JWT exchange", "variant": "emphasis" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Edge",
+      "items": [
+        "Clients speak streamable HTTP at /mcp (no SSE)",
+        "RFC 9728 metadata points at the OIDC issuer; the HTTP edge verifies bearer JWTs via JWKS"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "MCP",
+      "items": [
+        "Runtime talks to Tools directly on tools/call; Prepare/Wrap still sanitizes untrusted I/O inside the handler wrapper",
+        "Tool visibility and call permissions run in a per-user session (cached PrivX roles); the same PermissionEngine filters tools/list and gates tools/call"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "PrivX clients",
+      "items": [
+        "API-credential client resolves the caller’s roles for both listing and calling",
+        "User client exchanges a minted JWT so tool traffic is authorized and audited as that PrivX user"
+      ]
+    }
+  ]
+}

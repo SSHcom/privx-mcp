@@ -1,0 +1,247 @@
+{
+  "id": "00000000-0000-4000-8000-000000000002",
+  "proxy_id": "00000000-0000-4000-8000-000000000030",
+  "type": "WEB",
+  "mode": "UI",
+  "user_agent": "Mozilla/5.0 (Example) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+  "authentication_method": [
+    "PASSPHRASE"
+  ],
+  "user": {
+    "id": "00000000-0000-4000-8000-000000000003",
+    "display_name": "alice@example.com"
+  },
+  "user_roles": [
+    {
+      "id": "00000000-0000-4000-8000-000000000020",
+      "name": "example-role"
+    }
+  ],
+  "user_data": {
+    "id": "00000000-0000-4000-8000-000000000003",
+    "principal": "alice@example.com",
+    "source": "00000000-0000-4000-8000-000000000013",
+    "source_type": "MICROSOFTGRAPH",
+    "tags": [
+      "example-tag"
+    ],
+    "roles": [
+      {
+        "id": "00000000-0000-4000-8000-000000000020",
+        "name": "example-role",
+        "explicit": false,
+        "implicit": true,
+        "system": false,
+        "grant_type": "PERMANENT",
+        "permissions": [],
+        "access_group_id": "00000000-0000-4000-8000-000000000010",
+        "owner_src": "",
+        "source_rules": {
+          "rules": null
+        },
+        "context": {
+          "enabled": false,
+          "validity": null,
+          "start_time": "",
+          "end_time": "",
+          "timezone": "",
+          "ip_masks": null
+        }
+      }
+    ],
+    "attributes": [
+      {
+        "key": "example_attribute",
+        "value": "alice@example.local"
+      }
+    ],
+    "permissions": null,
+    "full_name": "Alice Example",
+    "email": "alice@example.com",
+    "distinguished_name": "00000000-0000-4000-8000-000000000014",
+    "windows_account": "alice@example.com",
+    "mfa": {
+      "status": "DEFAULT",
+      "seed": {},
+      "mobile_mfa_status": "default"
+    },
+    "RefreshTimestamp": "1700000000"
+  },
+  "target_host": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "common_name": "example-web-app"
+  },
+  "target_host_address": "example-carrier/https://10.0.0.20:3000/",
+  "target_host_account": "admin",
+  "target_host_roles": [
+    {
+      "id": "00000000-0000-4000-8000-000000000021",
+      "name": "example-admin-role"
+    }
+  ],
+  "target_host_data": {
+    "id": "00000000-0000-4000-8000-000000000001",
+    "deployable": false,
+    "tofu": false,
+    "toch": false,
+    "stand_alone_host": false,
+    "external_id": "",
+    "instance_id": "",
+    "ssh_host_public_keys": [],
+    "host_certificate_raw": "",
+    "contact_address": "",
+    "password_rotation_enabled": false,
+    "services": [
+      {
+        "service": "WEB",
+        "address": "example-carrier/https://10.0.0.20:3000/",
+        "port": 3000,
+        "use_for_password_rotation": false,
+        "ssh_tunnel_port": 0,
+        "use_plaintext_vnc": false,
+        "source": "UI",
+        "login_page_url": "",
+        "username_field_name": "user",
+        "password_field_name": "",
+        "login_request_url": "https://10.0.0.20:3000/login",
+        "login_request_password_property": "",
+        "auth_type": "AUTOMATIC",
+        "status": "",
+        "status_updated": "",
+        "allowed_domains": null,
+        "browser": "default",
+        "kiosk_mode": false,
+        "enable_urlbar": false,
+        "enable_navibar": false,
+        "autohide_navibar": false,
+        "enable_devtools": false,
+        "enable_popups": false,
+        "enable_web_compatibility_mode": false,
+        "timezone": "",
+        "idle_time_limit": 0,
+        "web_x11_backend": "",
+        "service_version": "",
+        "created": "0001-01-01T00:00:00Z",
+        "updated": "0001-01-01T00:00:00Z",
+        "certificate_template": "",
+        "allow_modified_web_params": true,
+        "db": {
+          "protocol": "",
+          "tls_certificate_validation": "",
+          "tls_certificate_trust_anchors": "",
+          "audit_skip_bytes": 0
+        },
+        "use_legacy_cipher_suites": false,
+        "tls_min_version": "",
+        "tls_max_version": "",
+        "rds_type": "",
+        "rds_lb": {},
+        "rds_broker": {}
+      }
+    ],
+    "principals": [
+      {
+        "principal": "admin",
+        "passphrase": "",
+        "rotate": false,
+        "use_for_password_rotation": false,
+        "username_attribute": "",
+        "use_user_account": false,
+        "source": "UI",
+        "roles": [
+          {
+            "id": "00000000-0000-4000-8000-000000000021",
+            "name": "example-admin-role"
+          }
+        ],
+        "applications": [],
+        "service_options": {
+          "web": {
+            "file_transfer": false,
+            "audio": false,
+            "clipboard": false
+          }
+        },
+        "command_restrictions": {
+          "enabled": false,
+          "default_whitelist": {},
+          "whitelists": []
+        }
+      }
+    ],
+    "source_id": "00000000-0000-4000-8000-000000000015",
+    "access_group_id": "00000000-0000-4000-8000-000000000010",
+    "cloud_provider": "",
+    "cloud_provider_region": "",
+    "status": [],
+    "created": "2026-01-01T12:00:00.000000Z",
+    "updated": "2026-01-01T12:05:00.000000Z",
+    "updated_by": "00000000-0000-4000-8000-000000000003",
+    "distinguished_name": "",
+    "common_name": "example-web-app",
+    "organization": "",
+    "organizational_unit": "",
+    "zone": "",
+    "scope": [],
+    "host_type": "",
+    "host_classification": "",
+    "comment": "",
+    "addresses": [
+      "10.0.0.20"
+    ],
+    "audit_enabled": true,
+    "tags": [
+      "env=example"
+    ],
+    "user_message": "",
+    "disabled": "FALSE",
+    "session_recording_options": {
+      "disable_clipboard_recording": false,
+      "disable_file_transfer_recording": false
+    }
+  },
+  "target_network_data": {
+    "id": "",
+    "name": "",
+    "dst": null,
+    "roles": null,
+    "tags": null,
+    "integration_type": "",
+    "created": "",
+    "author": "",
+    "updated": "",
+    "updated_by": ""
+  },
+  "target_api_data": {
+    "id": "",
+    "name": "",
+    "tags": null,
+    "access_group_id": "",
+    "roles": null,
+    "authorized_endpoints": null,
+    "unauthorized_endpoints": null,
+    "target_credential": {
+      "type": "",
+      "ephemeral_certificate_subject": "",
+      "ephemeral_certificate_san": "",
+      "ephemeral_certificate_template": ""
+    },
+    "disabled": "",
+    "created": "",
+    "author": ""
+  },
+  "remote_address": "203.0.113.10",
+  "connected": "2026-01-01T12:00:00.000000Z",
+  "disconnected": "2026-01-01T12:02:00.000000Z",
+  "duration": 120,
+  "status": "DISCONNECTED",
+  "last_activity": "2026-01-01T12:01:59.000000Z",
+  "bytes_in": 100000,
+  "bytes_out": 4000000,
+  "created": "2026-01-01T12:00:00.000000Z",
+  "updated": "2026-01-01T12:02:00.000000Z",
+  "audit_enabled": true,
+  "index_status": "NOT_INDEXED",
+  "access_group_id": "00000000-0000-4000-8000-000000000010",
+  "session_id": "00000000-0000-4000-8000-000000000040"
+}

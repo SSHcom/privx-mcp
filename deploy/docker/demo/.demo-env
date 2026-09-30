@@ -1,0 +1,32 @@
+# [server]
+SERVER_NAME=privx-mcp-server
+SERVER_VERSION=dev
+SERVER_PUBLIC_URL=http://localhost:8181
+
+# [privx_auth]
+PRIVX_PRIVX_BASE_URL=<Add base URL to your PrivX instance>
+PRIVX_AUDIENCE=privx-mcp-client
+PRIVX_RSA_KEY_FILE=<Absolute path to>/.pem/private-key.pem
+PRIVX_RSA_KEY_ID=privx-aws-mcp-demo
+PRIVX_TOKEN_ISSUER=privx-mcp
+PRIVX_SUBJECT_FORMAT=plain
+
+# Create a new "API Client" in PrivX and get the missing values from there
+PRIVX_API_OAUTH_CLIENT_ID=privx-external
+PRIVX_API_OAUTH_CLIENT_SECRET=<OAuth Client Secret>
+PRIVX_API_CLIENT_ID=<API Client ID>
+PRIVX_API_CLIENT_SECRET=<API Client Secret>
+
+# [oauth]
+OAUTH_ISSUER_URL=http://localhost:8080/realms/mcp
+OAUTH_SCOPES=openid,profile,email,offline_access
+OAUTH_AUDIENCE=privx-mcp-client
+OAUTH_ID_CLAIM_FIELD=preferred_username
+OAUTH_ID_MAPPING_RULE=as-is
+
+# [permissions]
+PERMISSIONS_DEFAULT_READ_ONLY=false
+PERMISSIONS_SOURCE_TYPE=LOCAL
+PERMISSIONS_SESSION_CACHE_TTL=30s
+PERMISSIONS_REQUEST_WINDOW_SECONDS=20
+PERMISSIONS_MAX_REQUESTS_PER_WINDOW=10

@@ -1,0 +1,34 @@
+{
+  "id": "00000000-0000-4000-8000-000000000020",
+  "created": "2026-01-01T12:00:00.000000Z",
+  "name": "example-role",
+  "updated": "2026-01-01T12:05:00.000000Z",
+  "author": "example-author",
+  "updatedby": "alice@example.com",
+  "explicit": false,
+  "implicit": false,
+  "system": false,
+  "permissions": [
+    "hosts-view"
+  ],
+  "access_group_id": "00000000-0000-4000-8000-000000000010",
+  "owner_src": "",
+  "source_rules": {
+    "type": "GROUP",
+    "match": "ANY",
+    "rules": []
+  },
+  "context": {
+    "enabled": false,
+    "block_role": true,
+    "validity": [
+      "MON"
+    ],
+    "start_time": "00:00",
+    "end_time": "00:00",
+    "timezone": "UTC",
+    "ip_masks": [
+      "0.0.0.0/0"
+    ]
+  }
+}

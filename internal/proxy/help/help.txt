@@ -1,0 +1,70 @@
+
+== privx-mcp-proxy ==
+
+Stdio-to-streamable-HTTP proxy for PrivX MCP. The MCP client starts this binary
+as a local process; the proxy talks to the remote /mcp URL over HTTP and handles
+the OIDC browser login for a confidential client.
+
+Usage
+-----
+
+  privx-mcp-proxy <config file>.toml
+  privx-mcp-proxy --connect <config file>.toml
+  privx-mcp-proxy --reset-session <config file>.toml
+  privx-mcp-proxy --help
+  privx-mcp-proxy --version
+
+  --connect         Connect to mcp_url, list tools, and exit
+  --reset-session   Ignore saved tokens and log in again
+  --help            Show this help (no config, no network)
+  --version         Print version lines (no config, no network)
+
+--connect is a smoke test: discovery, OAuth if needed, then initialize +
+tools/list. A browser may open on the first login. Later starts reuse tokens
+from $PRIVX_MCP_PROXY_AUTH_DIR or ~/.mcp-auth/privx-mcp-proxy-v1.
+
+--reset-session does not read or write the token file. The browser opens with
+prompt=login so the IdP does not reuse its own session. Tokens for this
+process stay in memory until the client closes stdio. A later start without
+the flag uses the file again. Leave the flag in the client args to sign in
+on every launch.
+
+Proxy TOML
+----------
+
+Copy privx-mcp-proxy-example.toml (from the Git repository), set mcp_url and [client], and keep the file
+out of git. allow_http applies only to mcp_url (not the OAuth callback).
+Register http://{callback.host}:{callback.port}{callback.path} with the IdP.
+
+  mcp_url = "https://mcp.example.example/mcp"
+  allow_http = false
+  log_level = "info"
+
+  [callback]
+  host = "localhost"
+  port = 3334
+  path = "/oauth/callback"
+  auth_timeout_seconds = 60
+
+  [client]
+  client_id = "privx-mcp-client"
+  client_secret = "<client-secret>"
+  scopes = ["openid", "profile", "email", "offline_access"]
+  token_endpoint_auth_method = "client_secret_post"
+
+Client config
+-------------
+
+Point the client at absolute paths to the binary and TOML. No npx, no
+--transport, no @ JSON files.
+
+Example (This may differ between clients):
+
+  {
+    "mcpServers": {
+      "privx-mcp": {
+        "command": "/absolute/path/to/privx-mcp-proxy",
+        "args": ["/absolute/path/to/privx-mcp-proxy.toml"]
+      }
+    }
+  }

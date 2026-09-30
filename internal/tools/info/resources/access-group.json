@@ -1,0 +1,12 @@
+{
+  "id": "00000000-0000-4000-8000-000000000010",
+  "name": "example-access-group",
+  "host_certificate_trust_anchors": "",
+  "winrm_host_certificate_trust_anchors": "",
+  "db_host_certificate_trust_anchors": "",
+  "ca_id": "00000000-0000-4000-8000-000000000013",
+  "primary_ca_id": "00000000-0000-4000-8000-000000000014",
+  "author": "00000000-0000-4000-8000-000000000003",
+  "created": "2026-01-01T12:00:00.000000Z",
+  "key_type": ""
+}

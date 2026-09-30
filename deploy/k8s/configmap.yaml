@@ -1,0 +1,50 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: privx-mcp-config
+  namespace: privx-mcp
+  labels:
+    app.kubernetes.io/name: privx-mcp-server
+# Non-secret configuration only. Secrets (API secrets, DCR stub secret, the RSA
+# signing key) live in the Secret manifest, never here.
+#
+# The server reads all configuration from environment variables. Load order:
+# TOML file (skipped if unset) -> built-in defaults -> these env vars -> validation.
+data:
+  # [server]
+  SERVER_NAME: "privx-mcp-server"
+  SERVER_VERSION: "dev"
+  # Public HTTPS URL clients reach the server on. TLS is terminated at the
+  # Ingress, so this is the Ingress host, and the server itself listens plain
+  # HTTP on SERVER_LISTEN_ADDR below. Must match the Ingress host and the
+  # OAuth resource/audience configuration.
+  SERVER_PUBLIC_URL: "https://REPLACE_ME.example.com"
+  SERVER_LISTEN_ADDR: ":8181"
+  SERVER_LOG_LEVEL: "info"
+
+  # [privx_auth]
+  PRIVX_PRIVX_BASE_URL: "https://privx.example.com"
+  # Mounted from the Secret volume; the server reads the key file from here.
+  PRIVX_RSA_KEY_FILE: "/etc/privx-mcp/private-key.pem"
+  PRIVX_RSA_KEY_ID: "privx-mcp-key-1"
+  PRIVX_AUDIENCE: "privx-mcp-client"
+  PRIVX_TOKEN_ISSUER: "privx-mcp"
+  PRIVX_SUBJECT_FORMAT: "plain"
+  PRIVX_API_OAUTH_CLIENT_ID: "privx-external"
+
+  # [oauth]
+  OAUTH_ISSUER_URL: "https://idp.example.com"
+  OAUTH_SCOPES: "openid,profile,offline_access"
+  OAUTH_AUDIENCE: "privx-mcp-client"
+  OAUTH_ID_CLAIM_FIELD: "email"
+  OAUTH_ID_MAPPING_RULE: "as-is"
+  # OAUTH_JWKS_URI: ""
+  # OAUTH_JWKS_CACHE_TTL: "1h"
+  # OAUTH_DCR_STUB_CLIENT_ID: ""
+
+  # [permissions]
+  PERMISSIONS_DEFAULT_READ_ONLY: "true"
+  PERMISSIONS_SOURCE_TYPE: "MICROSOFTGRAPH"
+  PERMISSIONS_SESSION_CACHE_TTL: "30s"
+  # PERMISSIONS_WHITELIST: "-list,-get,-search,echo,mcp-info"
+  # PERMISSIONS_BLACKLIST: "-delete"

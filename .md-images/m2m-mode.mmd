@@ -1,0 +1,6 @@
+flowchart LR
+    Client["MCP Client"] -- secret --> HTTP["HTTP /mcp"] --> Lookup
+    subgraph Server["MCP Server"]
+        Config[("Config: secret → user")] --> Lookup["Look up user"] --> Conn["User connection"]
+    end
+    Conn <--> PrivX["PrivX API"]

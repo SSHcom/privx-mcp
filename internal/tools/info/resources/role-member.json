@@ -1,0 +1,46 @@
+{
+  "id": "00000000-0000-4000-8000-000000000007",
+  "source_user_id": "00000000-0000-4000-8000-000000000007",
+  "created": "2026-01-01T12:00:00.000000Z",
+  "principal": "00000000-0000-4000-8000-000000000007",
+  "source": "00000000-0000-4000-8000-000000000016",
+  "source_type": "API-CLIENT",
+  "roles": [
+    {
+      "id": "00000000-0000-4000-8000-000000000020",
+      "name": "example-role",
+      "explicit": true,
+      "implicit": false,
+      "system": false,
+      "permissions": [
+        "hosts-view"
+      ],
+      "access_group_id": "00000000-0000-4000-8000-000000000010",
+      "owner_src": "",
+      "source_rules": {
+        "rules": null
+      },
+      "context": {
+        "enabled": false,
+        "block_role": true,
+        "validity": [
+          "MON"
+        ],
+        "start_time": "00:00",
+        "end_time": "00:00",
+        "timezone": "UTC",
+        "ip_masks": [
+          "0.0.0.0/0"
+        ]
+      }
+    }
+  ],
+  "attributes": [],
+  "permissions": null,
+  "full_name": "example-api-client",
+  "mfa": {
+    "seed": {},
+    "mobile_mfa_status": ""
+  },
+  "RefreshTimestamp": "1700000000"
+}

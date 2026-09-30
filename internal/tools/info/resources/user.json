@@ -1,0 +1,56 @@
+{
+  "RefreshTimestamp": "1700000000",
+  "attributes": [
+    {
+      "key": "example_attribute",
+      "value": "alice@example.local"
+    }
+  ],
+  "created": "2026-01-01T12:00:00.000000Z",
+  "distinguished_name": "alice",
+  "email": "alice@example.com",
+  "full_name": "Alice Example",
+  "id": "00000000-0000-4000-8000-000000000003",
+  "mfa": {
+    "mobile_mfa_status": "DEFAULT",
+    "seed": {},
+    "status": "DEFAULT",
+    "user_mfa_status": "default"
+  },
+  "permissions": null,
+  "principal": "alice",
+  "roles": [
+    {
+      "access_group_id": "00000000-0000-4000-8000-000000000010",
+      "context": {
+        "block_role": true,
+        "enabled": false,
+        "end_time": "00:00",
+        "ip_masks": [
+          "0.0.0.0/0"
+        ],
+        "start_time": "00:00",
+        "timezone": "UTC",
+        "validity": [
+          "MON"
+        ]
+      },
+      "explicit": true,
+      "grant_type": "PERMANENT",
+      "id": "00000000-0000-4000-8000-000000000020",
+      "implicit": false,
+      "name": "example-role",
+      "owner_src": "",
+      "permissions": [
+        "hosts-view"
+      ],
+      "source_rules": {
+        "rules": null
+      },
+      "system": false
+    }
+  ],
+  "source": "00000000-0000-4000-8000-000000000013",
+  "source_type": "LOCAL",
+  "source_user_id": "00000000-0000-4000-8000-000000000003"
+}

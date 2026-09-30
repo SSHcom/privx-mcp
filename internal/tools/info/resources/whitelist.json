@@ -1,0 +1,14 @@
+{
+  "id": "00000000-0000-4000-8000-000000000040",
+  "name": "example-whitelist",
+  "comment": "restricted to ansible and listing commands",
+  "type": "glob",
+  "whitelist_patterns": [
+    "ansible*",
+    "ls*"
+  ],
+  "author": "00000000-0000-4000-8000-000000000003",
+  "created": "2026-01-01T12:00:00.000000Z",
+  "updated_by": "00000000-0000-4000-8000-000000000003",
+  "updated": "2026-01-01T12:05:00.000000Z"
+}

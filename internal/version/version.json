@@ -1,0 +1,11 @@
+{
+    "server": {
+        "privx-mcp": "1.44.0",
+        "privx-sdk-go": "2.44.0",
+        "modelcontextprotocol/go-sdk": "1.7.0"
+    },
+    "proxy": {
+        "privx-mcp-proxy": "1.44.0",
+        "modelcontextprotocol/go-sdk": "1.7.0"
+    }
+}
