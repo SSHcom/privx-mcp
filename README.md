@@ -28,6 +28,7 @@ Machine-to-machine mode is for automated clients with no interactive sign-in. Th
 
 - Go 1.26.5+
 - A PrivX instance with API Client and External Token Authentication configured
+- Tested with PrivX v45, v44 & v43
 - An RSA key pair (the public key registered in PrivX External Token configuration)
 - For `oauth`: an IdP issuing OIDC tokens
 
