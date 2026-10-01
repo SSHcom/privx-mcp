@@ -1,6 +1,6 @@
 # SSH - PrivX MCP Server
 
-An MCP (Model Context Protocol) server written in Go providing agents secure access to resources in a [PrivX](https://www.ssh.com/privx) instance.
+An MCP (Model Context Protocol) server written in Go providing agents secure access to resources in a [PrivX](https://www.ssh.com/products/privileged-access-management-privx) instance.
 
 Secure access starts with identity. The server runs in `oauth` or `m2m` (machine-to-machine) mode: an IdP token or a service secret is mapped to a PrivX user, and that user's roles decide which resources they can see, add, or update.
 
