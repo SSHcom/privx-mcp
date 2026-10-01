@@ -1,4 +1,4 @@
-# SSH - PrivX MCP Server
+# SSH - PrivX MCP Server (Beta release)
 
 An MCP (Model Context Protocol) server written in Go providing agents secure access to resources in a [PrivX](https://www.ssh.com/products/privileged-access-management-privx) instance.
 
