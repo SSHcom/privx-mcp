@@ -36,10 +36,16 @@ type FakeConnector struct {
 // gets JSON-round-tripped into the SDK's output argument.
 type Handler func(body any) (any, error)
 
+// FetchHandler returns the raw bytes a Fetch() call should yield for a
+// matched GET route. Used to exercise handlers that read response bodies
+// directly (e.g. downloaded trail logs) instead of JSON-decoding them.
+type FetchHandler func() ([]byte, error)
+
 type route struct {
 	method   string
 	segments []string
 	handler  Handler
+	fetch    FetchHandler
 }
 
 // New creates a FakeConnector that fails the test when an unmatched
@@ -58,6 +64,19 @@ func (c *FakeConnector) Handle(method, pattern string, h Handler) {
 		method:   method,
 		segments: splitPath(pattern),
 		handler:  h,
+	})
+}
+
+// HandleFetch registers a GET route whose Fetch() returns raw bytes.
+// pattern uses ":name" for path params, as with Handle.
+func (c *FakeConnector) HandleFetch(pattern string, h FetchHandler) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.routes = append(c.routes, route{
+		method:   "GET",
+		segments: splitPath(pattern),
+		fetch:    h,
 	})
 }
 
@@ -109,8 +128,25 @@ func (c *curl) Post(body interface{}, outs ...interface{}) (http.Header, error) 
 func (c *curl) Delete(...interface{}) (http.Header, error) {
 	return c.dispatch("DELETE", nil, nil)
 }
-func (c *curl) Fetch() ([]byte, error) { return nil, nil }
-func (c *curl) Download(string) error  { return nil }
+func (c *curl) Fetch() ([]byte, error) {
+	c.connector.mu.Lock()
+	routes := c.connector.routes
+	c.connector.mu.Unlock()
+
+	incoming := splitPath(c.path)
+	for _, r := range routes {
+		if r.method != "GET" || r.fetch == nil || !matchPath(r.segments, incoming) {
+			continue
+		}
+
+		return r.fetch()
+	}
+
+	c.connector.t.Fatalf("fake connector: no fetch route for GET %s", c.path)
+
+	return nil, nil
+}
+func (c *curl) Download(string) error { return nil }
 
 func (c *curl) dispatch(method string, body any, outs []interface{}) (http.Header, error) {
 	c.connector.mu.Lock()

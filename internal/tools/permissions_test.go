@@ -60,6 +60,31 @@ func TestRequiredPermissionsForTool_PrefersViewOverManage(t *testing.T) {
 	}
 }
 
+func TestRequiredPermissionsForTool_ConnectionTrailRequiresBothScopes(t *testing.T) {
+	got := RequiredPermissionsForTool("connection-trail-get")
+
+	want := map[string]bool{
+		PermissionConnectionsView:  true,
+		PermissionConnectionsTrail: true,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("connection-trail-get: got %v, want both %s and %s",
+			got, PermissionConnectionsView, PermissionConnectionsTrail)
+	}
+
+	for _, scope := range got {
+		if !want[scope] {
+			t.Fatalf("connection-trail-get: unexpected scope %q in %v", scope, got)
+		}
+
+		delete(want, scope)
+	}
+
+	if len(want) != 0 {
+		t.Fatalf("connection-trail-get: missing scopes %v (got %v)", want, got)
+	}
+}
+
 func TestRequiredPermissionsForTool_Unknown(t *testing.T) {
 	if got := RequiredPermissionsForTool("does-not-exist"); got != nil {
 		t.Fatalf("expected nil for unknown tool, got %v", got)
