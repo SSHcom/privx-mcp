@@ -18,6 +18,7 @@ import (
 	requeststools "github.com/pmsshintegration/privx-mcp/internal/tools/requests/tool"
 	rolestools "github.com/pmsshintegration/privx-mcp/internal/tools/roles/tool"
 	statustools "github.com/pmsshintegration/privx-mcp/internal/tools/status/tool"
+	targetdomaintools "github.com/pmsshintegration/privx-mcp/internal/tools/target_domains/tool"
 	userstools "github.com/pmsshintegration/privx-mcp/internal/tools/users/tool"
 	whitelisttools "github.com/pmsshintegration/privx-mcp/internal/tools/whitelists/tool"
 )
@@ -37,6 +38,7 @@ func Register(reg registry.Registry, cfg *config.Config) {
 	reg.Register(applyPermissions(filterTools(hoststools.All(), permissions))...)
 	reg.Register(applyPermissions(filterTools(networktargettools.All(), permissions))...)
 	reg.Register(applyPermissions(filterTools(passwordpolicytools.All(), permissions))...)
+	reg.Register(applyPermissions(filterTools(targetdomaintools.All(), permissions))...)
 	reg.Register(applyPermissions(filterTools(whitelisttools.All(), permissions))...)
 	reg.Register(applyPermissions(filterTools(rolestools.All(), permissions))...)
 	reg.Register(applyPermissions(filterTools(statustools.All(), permissions))...)
