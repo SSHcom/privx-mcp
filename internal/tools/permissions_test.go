@@ -32,6 +32,8 @@ func TestRequiredPermissionsForTool_PrefersViewOverManage(t *testing.T) {
 		{"api-target-list", PermissionAPITargetsView},
 		{"api-target-get", PermissionAPITargetsView},
 		{"api-target-delete", PermissionAPITargetsManage},
+		{"target-domain-list", PermissionTargetDomainsView},
+		{"target-domain-get", PermissionTargetDomainsView},
 		{"audit-event-codes", PermissionLogsView},
 		{"audit-event-list", PermissionLogsView},
 		{"audit-event-search", PermissionLogsView},

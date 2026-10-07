@@ -9,6 +9,7 @@ const (
 	RequestsListLimit       = 100
 	NetworkTargetsListLimit = 50
 	APITargetsListLimit     = 50
+	TargetDomainsListLimit  = 50
 	AuditEventsListLimit    = 100
 	ConnectionsListLimit    = 25
 	WhitelistsListLimit     = 50
