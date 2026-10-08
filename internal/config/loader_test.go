@@ -256,6 +256,12 @@ audience = "test-client"
 	if cfg.Permissions.MaxedWindowWaitSeconds != 0 {
 		t.Errorf("Permissions.MaxedWindowWaitSeconds default = %d, want 0", cfg.Permissions.MaxedWindowWaitSeconds)
 	}
+	if cfg.Permissions.EnableSensitiveDataTools {
+		t.Errorf("Permissions.EnableSensitiveDataTools default = %v, want false", cfg.Permissions.EnableSensitiveDataTools)
+	}
+	if cfg.Permissions.SensitiveDataToolsAllowNonAdmin {
+		t.Errorf("Permissions.SensitiveDataToolsAllowNonAdmin default = %v, want false", cfg.Permissions.SensitiveDataToolsAllowNonAdmin)
+	}
 	if cfg.Server.LogFile != "" {
 		t.Errorf("Server.LogFile default = %q, want empty string", cfg.Server.LogFile)
 	}
@@ -267,6 +273,85 @@ audience = "test-client"
 	}
 	if !cfg.Server.Stateless {
 		t.Errorf("Server.Stateless default = %v, want true", cfg.Server.Stateless)
+	}
+}
+
+func TestLoadConfig_SensitiveDataToolsFromTOML(t *testing.T) {
+	keyFile := writeKeyFile(t)
+	content := `
+[server]
+public_url = "http://localhost:8181"
+
+[privx_auth]
+privx_base_url = "https://privx.example.com"
+rsa_key_file = "` + keyFile + `"
+rsa_key_id = "key-1"
+
+[permissions]
+source_type = "AD"
+enable_sensitive_data_tools = true
+sensitive_data_tools_allow_non_admin = true
+
+[oauth]
+issuer_url = "https://idp.example.com"
+audience = "test-client"
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if !cfg.Permissions.EnableSensitiveDataTools {
+		t.Error("Permissions.EnableSensitiveDataTools = false, want true")
+	}
+	if !cfg.Permissions.SensitiveDataToolsAllowNonAdmin {
+		t.Error("Permissions.SensitiveDataToolsAllowNonAdmin = false, want true")
+	}
+}
+
+func TestLoadConfig_SensitiveDataToolsEnvOverride(t *testing.T) {
+	keyFile := writeKeyFile(t)
+	content := `
+[server]
+public_url = "http://localhost:8181"
+
+[privx_auth]
+privx_base_url = "https://privx.example.com"
+rsa_key_file = "` + keyFile + `"
+rsa_key_id = "key-1"
+
+[permissions]
+source_type = "AD"
+
+[oauth]
+issuer_url = "https://idp.example.com"
+audience = "test-client"
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("PERMISSIONS_ENABLE_SENSITIVE_DATA_TOOLS", "true")
+	t.Setenv("PERMISSIONS_SENSITIVE_DATA_TOOLS_ALLOW_NON_ADMIN", "1")
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if !cfg.Permissions.EnableSensitiveDataTools {
+		t.Error("env PERMISSIONS_ENABLE_SENSITIVE_DATA_TOOLS=true did not enable the flag")
+	}
+	if !cfg.Permissions.SensitiveDataToolsAllowNonAdmin {
+		t.Error("env PERMISSIONS_SENSITIVE_DATA_TOOLS_ALLOW_NON_ADMIN=1 did not enable the flag")
 	}
 }
 

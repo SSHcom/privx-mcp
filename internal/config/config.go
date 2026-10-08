@@ -103,6 +103,20 @@ type PermissionsConfig struct {
 	// MaxRequestsPerWindow. Zero disables the extra wait. Must be 0 when
 	// rate limiting is disabled.
 	MaxedWindowWaitSeconds int
+
+	// EnableSensitiveDataTools gates tools marked Sensitive (e.g.
+	// connection-trail-get) that can surface secrets or raw session content.
+	// Defaults to false: such tools are not registered at all. This key is
+	// intentionally omitted from the example config and documented only in the
+	// README, which warns it should be enabled only with a private/self-hosted
+	// LLM.
+	EnableSensitiveDataTools bool
+	// SensitiveDataToolsAllowNonAdmin only has effect when
+	// EnableSensitiveDataTools is true. Defaults to false: sensitive tools are
+	// restricted to privx-admin role holders. When true, sensitive tools
+	// instead require their own granular PrivX scopes (e.g. connections-view +
+	// connections-trail), allowing suitably permissioned non-admins to use them.
+	SensitiveDataToolsAllowNonAdmin bool
 }
 
 // OAuthConfig holds OIDC provider settings used by the MCP server to

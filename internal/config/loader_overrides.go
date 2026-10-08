@@ -149,6 +149,14 @@ func applyEnvOverrides(cfg *Config) {
 		}
 	}
 
+	if v := os.Getenv("PERMISSIONS_ENABLE_SENSITIVE_DATA_TOOLS"); v != "" {
+		cfg.Permissions.EnableSensitiveDataTools = strings.EqualFold(v, "true") || v == "1"
+	}
+
+	if v := os.Getenv("PERMISSIONS_SENSITIVE_DATA_TOOLS_ALLOW_NON_ADMIN"); v != "" {
+		cfg.Permissions.SensitiveDataToolsAllowNonAdmin = strings.EqualFold(v, "true") || v == "1"
+	}
+
 	// OIDC provider
 	if v := os.Getenv("OAUTH_ISSUER_URL"); v != "" {
 		cfg.OAuth.IssuerURL = v

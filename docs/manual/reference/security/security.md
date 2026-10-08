@@ -137,6 +137,17 @@ The payload keeps its fields and pagination and only moves under `data`, plus `d
 
 A tool marked `Trusted` in the registry skips stripping, the word lists, and the envelope. This is only for content the server itself produces, today just `mcp-info`, whose documentation and example JSON are meant to read as guidance and naturally contain blacklisted words. A trusted tool that mixes in anything from PrivX, as `mcp-info` does with the caller's name and role names, must run those strings through the blacklist itself.
 
+### Sensitive data tools
+
+A tool marked `Sensitive` in the registry can surface secrets or raw session content read from PrivX, such as `connection-trail-get`, which reconstructs the keystrokes of a recorded SSH session and can therefore include typed passwords, database connection strings, and key material. These tools are gated separately from the word lists and envelope, which do not detect secrets.
+
+The gate is two settings under `[permissions]`, both default-off and intentionally absent from the example config:
+
+- `enable_sensitive_data_tools` (default `false`): when false, every `Sensitive` tool is dropped at registration, so it is never listed or callable. When true, the tools are registered.
+- `sensitive_data_tools_allow_non_admin` (default `false`): when false, a registered sensitive tool requires the `privx-admin` scope, so only privx-admin role holders can use it. When true, it requires its own granular scopes instead (for `connection-trail-get`, `connections-view` and `connections-trail`), so a suitably permissioned non-admin may use it; privx-admin always retains access.
+
+The gate controls exposure and audience, not masking: output is not scrubbed of secrets. It should be enabled only with a private, self-hosted LLM, because tool output leaves for whatever model the client uses. See the Sensitive data tools section in the project README. A startup warning records when the gate is open and in which mode.
+
 ## What the hardening cannot do
 
 The measures above raise the cost of an attack. They do not eliminate it.

@@ -30,27 +30,41 @@ func Register(reg registry.Registry, cfg *config.Config) {
 
 	permissions := cfg.Permissions
 
-	reg.Register(applyPermissions(filterTools(accessgrouptools.All(), permissions))...)
-	reg.Register(applyPermissions(filterTools(apitargettools.All(), permissions))...)
-	reg.Register(applyPermissions(filterTools(auditeventtools.All(), permissions))...)
-	reg.Register(applyPermissions(filterTools(connectiontools.All(), permissions))...)
-	reg.Register(applyPermissions(filterTools(hoststools.All(), permissions))...)
-	reg.Register(applyPermissions(filterTools(networktargettools.All(), permissions))...)
-	reg.Register(applyPermissions(filterTools(passwordpolicytools.All(), permissions))...)
-	reg.Register(applyPermissions(filterTools(whitelisttools.All(), permissions))...)
-	reg.Register(applyPermissions(filterTools(rolestools.All(), permissions))...)
-	reg.Register(applyPermissions(filterTools(statustools.All(), permissions))...)
-	reg.Register(applyPermissions(filterTools(userstools.All(), permissions))...)
-	reg.Register(applyPermissions(filterTools(requeststools.All(), permissions))...)
-	reg.Register(applyPermissions(filterTools(infotools.All(infotools.SnapshotFromConfig(cfg)), permissions))...)
-	reg.Register(applyPermissions(filterTools(echotools.TestTools(), permissions))...)
+	register := func(tools []registry.Tool) {
+		reg.Register(applyPermissions(filterTools(tools, permissions), permissions)...)
+	}
+
+	register(accessgrouptools.All())
+	register(apitargettools.All())
+	register(auditeventtools.All())
+	register(connectiontools.All())
+	register(hoststools.All())
+	register(networktargettools.All())
+	register(passwordpolicytools.All())
+	register(whitelisttools.All())
+	register(rolestools.All())
+	register(statustools.All())
+	register(userstools.All())
+	register(requeststools.All())
+	register(infotools.All(infotools.SnapshotFromConfig(cfg)))
+	register(echotools.TestTools())
 }
 
 // applyPermissions populates each tool's RequiredPermissions from the central
 // permission map, overriding any inline declaration. Tools not present in the
 // map keep their existing (possibly empty) RequiredPermissions.
-func applyPermissions(tools []registry.Tool) []registry.Tool {
+//
+// Sensitive tools are special-cased: unless non-admin access is explicitly
+// enabled, they require the privx-admin scope so that only privx-admin role
+// holders can see or call them, regardless of their granular scopes in the
+// central map.
+func applyPermissions(tools []registry.Tool, permissions config.PermissionsConfig) []registry.Tool {
 	for i := range tools {
+		if tools[i].Sensitive && !permissions.SensitiveDataToolsAllowNonAdmin {
+			tools[i].RequiredPermissions = []string{PermissionPrivxAdmin}
+			continue
+		}
+
 		if required := RequiredPermissionsForTool(tools[i].Name); required != nil {
 			tools[i].RequiredPermissions = required
 		}
@@ -60,11 +74,32 @@ func applyPermissions(tools []registry.Tool) []registry.Tool {
 }
 
 func filterTools(all []registry.Tool, permissions config.PermissionsConfig) []registry.Tool {
-	// Resolve order: default_read_only → whitelist → blacklist.
-	readFiltered := filterReadOnlyTools(all, permissions.DefaultReadOnly)
+	// Resolve order: sensitive gate → default_read_only → whitelist → blacklist.
+	sensitiveFiltered := filterSensitiveTools(all, permissions.EnableSensitiveDataTools)
+	readFiltered := filterReadOnlyTools(sensitiveFiltered, permissions.DefaultReadOnly)
 	whitelisted := filterWhitelistedPrefixes(readFiltered, permissions.Whitelist)
 
 	return filterBlacklistedPrefixes(whitelisted, permissions.Blacklist)
+}
+
+// filterSensitiveTools drops tools marked Sensitive unless the operator has
+// explicitly enabled sensitive-data tools. This is the outermost gate: a
+// sensitive tool that is not enabled is never registered, listed, or callable.
+func filterSensitiveTools(all []registry.Tool, enabled bool) []registry.Tool {
+	if enabled {
+		return all
+	}
+
+	filtered := make([]registry.Tool, 0, len(all))
+	for _, tool := range all {
+		if tool.Sensitive {
+			continue
+		}
+
+		filtered = append(filtered, tool)
+	}
+
+	return filtered
 }
 
 func filterReadOnlyTools(all []registry.Tool, defaultReadOnly bool) []registry.Tool {

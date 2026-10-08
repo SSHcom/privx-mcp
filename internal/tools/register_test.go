@@ -169,7 +169,14 @@ func TestRegister_BlacklistAlone(t *testing.T) {
 // map entries referencing unimplemented tools.
 func TestRegister_RequiredPermissionsConsistency(t *testing.T) {
 	reg := registry.NewRegistry()
-	registerWithPermissions(reg, config.PermissionsConfig{DefaultReadOnly: false})
+	// Enable sensitive tools with non-admin access so they are registered and
+	// carry their granular (central-map) permissions, keeping both halves of
+	// this consistency check meaningful for sensitive tools too.
+	registerWithPermissions(reg, config.PermissionsConfig{
+		DefaultReadOnly:                 false,
+		EnableSensitiveDataTools:        true,
+		SensitiveDataToolsAllowNonAdmin: true,
+	})
 
 	for _, tool := range reg.Tools() {
 		if tool.Name == "echo" {
@@ -224,5 +231,69 @@ func TestRegister_OneToolPerTopic(t *testing.T) {
 		if _, ok := reg.Get(name); !ok {
 			t.Errorf("expected %q to be registered (one tool per topic smoke)", name)
 		}
+	}
+}
+
+// TestRegister_SensitiveToolDisabledByDefault asserts a Sensitive tool is not
+// registered unless enable_sensitive_data_tools is set, even with a permissive
+// whitelist and read-only disabled.
+func TestRegister_SensitiveToolDisabledByDefault(t *testing.T) {
+	reg := registry.NewRegistry()
+	registerWithPermissions(reg, config.PermissionsConfig{
+		DefaultReadOnly: false,
+		Whitelist:       []string{"connection-"},
+	})
+
+	if _, ok := reg.Get("connection-trail-get"); ok {
+		t.Fatal("expected connection-trail-get to be absent when sensitive tools are disabled")
+	}
+	// A non-sensitive connection tool is still registered.
+	if _, ok := reg.Get("connection-list"); !ok {
+		t.Fatal("expected connection-list to be registered")
+	}
+}
+
+// TestRegister_SensitiveToolAdminOnly asserts that when enabled without the
+// non-admin opt-in, the Sensitive tool is registered requiring privx-admin.
+func TestRegister_SensitiveToolAdminOnly(t *testing.T) {
+	reg := registry.NewRegistry()
+	registerWithPermissions(reg, config.PermissionsConfig{
+		DefaultReadOnly:          false,
+		EnableSensitiveDataTools: true,
+	})
+
+	tool, ok := reg.Get("connection-trail-get")
+	if !ok {
+		t.Fatal("expected connection-trail-get to be registered when sensitive tools are enabled")
+	}
+
+	want := []string{PermissionPrivxAdmin}
+	if !reflect.DeepEqual(tool.RequiredPermissions, want) {
+		t.Fatalf("RequiredPermissions = %v, want %v", tool.RequiredPermissions, want)
+	}
+}
+
+// TestRegister_SensitiveToolNonAdminUsesGranularScopes asserts that with the
+// non-admin opt-in, the Sensitive tool requires its granular PrivX scopes.
+func TestRegister_SensitiveToolNonAdminUsesGranularScopes(t *testing.T) {
+	reg := registry.NewRegistry()
+	registerWithPermissions(reg, config.PermissionsConfig{
+		DefaultReadOnly:                 false,
+		EnableSensitiveDataTools:        true,
+		SensitiveDataToolsAllowNonAdmin: true,
+	})
+
+	tool, ok := reg.Get("connection-trail-get")
+	if !ok {
+		t.Fatal("expected connection-trail-get to be registered")
+	}
+
+	want := RequiredPermissionsForTool("connection-trail-get")
+	if !reflect.DeepEqual(tool.RequiredPermissions, want) {
+		t.Fatalf("RequiredPermissions = %v, want %v (granular scopes)", tool.RequiredPermissions, want)
+	}
+	// Sanity: the granular set is the two connection scopes, not privx-admin.
+	if len(want) != 2 {
+		t.Fatalf("expected 2 granular scopes, got %v", want)
 	}
 }

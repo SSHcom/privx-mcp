@@ -53,6 +53,7 @@ func NewServerFromConfig(cfg *config.Config) (*http.Server, func(), error) {
 	}
 
 	logIdentityVerifier(cfg)
+	logSensitiveDataTools(cfg)
 
 	// Build the runtime core. Token verification happens at the edge; the
 	// authenticator consumes already-verified claims from request context.
@@ -229,6 +230,33 @@ func logIdentityVerifier(cfg *config.Config) {
 		"auth_mode", cfg.Server.AuthMode,
 		"service_secrets", len(usernames),
 		"usernames", usernames,
+	)
+}
+
+// logSensitiveDataTools emits a startup warning when the sensitive-data tool
+// gate is open, so an operator can see in the logs that tools which may expose
+// secrets or raw session content are registered, and in which access mode.
+func logSensitiveDataTools(cfg *config.Config) {
+	if !cfg.Permissions.EnableSensitiveDataTools {
+		if cfg.Permissions.SensitiveDataToolsAllowNonAdmin {
+			logging.Warn(
+				"permissions.sensitive_data_tools_allow_non_admin is set but has no effect " +
+					"because permissions.enable_sensitive_data_tools is false",
+			)
+		}
+
+		return
+	}
+
+	access := "privx-admin only"
+	if cfg.Permissions.SensitiveDataToolsAllowNonAdmin {
+		access = "any user with the tool's granular PrivX permissions"
+	}
+
+	logging.Warn(
+		"sensitive-data tools are ENABLED; these can expose secrets and raw session content. "+
+			"Enable only with a private/self-hosted LLM you control.",
+		"access", access,
 	)
 }
 

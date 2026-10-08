@@ -45,6 +45,39 @@ The server fronts PrivX, a privileged access management platform. Anyone who can
 - **Use** `m2m` **mode only for automated access.** Interactive users should sign in through `oauth` mode so that actions are tied to their own identity.
 
 
+## Sensitive data tools
+
+Some tools can surface secrets or raw session content from PrivX. For example, `connection-trail-get` reconstructs the commands typed in a recorded SSH session, and keystroke-level input can include typed passwords, database connection strings, API tokens, and key material that never appeared on screen. These tools are treated as a distinct, higher-risk category.
+
+They are **disabled by default** and are intentionally not listed in `privx-mcp-config-example.toml`. A server that does not set the flags below never registers them, so they cannot be listed or called.
+
+> **Enable these tools only with a private, self-hosted LLM that you fully control.** Tool output is sent to whatever model the MCP client is wired to. With a third-party or hosted model, enabling these tools can send captured passwords and secrets outside your trust boundary. Do not enable them against a public or shared model endpoint.
+
+To enable them, add to the `[permissions]` section of your `privx-mcp-config.toml` (or set the matching environment variables):
+
+```toml
+[permissions]
+# Register sensitive-data tools. Default: false (tools are not registered).
+enable_sensitive_data_tools = true
+
+# Who may use them once enabled. Default: false = privx-admin role only.
+# Set true to also allow non-admins who hold the tool's own PrivX permissions
+# (for connection-trail-get: connections-view AND connections-trail).
+sensitive_data_tools_allow_non_admin = true
+```
+
+Equivalent environment variables:
+
+- `PERMISSIONS_ENABLE_SENSITIVE_DATA_TOOLS=true`
+- `PERMISSIONS_SENSITIVE_DATA_TOOLS_ALLOW_NON_ADMIN=true`
+
+Access model when enabled:
+
+- With `sensitive_data_tools_allow_non_admin = false` (default), only users with the **privx-admin** role can see or call these tools.
+- With `sensitive_data_tools_allow_non_admin = true`, the tool instead requires its own granular PrivX permissions. `connection-trail-get` requires both `connections-view` and `connections-trail`. privx-admin users always retain access.
+
+These gates control whether a tool is exposed and to whom. They do not mask secrets within the tool output. The startup log records a warning whenever the gate is open, including which access mode is in effect.
+
 
 ## Documentation
 

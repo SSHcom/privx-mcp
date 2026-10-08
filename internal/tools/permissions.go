@@ -28,6 +28,7 @@ const (
 	PermissionConnectionsView      = "connections-view"
 	PermissionConnectionsManage    = "connections-manage"
 	PermissionConnectionsTerminate = "connections-terminate"
+	PermissionConnectionsTrail     = "connections-trail"
 	PermissionPrivxAdmin           = "privx-admin"
 	PermissionLogsView             = "logs-view"
 	PermissionWorkflowsRequests    = "workflows-requests"
@@ -92,6 +93,12 @@ var (
 	}
 	connectionsTerminateTools = []string{
 		"connection-terminate",
+	}
+	// connection-trail-get requires BOTH connections-view and connections-trail
+	// (see trailRequiredPermissionOverrides). It is listed here so the trail
+	// scope grants it and so registration coverage checks pass.
+	connectionsTrailTools = []string{
+		"connection-trail-get",
 	}
 
 	// Logs / audit events and monitor-service status
@@ -193,8 +200,9 @@ func init() {
 		PermissionUsersManage: concat(usersWriteTools, usersViewTools),
 
 		PermissionConnectionsView:      connectionsViewTools,
-		PermissionConnectionsManage:    concat(connectionsTerminateTools, connectionsViewTools),
+		PermissionConnectionsManage:    concat(connectionsTerminateTools, connectionsTrailTools, connectionsViewTools),
 		PermissionConnectionsTerminate: connectionsTerminateTools,
+		PermissionConnectionsTrail:     connectionsTrailTools,
 
 		PermissionLogsView: logsViewTools,
 
@@ -217,6 +225,22 @@ func init() {
 	}
 
 	toolRequiredPermissions = buildToolRequiredPermissions(toolsByPermission)
+
+	// Apply explicit multi-scope requirements. buildToolRequiredPermissions
+	// derives a single least-privilege scope per tool, so tools that require
+	// more than one scope (AND semantics, enforced by the runtime) are declared
+	// here and override the derived value.
+	for name, scopes := range toolRequiredPermissionOverrides {
+		toolRequiredPermissions[name] = append([]string(nil), scopes...)
+	}
+}
+
+// toolRequiredPermissionOverrides declares tools that require more than one
+// permission scope. The runtime requires ALL listed scopes (AND). connection-
+// trail-get needs connections-view (to find/read the connection) plus
+// connections-trail (to read its recorded session content).
+var toolRequiredPermissionOverrides = map[string][]string{
+	"connection-trail-get": {PermissionConnectionsView, PermissionConnectionsTrail},
 }
 
 // buildToolRequiredPermissions builds tool → required-scope. When a tool
