@@ -69,6 +69,7 @@ func TrailGet() registry.Tool {
 		Name:        "connection-trail-get",
 		Description: description,
 		Writes:      false,
+		Sensitive:   true,
 		InputSchema: inputSchema,
 		Handler:     trailGetHandler,
 	}

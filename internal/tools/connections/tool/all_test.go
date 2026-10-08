@@ -36,6 +36,20 @@ func TestConnectionsTools_Registration(t *testing.T) {
 	}
 }
 
+func TestConnectionsTools_TrailGetIsSensitive(t *testing.T) {
+	for _, tl := range All() {
+		if tl.Name == "connection-trail-get" {
+			if !tl.Sensitive {
+				t.Fatal("connection-trail-get must be marked Sensitive")
+			}
+
+			return
+		}
+	}
+
+	t.Fatal("connection-trail-get not found")
+}
+
 func TestConnectionsTools_WriteFlags(t *testing.T) {
 	tools := All()
 	writeTools := map[string]bool{

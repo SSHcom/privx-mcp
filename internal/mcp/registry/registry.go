@@ -41,6 +41,14 @@ type Tool struct {
 	// embedded in a trusted payload must be checked by the tool itself (see
 	// security.PrepareStrings).
 	Trusted bool
+	// Sensitive marks a tool that can surface secrets, credentials, or raw
+	// keystroke/session content captured from PrivX (for example reconstructed
+	// SSH session trails, which may include typed passwords, DB connection
+	// strings, or key material). Such tools are gated off at registration
+	// unless the operator explicitly opts in, and are then restricted to
+	// privx-admin role holders unless non-admin access is also opted in. The
+	// marker is intrinsic to the tool and cannot be cleared by config.
+	Sensitive bool
 	// InputSchema is the JSON schema for the tool's input. It may be a
 	// map[string]any (keys marshalled in sorted order by encoding/json) or
 	// an *OrderedMap to preserve a specific key order on the wire.
