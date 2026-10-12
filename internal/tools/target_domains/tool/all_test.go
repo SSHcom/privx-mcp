@@ -4,10 +4,17 @@ import "testing"
 
 func TestTargetDomainTools_Registration(t *testing.T) {
 	tools := All()
-	if len(tools) != 2 {
-		t.Fatalf("expected 2 tools, got %d", len(tools))
+	if len(tools) != 6 {
+		t.Fatalf("expected 6 tools, got %d", len(tools))
 	}
-	wantNames := []string{"target-domain-get", "target-domain-list"}
+	wantNames := []string{
+		"target-domain-create",
+		"target-domain-delete",
+		"target-domain-get",
+		"target-domain-list",
+		"target-domain-scan",
+		"target-domain-update",
+	}
 	gotNames := make([]string, 0, len(tools))
 	for _, tl := range tools {
 		gotNames = append(gotNames, tl.Name)
@@ -33,9 +40,25 @@ func TestTargetDomainTools_Registration(t *testing.T) {
 }
 
 func TestTargetDomainTools_WriteFlags(t *testing.T) {
+	writeTools := map[string]bool{
+		"target-domain-list":   false,
+		"target-domain-get":    false,
+		"target-domain-create": true,
+		"target-domain-update": true,
+		"target-domain-delete": true,
+		"target-domain-scan":   true,
+	}
 	for _, tl := range All() {
-		if tl.Writes {
-			t.Errorf("tool %q: Writes = true, want false", tl.Name)
+		want, ok := writeTools[tl.Name]
+		if !ok {
+			t.Errorf("unexpected tool %q", tl.Name)
+			continue
+		}
+		if tl.Writes != want {
+			t.Errorf("tool %q: Writes = %v, want %v", tl.Name, tl.Writes, want)
+		}
+		if !tl.Sensitive {
+			t.Errorf("tool %q: Sensitive = false, want true", tl.Name)
 		}
 	}
 }

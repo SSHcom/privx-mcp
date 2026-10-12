@@ -153,7 +153,7 @@ func TestInfoHandler_PrivXInfoAlwaysIncluded(t *testing.T) {
 func TestInfoHandler_ContextAndResources(t *testing.T) {
 	result, err := infoHandler(testSnapshot())(testAuthContext(), map[string]any{
 		"context":   []any{"users-and-roles", "hosts", "connection", "network-targets", "audit-events", "whitelists", "access-groups", "api-targets"},
-		"resources": []any{"host", "connection", "network-target", "api-target", "audit-event", "user", "role", "role-member", "request (access)", "whitelist", "access-group"},
+		"resources": []any{"host", "connection", "network-target", "api-target", "audit-event", "user", "role", "role-member", "request (access)", "whitelist", "access-group", "target-domain"},
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -237,6 +237,28 @@ func TestInfoHandler_ContextAndResources(t *testing.T) {
 	ag := resources["access-group"].(map[string]any)
 	if ag["name"] != "example-access-group" {
 		t.Fatalf("unexpected access-group example: %#v", ag)
+	}
+	td := resources["target-domain"].(map[string]any)
+	if td["name"] != "example-target-domain" || td["domain_name"] != "example.com" {
+		t.Fatalf("unexpected target-domain example: %#v", td)
+	}
+	endpoints := td["endpoints"].([]any)
+	if len(endpoints) != 2 {
+		t.Fatalf("expected AD and Entra endpoints, got %#v", endpoints)
+	}
+	ad := endpoints[0].(map[string]any)
+	if ad["type"] != "AD" || ad["ldap_user_filter"] == "" || ad["attribute_mapping"] == nil {
+		t.Fatalf("unexpected AD endpoint: %#v", ad)
+	}
+	if _, ok := ad["ldap_bind_password"]; ok {
+		t.Fatal("target-domain example included ldap_bind_password")
+	}
+	entra := endpoints[1].(map[string]any)
+	if entra["type"] != "Entra" || entra["entra_tenant_id"] == "" {
+		t.Fatalf("unexpected Entra endpoint: %#v", entra)
+	}
+	if _, ok := entra["entra_client_secret"]; ok {
+		t.Fatal("target-domain example included entra_client_secret")
 	}
 }
 

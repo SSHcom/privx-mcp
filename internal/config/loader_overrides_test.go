@@ -148,6 +148,21 @@ func TestApplyPermissionsWhitelistEnvOverrides(t *testing.T) {
 	}
 }
 
+func TestApplyPermissionsAllowedSensitiveToolsEnvOverrides(t *testing.T) {
+	t.Setenv("PERMISSIONS_ALLOWED_SENSITIVE_TOOLS", "target-domain-list, target-domain-get")
+
+	cfg := &Config{}
+	applyEnvOverrides(cfg)
+
+	if len(cfg.Permissions.AllowedSensitiveTools) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(cfg.Permissions.AllowedSensitiveTools))
+	}
+	if cfg.Permissions.AllowedSensitiveTools[0] != "target-domain-list" ||
+		cfg.Permissions.AllowedSensitiveTools[1] != "target-domain-get" {
+		t.Fatalf("unexpected allowed_sensitive_tools: %v", cfg.Permissions.AllowedSensitiveTools)
+	}
+}
+
 func TestApplyPermissionsBlacklistEnvOverrides(t *testing.T) {
 	t.Setenv("PERMISSIONS_BLACKLIST", "host-delete, user-delete-")
 

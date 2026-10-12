@@ -41,6 +41,9 @@ type Tool struct {
 	// embedded in a trusted payload must be checked by the tool itself (see
 	// security.PrepareStrings).
 	Trusted bool
+	// Sensitive marks a tool omitted from registration unless its full name
+	// appears in permissions allowed_sensitive_tools (prefix whitelist does not apply).
+	Sensitive bool
 	// InputSchema is the JSON schema for the tool's input. It may be a
 	// map[string]any (keys marshalled in sorted order by encoding/json) or
 	// an *OrderedMap to preserve a specific key order on the wire.

@@ -62,11 +62,34 @@ func applyPermissions(tools []registry.Tool) []registry.Tool {
 }
 
 func filterTools(all []registry.Tool, permissions config.PermissionsConfig) []registry.Tool {
-	// Resolve order: default_read_only → whitelist → blacklist.
+	// Resolve order: default_read_only → whitelist / allowed_sensitive_tools → blacklist.
 	readFiltered := filterReadOnlyTools(all, permissions.DefaultReadOnly)
-	whitelisted := filterWhitelistedPrefixes(readFiltered, permissions.Whitelist)
+	accessFiltered := filterToolAccess(readFiltered, permissions.Whitelist, permissions.AllowedSensitiveTools)
 
-	return filterBlacklistedPrefixes(whitelisted, permissions.Blacklist)
+	return filterBlacklistedPrefixes(accessFiltered, permissions.Blacklist)
+}
+
+func filterToolAccess(all []registry.Tool, whitelist, allowedSensitive []string) []registry.Tool {
+	allowedSensitiveSet := make(map[string]struct{}, len(allowedSensitive))
+	for _, name := range allowedSensitive {
+		allowedSensitiveSet[name] = struct{}{}
+	}
+
+	filtered := make([]registry.Tool, 0, len(all))
+	for _, tool := range all {
+		if tool.Sensitive {
+			if _, ok := allowedSensitiveSet[tool.Name]; ok {
+				filtered = append(filtered, tool)
+			}
+			continue
+		}
+
+		if len(whitelist) == 0 || matchesAnyPrefix(tool.Name, whitelist) {
+			filtered = append(filtered, tool)
+		}
+	}
+
+	return filtered
 }
 
 func filterReadOnlyTools(all []registry.Tool, defaultReadOnly bool) []registry.Tool {

@@ -4,26 +4,36 @@
 
 `internal/` is organized by responsibility:
 
-- `auth/`: authentication flows and identity integrations (`oauth`, `privx`, context, and auth errors).
+- `auth/`: authentication flows and identity integrations (`oauth`, `privx`, `m2m` service secrets, context, and auth errors).
 - `bootstrap/`: server startup wiring.
 - `config/`: config models, loading, defaults, overrides, and validation.
 - `mcp/`: MCP runtime (`runtime`), HTTP transport (`transport`), and tool registry (`registry`).
+- `proxy/`: local MCP proxy that forwards tool calls to a remote session (`bridge`, `oauth`, `remote`, `store`, `config`, `httpx`, `help`).
 - `service/http/`: HTTP server and mux composition for exposed endpoints.
-- `service/privx_api/`: thin PrivX API wrappers (users, roles) used by runtime and tools.
+- `service/logging/`: slog wrapper with optional lumberjack file rotation.
+- `service/privx_api/`: thin PrivX API wrappers (users, roles, workflow requestable roles) used by runtime and tools.
 - `service/security/`: MCP boundary hardening applied by the runtime — `Sanitize` (drops invisible/control runes), `FindBlacklisted` (partial + full-word term lists), `DefaultOverrides` (key-scoped allowed terms such as `root` on `principal`/`name`, and the command/action terms on `whitelist_patterns` for the SSH command whitelist tools — injection terms stay blocked there), `Prepare` (one in-place walk of string values combining both), `PrepareOutput` (same walk for tool results: drops failing rows from a top-level `items` array instead of rejecting the page), and `Wrap` (the `{meta, data}` response envelope). Tools flagged `Trusted` are exempt; see `docs/manual/reference/security/security.md`.
 - `service/session/`: per-identity user-context cache and tool-call rate limiting.
 - `testutil/testconn/`: test-only fake `restapi.Connector` (route-based dispatch + JSON round-trip) and auth-context helpers for exercising MCP tool handlers without a live PrivX server. Imported only from `*_test.go` files.
-- `tools/`: tool registration and topic implementations (`hosts`, `users`, `requests`, `network_targets`, `devtools`).
+- `tools/`: tool registration (`register.go`, `permissions.go`) and one package per topic. Handlers live in `tool/` unless noted.
   - `tools/common/`: shared tool defaults (e.g. list/search page sizes) and paging/sort helpers (`ParsePaging`, `SortKeySchema`, `SortDirSchema`; default sort `created` DESC).
-  - `tools/hosts/`: shared host schemas, converters, field selection, and edits.
-  - `tools/hosts/tool/`: MCP host tool definitions and handlers only.
-  - `tools/users/`: shared user field selection and response helpers.
-  - `tools/users/tool/`: MCP user tool definitions and handlers only.
-  - `tools/requests/`: shared access-request field selection and response helpers.
-  - `tools/requests/tool/`: MCP access-request tool definitions and handlers only.
-  - `tools/network_targets/`: shared network-target field selection and response helpers.
-  - `tools/network_targets/tool/`: MCP network-target tool definitions and handlers only.
+  - `tools/access_groups/`: access groups; handlers only.
+  - `tools/api_targets/`: API-target field selection.
+  - `tools/audit_events/`: audit events; handlers only.
+  - `tools/connections/`: connection field selection.
+  - `tools/echo/`: package `devtools`; testing-only `echo` tool via `TestTools()` (no `tool/` subpackage).
+  - `tools/hosts/`: host schemas, converters, field selection, and edits.
+  - `tools/info/`: `mcp-info` (session, instance, context, example resources). `All(snapshot)` lives in this package (no `tool/` subpackage).
+  - `tools/network_targets/`: network-target schemas, converters, field selection, and edits.
+  - `tools/password_policies/`: password-policy fields.
+  - `tools/requests/`: access-request field selection.
+  - `tools/roles/`: roles (including members, grant, and revoke); handlers only.
+  - `tools/status/`: status field selection.
+  - `tools/target_domains/`: target-domain fields and input schema.
+  - `tools/users/`: user schemas, field selection, and edits.
+  - `tools/whitelists/`: SSH command whitelists; handlers only.
 - `utils/`: shared helpers (`email`, file, string, bool, map readers like `StringFromMap`, JSON `ToJSONMap`); timezone/weekday logic lives in `utils/date`.
+- `version/`: build identity from the embedded `version.json` (server and proxy).
 
 ## Anatomy of a Tool Topic
 
@@ -40,9 +50,9 @@ internal/tools/<topic>/
     list.go / search.go / get.go / …
 ```
 
-- Parent package (`users`, `hosts`, …): shared logic used by handlers and tests; no `registry.Tool` factories.
+- Parent package (`users`, `hosts`, …): shared logic used by handlers and tests; no `registry.Tool` factories. Topics with no shared helpers keep handlers only under `tool/`.
 - `tool/` subpackage: one file per tool; each exports a factory (`List()`, `Search()`, …) returning `registry.Tool` (`Name`, `Description`, `Writes`, `InputSchema`, `Handler`).
-- `All()` aggregates the topic’s tools for registration.
+- `All()` aggregates the topic’s tools for registration. `info.All` takes an instance snapshot. `echo` (package `devtools`) exposes `TestTools()` instead.
 
 ### How it is glued together
 
@@ -50,7 +60,7 @@ internal/tools/<topic>/
 bootstrap → registry.NewRegistry()
          → tools.Register(reg, cfg)
               → <topic>/tool.All()
-              → filterTools (default_read_only / whitelist / blacklist)
+              → filterTools (default_read_only / whitelist or allowed_sensitive_tools / blacklist)
               → applyPermissions (from permissions.go)
               → reg.Register(...)
          → runtime registers each tool on the MCP server

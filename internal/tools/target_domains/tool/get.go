@@ -15,6 +15,7 @@ import (
 // Get returns the target-domain-get tool definition.
 func Get() registry.Tool {
 	description := "Get a single PrivX target domain by ID. Credential fields are omitted. " +
+		target_domains.SensitiveDataGuidance + " " +
 		common.PresentationGuidance
 
 	properties := registry.NewOrderedMap().
@@ -33,6 +34,7 @@ func Get() registry.Tool {
 		Name:        "target-domain-get",
 		Description: description,
 		Writes:      false,
+		Sensitive:   true,
 		InputSchema: inputSchema,
 		Handler:     getTargetDomainHandler,
 	}

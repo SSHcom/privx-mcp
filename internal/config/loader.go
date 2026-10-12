@@ -50,6 +50,7 @@ type tomlConfig struct {
 		DefaultReadOnly        bool     `toml:"default_read_only"`
 		Whitelist              []string `toml:"whitelist"`
 		Blacklist              []string `toml:"blacklist"`
+		AllowedSensitiveTools  []string `toml:"allowed_sensitive_tools"`
 		SessionCacheTTL        string   `toml:"session_cache_ttl"`
 		RefreshCooldown        string   `toml:"refresh_cooldown"`
 		SourceType             string   `toml:"source_type"`
@@ -157,6 +158,7 @@ func tomlToConfig(tc *tomlConfig) *Config {
 			DefaultReadOnly:        tc.Permissions.DefaultReadOnly,
 			Whitelist:              tc.Permissions.Whitelist,
 			Blacklist:              tc.Permissions.Blacklist,
+			AllowedSensitiveTools:  tc.Permissions.AllowedSensitiveTools,
 			SourceType:             tc.Permissions.SourceType,
 			RequestWindowSeconds:   tc.Permissions.RequestWindowSeconds,
 			MaxRequestsPerWindow:   tc.Permissions.MaxRequestsPerWindow,

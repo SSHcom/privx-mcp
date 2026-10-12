@@ -7,5 +7,9 @@ func All() []registry.Tool {
 	return []registry.Tool{
 		List(),
 		Get(),
+		Create(),
+		Update(),
+		Delete(),
+		Scan(),
 	}
 }

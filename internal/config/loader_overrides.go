@@ -118,6 +118,10 @@ func applyEnvOverrides(cfg *Config) {
 		cfg.Permissions.Whitelist = splitCommaList(v)
 	}
 
+	if v := os.Getenv("PERMISSIONS_ALLOWED_SENSITIVE_TOOLS"); v != "" {
+		cfg.Permissions.AllowedSensitiveTools = splitCommaList(v)
+	}
+
 	if v := os.Getenv("PERMISSIONS_BLACKLIST"); v != "" {
 		cfg.Permissions.Blacklist = splitCommaList(v)
 	}

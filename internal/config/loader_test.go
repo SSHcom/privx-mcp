@@ -187,6 +187,44 @@ identity_mapping_rule = "strip-domain"
 	}
 }
 
+func TestLoadConfig_AllowedSensitiveToolsFromTOML(t *testing.T) {
+	keyFile := writeKeyFile(t)
+	content := `
+[server]
+public_url = "http://localhost:8181"
+
+[privx_auth]
+privx_base_url = "https://privx.example.com"
+rsa_key_file = "` + keyFile + `"
+rsa_key_id = "key-1"
+
+[permissions]
+source_type = "AD"
+allowed_sensitive_tools = ["target-domain-list", "target-domain-get"]
+
+[oauth]
+issuer_url = "https://idp.example.com"
+audience = "test-client"
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+	if len(cfg.Permissions.AllowedSensitiveTools) != 2 {
+		t.Fatalf("AllowedSensitiveTools has %d entries, want 2", len(cfg.Permissions.AllowedSensitiveTools))
+	}
+	if cfg.Permissions.AllowedSensitiveTools[0] != "target-domain-list" ||
+		cfg.Permissions.AllowedSensitiveTools[1] != "target-domain-get" {
+		t.Fatalf("AllowedSensitiveTools = %v", cfg.Permissions.AllowedSensitiveTools)
+	}
+}
+
 func TestLoadConfig_Defaults(t *testing.T) {
 	// Minimal TOML with only required fields
 	keyFile := writeKeyFile(t)

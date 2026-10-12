@@ -47,6 +47,7 @@ var resourceFiles = map[string]string{
 	"request (access)":  "resources/request.json",
 	"role":              "resources/role.json",
 	"role-member":       "resources/role-member.json",
+	"target-domain":     "resources/target-domain.json",
 	"user":              "resources/user.json",
 	"whitelist":         "resources/whitelist.json",
 	// monitor status

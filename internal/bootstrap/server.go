@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
@@ -152,6 +153,7 @@ func NewServerFromConfig(cfg *config.Config) (*http.Server, func(), error) {
 func buildRuntimeCore(cfg *config.Config, authenticator auth.Authenticator, claimsSource runtime.ClaimsSource, permissionOverride ...*runtime.PermissionEngine) *runtime.Core {
 	reg := registry.NewRegistry()
 	tools.Register(reg, cfg)
+	logTargetDomainRegistration(cfg, reg)
 
 	permissions := runtime.NewPermissionEngine()
 	if len(permissionOverride) > 0 && permissionOverride[0] != nil {
@@ -172,6 +174,43 @@ func buildRuntimeCore(cfg *config.Config, authenticator auth.Authenticator, clai
 			),
 			cfg.PrivXAuth.PrivXBaseURL,
 		),
+	)
+}
+
+// logTargetDomainRegistration records which target-domain tools this process
+// actually registered. A name present in allowed_sensitive_tools but absent
+// here never reaches tools/list, independent of the caller's PrivX roles.
+func logTargetDomainRegistration(cfg *config.Config, reg registry.Registry) {
+	registered := make([]string, 0)
+	present := make(map[string]struct{})
+	for _, tool := range reg.Tools() {
+		if !strings.HasPrefix(tool.Name, "target-domain-") {
+			continue
+		}
+
+		registered = append(registered, tool.Name)
+		present[tool.Name] = struct{}{}
+	}
+
+	missing := make([]string, 0)
+	for _, name := range cfg.Permissions.AllowedSensitiveTools {
+		if !strings.HasPrefix(name, "target-domain-") {
+			continue
+		}
+
+		if _, ok := present[name]; ok {
+			continue
+		}
+
+		missing = append(missing, name)
+	}
+
+	logging.Info(
+		"target domain tool registration",
+		"default_read_only", cfg.Permissions.DefaultReadOnly,
+		"allowed_sensitive_tools", cfg.Permissions.AllowedSensitiveTools,
+		"registered", registered,
+		"configured_but_not_registered", missing,
 	)
 }
 

@@ -12,6 +12,22 @@ func registerWithPermissions(reg registry.Registry, permissions config.Permissio
 	Register(reg, &config.Config{Permissions: permissions})
 }
 
+// permissionsRegisterAll enables every sensitive tool that exists in the tree so
+// full Register smoke tests match the permission map.
+func permissionsRegisterAll() config.PermissionsConfig {
+	return config.PermissionsConfig{
+		DefaultReadOnly: false,
+		AllowedSensitiveTools: []string{
+			"target-domain-list",
+			"target-domain-get",
+			"target-domain-create",
+			"target-domain-update",
+			"target-domain-delete",
+			"target-domain-scan",
+		},
+	}
+}
+
 func TestRegister_DefaultReadOnlySkipsWriteTools(t *testing.T) {
 	reg := registry.NewRegistry()
 
@@ -169,7 +185,7 @@ func TestRegister_BlacklistAlone(t *testing.T) {
 // map entries referencing unimplemented tools.
 func TestRegister_RequiredPermissionsConsistency(t *testing.T) {
 	reg := registry.NewRegistry()
-	registerWithPermissions(reg, config.PermissionsConfig{DefaultReadOnly: false})
+	registerWithPermissions(reg, permissionsRegisterAll())
 
 	for _, tool := range reg.Tools() {
 		if tool.Name == "echo" {
@@ -202,7 +218,7 @@ func TestRegister_RequiredPermissionsConsistency(t *testing.T) {
 // reg.Register(...) fails loudly.
 func TestRegister_OneToolPerTopic(t *testing.T) {
 	reg := registry.NewRegistry()
-	registerWithPermissions(reg, config.PermissionsConfig{DefaultReadOnly: false})
+	registerWithPermissions(reg, permissionsRegisterAll())
 
 	topics := []string{
 		"access-group-list",
@@ -225,5 +241,65 @@ func TestRegister_OneToolPerTopic(t *testing.T) {
 		if _, ok := reg.Get(name); !ok {
 			t.Errorf("expected %q to be registered (one tool per topic smoke)", name)
 		}
+	}
+}
+
+func TestRegister_EmptyAllowedSensitiveToolsDropsTargetDomainTools(t *testing.T) {
+	reg := registry.NewRegistry()
+	registerWithPermissions(reg, config.PermissionsConfig{DefaultReadOnly: false})
+
+	if _, ok := reg.Get("target-domain-list"); ok {
+		t.Fatal("expected target-domain-list to be omitted when allowed_sensitive_tools is empty")
+	}
+	if _, ok := reg.Get("target-domain-get"); ok {
+		t.Fatal("expected target-domain-get to be omitted when allowed_sensitive_tools is empty")
+	}
+}
+
+func TestRegister_AllowedSensitiveToolsBypassesWhitelist(t *testing.T) {
+	reg := registry.NewRegistry()
+	registerWithPermissions(reg, config.PermissionsConfig{
+		DefaultReadOnly: false,
+		Whitelist:       []string{"host-"},
+		AllowedSensitiveTools: []string{
+			"target-domain-list",
+		},
+	})
+
+	if _, ok := reg.Get("target-domain-list"); !ok {
+		t.Fatal("expected target-domain-list when listed in allowed_sensitive_tools")
+	}
+	if _, ok := reg.Get("target-domain-get"); ok {
+		t.Fatal("expected target-domain-get to stay omitted when not listed")
+	}
+	if _, ok := reg.Get("host-list"); !ok {
+		t.Fatal("expected host-list to remain via whitelist")
+	}
+}
+
+func TestRegister_AllowedSensitiveToolsPrefixDoesNotMatch(t *testing.T) {
+	reg := registry.NewRegistry()
+	registerWithPermissions(reg, config.PermissionsConfig{
+		DefaultReadOnly:       false,
+		AllowedSensitiveTools: []string{"target-domain-"},
+	})
+
+	if _, ok := reg.Get("target-domain-list"); ok {
+		t.Fatal("expected target-domain-list to require an exact allowed_sensitive_tools entry")
+	}
+}
+
+func TestRegister_AllowedSensitiveToolsDoesNotBypassWhitelistForNonSensitive(t *testing.T) {
+	reg := registry.NewRegistry()
+	registerWithPermissions(reg, config.PermissionsConfig{
+		DefaultReadOnly: false,
+		Whitelist:       []string{"host-"},
+		AllowedSensitiveTools: []string{
+			"user-list",
+		},
+	})
+
+	if _, ok := reg.Get("user-list"); ok {
+		t.Fatal("expected user-list to stay filtered by whitelist")
 	}
 }

@@ -17,6 +17,7 @@ func List() registry.Tool {
 	description := "List PrivX target domains with pagination. " +
 		"Sorted by name DESC by default. " +
 		"Page with offset+limit while pagesRemaining > 0. " +
+		target_domains.SensitiveDataGuidance + " " +
 		common.PresentationGuidance
 
 	properties := registry.NewOrderedMap().
@@ -64,6 +65,7 @@ func List() registry.Tool {
 		Name:        "target-domain-list",
 		Description: description,
 		Writes:      false,
+		Sensitive:   true,
 		InputSchema: inputSchema,
 		Handler:     listTargetDomainsHandler,
 	}
