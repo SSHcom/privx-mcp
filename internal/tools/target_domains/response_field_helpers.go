@@ -29,6 +29,30 @@ var (
 		"ldap_base_dn",
 		"entra_tenant_id",
 	}
+	DefaultManagedAccountFields = []string{
+		"id",
+		"username",
+		"full_name",
+		"email",
+		"enabled",
+		"rotation_enabled",
+		"explicit_checkout",
+		"state",
+		"password_policy",
+		"comment",
+		"locked",
+	}
+
+	handleFields          = []string{"id", "name", "deleted"}
+	rotationHistoryFields = []string{"version", "rotated", "trigger", "status"}
+	checkoutFields        = []string{
+		"id",
+		"user_id",
+		"expires",
+		"created",
+		"explicit_checkout",
+		"username",
+	}
 
 	// Sensitive paths always stripped from target-domain and managed-account
 	// payloads, including raw output and explicit field requests.
@@ -102,6 +126,65 @@ func FormatTargetDomainItems(items []secretsmanager.TargetDomain, raw bool, p Pr
 		}
 
 		out = append(out, RedactSensitiveTargetDomainFields(domainMap))
+	}
+
+	return out
+}
+
+// ManagedAccountProjection is the managed-account field set for list.
+type ManagedAccountProjection struct {
+	Root []string
+}
+
+// ManagedAccountProjectionFromParams merges default managed-account fields with optional CSV extras.
+func ManagedAccountProjectionFromParams(params map[string]any) ManagedAccountProjection {
+	return ManagedAccountProjection{
+		Root: utils.MergeUnique(DefaultManagedAccountFields, utils.CSVFromMap(params, "fields")),
+	}
+}
+
+// SelectManagedAccountFields builds a filtered managed-account map.
+// password_policy and target_domain keep the handle fields. rotation_history
+// and checkouts keep their non-secret fields. Unknown names are skipped.
+func SelectManagedAccountFields(account map[string]any, p ManagedAccountProjection) map[string]any {
+	out := make(map[string]any, len(p.Root))
+	for _, field := range p.Root {
+		switch field {
+		case "password_policy", "target_domain":
+			if _, ok := account[field]; ok {
+				out[field] = common.ProjectObject(account[field], handleFields, common.OmitMissing)
+			}
+		case "rotation_history":
+			out[field] = common.ProjectArray(account[field], rotationHistoryFields, common.OmitMissing)
+		case "checkouts":
+			out[field] = common.ProjectArray(account[field], checkoutFields, common.OmitMissing)
+		default:
+			if value, ok := account[field]; ok {
+				out[field] = value
+			}
+		}
+	}
+
+	return out
+}
+
+// FormatManagedAccount converts a managed account to a JSON map with checkout passwords removed.
+func FormatManagedAccount(v any) map[string]any {
+	return RedactSensitiveTargetDomainFields(utils.ToJSONMap(v))
+}
+
+// FormatManagedAccountItems converts managed accounts to response maps. When
+// raw is false, fields are projected with SelectManagedAccountFields; checkout
+// passwords are always redacted.
+func FormatManagedAccountItems(items []secretsmanager.ManagedAccount, raw bool, p ManagedAccountProjection) []map[string]any {
+	out := make([]map[string]any, 0, len(items))
+	for _, item := range items {
+		accountMap := utils.ToJSONMap(item)
+		if !raw {
+			accountMap = SelectManagedAccountFields(accountMap, p)
+		}
+
+		out = append(out, RedactSensitiveTargetDomainFields(accountMap))
 	}
 
 	return out

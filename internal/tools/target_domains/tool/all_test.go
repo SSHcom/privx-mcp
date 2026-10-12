@@ -4,14 +4,16 @@ import "testing"
 
 func TestTargetDomainTools_Registration(t *testing.T) {
 	tools := All()
-	if len(tools) != 6 {
-		t.Fatalf("expected 6 tools, got %d", len(tools))
+	if len(tools) != 8 {
+		t.Fatalf("expected 8 tools, got %d", len(tools))
 	}
 	wantNames := []string{
 		"target-domain-create",
 		"target-domain-delete",
 		"target-domain-get",
 		"target-domain-list",
+		"target-domain-managed-account-get",
+		"target-domain-managed-account-list",
 		"target-domain-scan",
 		"target-domain-update",
 	}
@@ -41,12 +43,14 @@ func TestTargetDomainTools_Registration(t *testing.T) {
 
 func TestTargetDomainTools_WriteFlags(t *testing.T) {
 	writeTools := map[string]bool{
-		"target-domain-list":   false,
-		"target-domain-get":    false,
-		"target-domain-create": true,
-		"target-domain-update": true,
-		"target-domain-delete": true,
-		"target-domain-scan":   true,
+		"target-domain-list":                 false,
+		"target-domain-get":                  false,
+		"target-domain-managed-account-list": false,
+		"target-domain-managed-account-get":  false,
+		"target-domain-create":               true,
+		"target-domain-update":               true,
+		"target-domain-delete":               true,
+		"target-domain-scan":                 true,
 	}
 	for _, tl := range All() {
 		want, ok := writeTools[tl.Name]

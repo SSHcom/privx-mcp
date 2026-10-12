@@ -146,6 +146,8 @@ var (
 	targetDomainsViewTools = []string{
 		"target-domain-list",
 		"target-domain-get",
+		"target-domain-managed-account-list",
+		"target-domain-managed-account-get",
 	}
 	targetDomainsWriteTools = []string{
 		"target-domain-create",

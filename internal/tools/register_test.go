@@ -24,6 +24,8 @@ func permissionsRegisterAll() config.PermissionsConfig {
 			"target-domain-update",
 			"target-domain-delete",
 			"target-domain-scan",
+			"target-domain-managed-account-list",
+			"target-domain-managed-account-get",
 		},
 	}
 }
