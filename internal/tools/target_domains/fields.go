@@ -28,6 +28,11 @@ type endpointIntField struct {
 	set      func(*secretsmanager.TargetDomainEndpoint, int)
 }
 
+type managedAccountBoolField struct {
+	key string
+	set func(*secretsmanager.ManagedAccount, bool)
+}
+
 var targetDomainStringFields = []stringField{
 	{key: "name", set: func(d *secretsmanager.TargetDomain, v string) { d.Name = v }},
 	{key: "domain_name", set: func(d *secretsmanager.TargetDomain, v string) { d.DomainName = v }},
@@ -125,6 +130,49 @@ func ApplyTargetDomainFields(domain *secretsmanager.TargetDomain, params map[str
 		}
 
 		domain.EndPoints = endpoints
+	}
+
+	return nil
+}
+
+var managedAccountBoolFields = []managedAccountBoolField{
+	{key: "enabled", set: func(a *secretsmanager.ManagedAccount, v bool) { a.Enabled = v }},
+	{key: "rotation_enabled", set: func(a *secretsmanager.ManagedAccount, v bool) { a.RotationEnabled = v }},
+	{key: "explicit_checkout", set: func(a *secretsmanager.ManagedAccount, v bool) { a.ExplicitCheckout = v }},
+	{key: "disable_rdp_cert_auth", set: func(a *secretsmanager.ManagedAccount, v bool) { a.DisableRDPCertAuth = v }},
+}
+
+// ApplyManagedAccountFields overlays present params onto account. Absent
+// keys stay. Empty strings do not clear comment or password_policy_id.
+// Directory identity fields are never written.
+func ApplyManagedAccountFields(account *secretsmanager.ManagedAccount, params map[string]any) error {
+	for _, field := range managedAccountBoolFields {
+		v, ok, err := utils.OverlayBool(params, field.key)
+		if err != nil {
+			return fmt.Errorf("validation error: %w", err)
+		}
+
+		if ok {
+			field.set(account, v)
+		}
+	}
+
+	comment, ok, err := utils.OverlayString(params, "comment")
+	if err != nil {
+		return fmt.Errorf("validation error: %w", err)
+	}
+
+	if ok && comment != "" {
+		account.Comment = comment
+	}
+
+	policyID, ok, err := utils.OverlayString(params, "password_policy_id")
+	if err != nil {
+		return fmt.Errorf("validation error: %w", err)
+	}
+
+	if ok && policyID != "" {
+		account.PasswordPolicy = &secretsmanager.PasswordPolicyHandle{ID: policyID}
 	}
 
 	return nil

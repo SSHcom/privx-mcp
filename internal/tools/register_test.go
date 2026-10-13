@@ -26,6 +26,9 @@ func permissionsRegisterAll() config.PermissionsConfig {
 			"target-domain-scan",
 			"target-domain-managed-account-list",
 			"target-domain-managed-account-get",
+			"target-domain-managed-account-update",
+			"target-domain-managed-account-rotate",
+			"target-domain-managed-account-checkout",
 		},
 	}
 }

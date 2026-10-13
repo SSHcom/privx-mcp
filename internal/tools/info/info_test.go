@@ -152,8 +152,8 @@ func TestInfoHandler_PrivXInfoAlwaysIncluded(t *testing.T) {
 
 func TestInfoHandler_ContextAndResources(t *testing.T) {
 	result, err := infoHandler(testSnapshot())(testAuthContext(), map[string]any{
-		"context":   []any{"users-and-roles", "hosts", "connection", "network-targets", "audit-events", "whitelists", "access-groups", "api-targets"},
-		"resources": []any{"host", "connection", "network-target", "api-target", "audit-event", "user", "role", "role-member", "request (access)", "whitelist", "access-group", "target-domain"},
+		"context":   []any{"users-and-roles", "hosts", "connection", "network-targets", "audit-events", "whitelists", "access-groups", "api-targets", "target-domains"},
+		"resources": []any{"host", "connection", "network-target", "api-target", "audit-event", "user", "role", "role-member", "request (access)", "whitelist", "access-group", "target-domain", "managed-account"},
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -191,6 +191,13 @@ func TestInfoHandler_ContextAndResources(t *testing.T) {
 	}
 	if !strings.Contains(contextMap["api-targets"].(string), "API targets") {
 		t.Fatalf("unexpected api-targets content: %q", contextMap["api-targets"])
+	}
+	targetDomains := contextMap["target-domains"].(string)
+	if !strings.Contains(targetDomains, "# Target domains") {
+		t.Fatalf("unexpected target-domains content: %q", targetDomains)
+	}
+	if !strings.Contains(targetDomains, "host-update") || !strings.Contains(targetDomains, "target_domain") || !strings.Contains(targetDomains, "dropped") {
+		t.Fatalf("target-domains context missing host-update note: %q", targetDomains)
 	}
 
 	resources := got["resources"].(map[string]any)
@@ -259,6 +266,20 @@ func TestInfoHandler_ContextAndResources(t *testing.T) {
 	}
 	if _, ok := entra["entra_client_secret"]; ok {
 		t.Fatal("target-domain example included entra_client_secret")
+	}
+	ma := resources["managed-account"].(map[string]any)
+	if ma["username"] != "example-user@example.com" {
+		t.Fatalf("unexpected managed-account example: %#v", ma)
+	}
+	if ma["rotation_enabled"] != true || ma["explicit_checkout"] != true || ma["password_policy"] == nil {
+		t.Fatalf("managed-account example missing management fields: %#v", ma)
+	}
+	checkouts := ma["checkouts"].([]any)
+	if len(checkouts) != 1 {
+		t.Fatalf("expected one checkout, got %#v", checkouts)
+	}
+	if _, ok := checkouts[0].(map[string]any)["secrets"]; ok {
+		t.Fatal("managed-account example included checkout secrets")
 	}
 }
 

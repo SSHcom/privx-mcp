@@ -149,3 +149,55 @@ func TestApplyTargetDomainFields(t *testing.T) {
 		}
 	})
 }
+
+func sampleManagedAccount() secretsmanager.ManagedAccount {
+	return secretsmanager.ManagedAccount{
+		ID:               "ma1",
+		Username:         "svc-sql",
+		Enabled:          true,
+		RotationEnabled:  true,
+		ExplicitCheckout: true,
+		Comment:          "keep-comment",
+		PasswordPolicy:   &secretsmanager.PasswordPolicyHandle{ID: "pol-old", Name: "old"},
+	}
+}
+
+func TestApplyManagedAccountFields(t *testing.T) {
+	t.Run("omitted rotation_enabled keeps the fetched value", func(t *testing.T) {
+		account := sampleManagedAccount()
+		err := ApplyManagedAccountFields(&account, map[string]any{
+			"comment":  "edited",
+			"username": "renamed",
+		})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if !account.RotationEnabled || account.Username != "svc-sql" || account.Comment != "edited" {
+			t.Fatalf("account = %+v", account)
+		}
+	})
+
+	t.Run("present explicit_checkout false clears it", func(t *testing.T) {
+		account := sampleManagedAccount()
+		if err := ApplyManagedAccountFields(&account, map[string]any{"explicit_checkout": false}); err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if account.ExplicitCheckout || !account.RotationEnabled {
+			t.Fatalf("account = %+v", account)
+		}
+	})
+
+	t.Run("empty strings do not clear comment or password policy", func(t *testing.T) {
+		account := sampleManagedAccount()
+		err := ApplyManagedAccountFields(&account, map[string]any{
+			"comment":            "",
+			"password_policy_id": "",
+		})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if account.Comment != "keep-comment" || account.PasswordPolicy.ID != "pol-old" {
+			t.Fatalf("empty strings cleared values: %+v", account)
+		}
+	})
+}

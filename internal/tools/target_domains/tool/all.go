@@ -13,5 +13,8 @@ func All() []registry.Tool {
 		Scan(),
 		ManagedAccountList(),
 		ManagedAccountGet(),
+		ManagedAccountUpdate(),
+		ManagedAccountRotate(),
+		ManagedAccountCheckout(),
 	}
 }

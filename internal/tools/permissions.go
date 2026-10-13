@@ -154,6 +154,9 @@ var (
 		"target-domain-update",
 		"target-domain-delete",
 		"target-domain-scan",
+		"target-domain-managed-account-update",
+		"target-domain-managed-account-rotate",
+		"target-domain-managed-account-checkout",
 	}
 
 	// Password policies (admin-only, no specific PrivX permission)
