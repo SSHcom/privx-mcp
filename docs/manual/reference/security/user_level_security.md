@@ -122,12 +122,12 @@ The result is the read tools matching those prefixes. With `default_read_only = 
 
 Each MCP tool is mapped to a required PrivX permission scope in `internal/tools/permissions.go`. Examples:
 
-| Scope             | Example tools                                                          |
-| ----------------- | ---------------------------------------------------------------------- |
-| `hosts-view`      | `host-list`, `host-get`                                                |
-| `hosts-manage`    | `host-create`, `host-update`, `host-delete` (also includes view tools) |
-| `authenticated`   | Tools available to any signed-in user (`mcp-info`, `host-search`)      |
-| _(none / public)_ | Tools with no permission requirement                                   |
+| Scope                   | Example tools                                                                                                         |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `hosts-view`            | `host-list`, `host-get`                                                                                               |
+| `hosts-manage`          | `host-create`, `host-update`, `host-delete` (also includes view tools)                                                |
+| `authenticated`         | Tools available to any signed-in user (`mcp-info`, `host-search`)                                                     |
+| _(none / public)_       | Tools with no permission requirement                                                                                  |
 
 The full tool-to-scope listing is in [MCP tools](../user/tools.md).
 

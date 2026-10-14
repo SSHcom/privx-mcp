@@ -1055,3 +1055,37 @@ func assertScopeDeniedJSON(t *testing.T, result *mcp.CallToolResult, toolName, e
 		t.Fatalf("expected restart message in JSON, got %q", text.Text)
 	}
 }
+
+func TestListDenyReason(t *testing.T) {
+	identity := &oauth.IdentityClaims{Email: "alice@example.com"}
+
+	if got := listDenyReason(identity, &rolestore.User{
+		Permissions: []string{"target-domains-view"},
+	}, []string{"target-domains-manage"}, false); got != "missing target-domains-manage" {
+		t.Fatalf("missing scope: %q", got)
+	}
+
+	if got := listDenyReason(identity, &rolestore.User{
+		Roles: []rolestore.Role{{Name: "privx-admin"}},
+	}, []string{"target-domains-manage"}, false); got != "" {
+		t.Fatalf("admin role should allow, got %q", got)
+	}
+
+	if got := listDenyReason(
+		nil,
+		nil,
+		[]string{"target-domains-manage"},
+		false,
+	); got != "missing identity" {
+		t.Fatalf("missing identity: %q", got)
+	}
+
+	if got := listDenyReason(
+		identity,
+		nil,
+		[]string{"target-domains-manage"},
+		true,
+	); got != "permission resolution failed" {
+		t.Fatalf("resolve failure: %q", got)
+	}
+}

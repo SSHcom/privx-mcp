@@ -36,6 +36,8 @@ const (
 	PermissionNetworkTargetsManage = "network-targets-manage"
 	PermissionAPITargetsView       = "api-targets-view"
 	PermissionAPITargetsManage     = "api-targets-manage"
+	PermissionTargetDomainsView    = "target-domains-view"
+	PermissionTargetDomainsManage  = "target-domains-manage"
 	PermissionAccessGroupsManage   = "access-groups-manage"
 
 	PermissionAuthenticated = registry.PermissionAuthenticated
@@ -148,6 +150,22 @@ var (
 		"api-target-delete",
 	}
 
+	targetDomainsViewTools = []string{
+		"target-domain-list",
+		"target-domain-get",
+		"target-domain-managed-account-list",
+		"target-domain-managed-account-get",
+	}
+	targetDomainsWriteTools = []string{
+		"target-domain-create",
+		"target-domain-update",
+		"target-domain-delete",
+		"target-domain-scan",
+		"target-domain-managed-account-update",
+		"target-domain-managed-account-rotate",
+		"target-domain-managed-account-checkout",
+	}
+
 	// Password policies (admin-only, no specific PrivX permission)
 	passwordPoliciesTools = []string{
 		"password-policy-list",
@@ -213,6 +231,9 @@ func init() {
 
 		PermissionAPITargetsView:   apiTargetsViewTools,
 		PermissionAPITargetsManage: concat(apiTargetsWriteTools, apiTargetsViewTools),
+
+		PermissionTargetDomainsView:   targetDomainsViewTools,
+		PermissionTargetDomainsManage: concat(targetDomainsWriteTools, targetDomainsViewTools),
 
 		PermissionPrivxAdmin: concat(passwordPoliciesTools, commandWhitelistsTools),
 

@@ -78,6 +78,7 @@ func (c *Core) filterByPermissions(ctx context.Context, identity *oauth.Identity
 			"upn", identityUPN(identity),
 			"user_id", userID,
 			"roles", roleNames(user),
+			"admin_role", hasPrivxAdminRole(user),
 			"permissions", resolvedPermissions(user),
 		)
 
@@ -86,6 +87,7 @@ func (c *Core) filterByPermissions(ctx context.Context, identity *oauth.Identity
 
 	filtered := make([]*mcp.Tool, 0, len(tools))
 	hidden := 0
+	hiddenTargetDomains := make([]string, 0)
 
 	for _, tool := range tools {
 		if tool == nil {
@@ -106,12 +108,16 @@ func (c *Core) filterByPermissions(ctx context.Context, identity *oauth.Identity
 			roles = ensureResolved()
 		}
 
-		if AllowResolved(identity, roles, required) {
+		reason := listDenyReason(identity, roles, required, resolveFailed)
+		if reason == "" {
 			filtered = append(filtered, tool)
 			continue
 		}
 
 		hidden++
+		if strings.HasPrefix(tool.Name, "target-domain-") {
+			hiddenTargetDomains = append(hiddenTargetDomains, tool.Name+": "+reason)
+		}
 	}
 
 	logging.Info(
@@ -121,12 +127,49 @@ func (c *Core) filterByPermissions(ctx context.Context, identity *oauth.Identity
 		"input", len(tools),
 		"visible", len(filtered),
 		"hidden", hidden,
+		"hidden_target_domains", hiddenTargetDomains,
 		"resolve_tried", resolveTried,
 		"resolve_failed", resolveFailed,
 		"resolve_err", resolveErr,
 	)
 
 	return filtered
+}
+
+// listDenyReason explains why tools/list hides a tool. An empty reason means
+// the tool stays visible. It matches AllowResolved.
+func listDenyReason(
+	identity *oauth.IdentityClaims,
+	resolvedRoles *rolestore.User,
+	required []string,
+	resolveFailed bool,
+) string {
+	if len(required) == 0 {
+		return ""
+	}
+
+	if identity == nil {
+		return "missing identity"
+	}
+
+	if len(required) == 1 && required[0] == registry.PermissionAuthenticated {
+		return ""
+	}
+
+	if resolveFailed || resolvedRoles == nil {
+		return "permission resolution failed"
+	}
+
+	if hasPrivxAdminRole(resolvedRoles) {
+		return ""
+	}
+
+	missing := missingRequirements(required, buildPermissionSet(resolvedRoles, time.Now()))
+	if len(missing) == 0 {
+		return ""
+	}
+
+	return "missing " + strings.Join(missing, ",")
 }
 
 func identityEmail(identity *oauth.IdentityClaims) string {

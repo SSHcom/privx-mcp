@@ -26,6 +26,8 @@ Every tool call runs as the authenticated PrivX user. Granting a permission here
 
 Stay on `default_read_only`, the default, which drops every write tool. Turn it off only deliberately, and scope tools with permissions so each caller sees only what their role needs. Read-only access can still pull data into a model context you do not control, but it cannot change PrivX.
 
+Tools that can surface secrets or raw session content are a separate registration gate. See [Sensitive data tools](#sensitive-data-tools).
+
 One tool is a deliberate exception. `request-set-decision` approves or denies an access request and survives read-only mode, because approval advances an existing workflow rather than changing configuration. See [Why `request-set-decision` is classified as Read](../user/tools.md#why-request-set-decision-is-classified-as-read).
 
 ## Loop and DDoS protection
@@ -135,18 +137,32 @@ The payload keeps its fields and pagination and only moves under `data`, plus `d
 
 ### Trusted tools
 
-A tool marked `Trusted` in the registry skips stripping, the word lists, and the envelope. This is only for content the server itself produces, today just `mcp-info`, whose documentation and example JSON are meant to read as guidance and naturally contain blacklisted words. A trusted tool that mixes in anything from PrivX, as `mcp-info` does with the caller's name and role names, must run those strings through the blacklist itself.
+A tool marked `Trusted` in the registry skips stripping, the word lists, and the envelope. `mcp-info` is trusted because its documentation and example JSON are server-generated and naturally contain blacklisted words. `target-domain-managed-account-checkout` is trusted because the password must pass through unchanged: a generated password can contain a blacklisted substring, and changing characters would return the wrong password. A trusted tool that mixes in anything else from PrivX must run those strings through the blacklist itself. `mcp-info` does this for the caller's name and role names. The checkout handler does this for every returned string except the password, via `security.PrepareStrings`.
 
 ### Sensitive data tools
 
-A tool marked `Sensitive` in the registry can surface secrets or raw session content read from PrivX, such as `connection-trail-get`, which reconstructs the keystrokes of a recorded SSH session and can therefore include typed passwords, database connection strings, and key material. These tools are gated separately from the word lists and envelope, which do not detect secrets.
+Some tools can return secrets or raw session content from PrivX. They are marked `Sensitive` in the registry:
 
-The gate is two settings under `[permissions]`, both default-off and intentionally absent from the example config:
+- **Connection trail** (`connection-trail-get`) rebuilds the keystrokes of a recorded SSH session, so it can contain typed passwords, database connection strings, and key material.
+- **All target-domain tools** handle managed accounts and their passwords.
 
-- `enable_sensitive_data_tools` (default `false`): when false, every `Sensitive` tool is dropped at registration, so it is never listed or callable. When true, the tools are registered.
-- `sensitive_data_tools_allow_non_admin` (default `false`): when false, a registered sensitive tool requires the `privx-admin` scope, so only privx-admin role holders can use it. When true, it requires its own granular scopes instead (for `connection-trail-get`, `connections-view` and `connections-trail`), so a suitably permissioned non-admin may use it; privx-admin always retains access.
+The word lists and the envelope do not detect secrets, so these tools have their own gate: two settings under `[permissions]`. Both are off by default and are left out of the example config on purpose. They are also listed in [MCP server configuration](../server/SERVER.md#permissions).
 
-The gate controls exposure and audience, not masking: output is not scrubbed of secrets. It should be enabled only with a private, self-hosted LLM, because tool output leaves for whatever model the client uses. See the Sensitive data tools section in the project README. A startup warning records when the gate is open and in which mode.
+| Setting | When off (default) | When on |
+| --- | --- | --- |
+| `enable_sensitive_data_tools` | Sensitive tools are not registered, so they are never listed or callable. | Sensitive tools are registered. Read-only mode, the whitelist, and the blacklist still apply. |
+| `sensitive_data_tools_allow_non_admin` | Only privx-admin role holders can use sensitive tools. | Non-admins who hold the scopes in the table below can use them too. privx-admin keeps access. Has no effect unless the first setting is on. |
+
+Each setting can also be set through an environment variable with the same name in upper case, prefixed with `PERMISSIONS_`.
+
+Scopes a non-admin needs when `sensitive_data_tools_allow_non_admin` is on:
+
+| Tool | Required scopes |
+| --- | --- |
+| Connection trail | `connections-view` and `connections-trail` |
+| Target-domain tools | `target-domains-view` or `target-domains-manage` |
+
+The gate controls who can see these tools, not what they return. Secrets are not removed from the output. Enable these tools only with a private, self-hosted LLM that you fully control, because tool output is sent to whatever model the MCP client uses. A startup warning records when the gate is open and in which mode.
 
 ## What the hardening cannot do
 

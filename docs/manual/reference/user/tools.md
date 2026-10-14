@@ -1,6 +1,6 @@
 # MCP tools
 
-Every tool the PrivX MCP server can register: 65 tools across 13 topics. The `echo` development tool is not covered.
+Every tool the PrivX MCP server can register: 77 tools across 14 topics. The `echo` development tool is not covered.
 
 ## Related documents
 
@@ -100,16 +100,19 @@ Access is still gated per call: the caller must hold the approver role required 
 
 ## Connection tools
 
-| Tool                   | Description                                               | Type  | Permission              |
-| ---------------------- | --------------------------------------------------------- | ----- | ----------------------- |
-| `connection-list`      | List connections with pagination (connected DESC).        | Read  | `connections-view`      |
-| `connection-get`       | Get a single connection by ID.                            | Read  | `connections-view`      |
-| `connection-search`    | Search by status, type, user, host, time range, keywords. | Read  | `connections-view`      |
-| `connection-terminate` | Forcefully end an active session (status CONNECTED).      | Write | `connections-terminate` |
+| Tool                   | Description                                               | Type  | Permission                              |
+| ---------------------- | --------------------------------------------------------- | ----- | --------------------------------------- |
+| `connection-list`      | List connections with pagination (connected DESC).        | Read  | `connections-view`                      |
+| `connection-get`       | Get a single connection by ID.                            | Read  | `connections-view`                      |
+| `connection-search`    | Search by status, type, user, host, time range, keywords. | Read  | `connections-view`                      |
+| `connection-trail-get` | Get recorded commands from an SSH connection's trail.     | Read  | `connections-view`, `connections-trail` |
+| `connection-terminate` | Forcefully end an active session (status CONNECTED).      | Write | `connections-terminate`                 |
+
+`connection-trail-get` requires both `connections-view` and `connections-trail`. It is a sensitive tool, registered only when `[permissions].enable_sensitive_data_tools` is set. The connection must be SSH with session recording enabled, and the trail is readable only after the session has disconnected. See [Sensitive data tools](../security/security.md#sensitive-data-tools).
 
 ### Compact view vs raw
 
-By default, connection tools return a compact 17-field projection per connection (user, target, status, timing, traffic). Pass `raw=true` to get the full unfiltered API response including nested `user_data`, `target_host_data`, `target_network_data`, `target_api_data`, and `trail` objects.
+By default, connection list, get, and search return a compact 17-field projection per connection (user, target, status, timing, traffic). Pass `raw=true` to get the full unfiltered API response including nested `user_data`, `target_host_data`, `target_network_data`, `target_api_data`, and `trail` objects. `connection-trail-get` returns reconstructed commands instead; `raw=true` there adds trail metadata (`trail_id`, `session_id`, `index_status`) alongside them.
 
 Compact fields: `id`, `type`, `mode`, `status`, `user`, `target_host`, `target_host_address`, `target_host_account`, `authentication_method`, `target_host_roles`, `remote_address`, `connected`, `disconnected`, `duration`, `bytes_in`, `bytes_out`, `audit_enabled`.
 
@@ -141,6 +144,28 @@ Compact fields: `id`, `type`, `mode`, `status`, `user`, `target_host`, `target_h
 | `api-target-delete` | Delete an API target by id (fetch with api-target-get first).          | Write | `api-targets-manage` |
 
 `api-target-*` has view and manage scopes, but the only write tool is `api-target-delete`. There is no create or update tool.
+
+## Target domain tools
+
+| Tool                                     | Description                                                                                                      | Type  | Permission              |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ----- | ----------------------- |
+| `target-domain-list`                     | List target domains with pagination (name DESC).                                                                 | Read  | `target-domains-view`   |
+| `target-domain-get`                      | Fetch a single target domain by id.                                                                              | Read  | `target-domains-view`   |
+| `target-domain-create`                   | Create a target domain with at least one endpoint. Bind password and Entra client secret are write-only.         | Write | `target-domains-manage` |
+| `target-domain-update`                   | Update a target domain by id. Only supplied fields change. Bind password and Entra client secret are write-only. | Write | `target-domains-manage` |
+| `target-domain-delete`                   | Delete a target domain by id.                                                                                    | Write | `target-domains-manage` |
+| `target-domain-scan`                     | Ask PrivX to read accounts from the domain endpoints.                                                            | Write | `target-domains-manage` |
+| `target-domain-managed-account-list`     | List managed accounts under a target domain with pagination (username DESC).                                     | Read  | `target-domains-view`   |
+| `target-domain-managed-account-get`      | Fetch a managed account by id.                                                                                   | Read  | `target-domains-view`   |
+| `target-domain-managed-account-update`   | Update management flags on a managed account. Omitted fields stay as fetched.                                    | Write | `target-domains-manage` |
+| `target-domain-managed-account-rotate`   | Start a password rotation. The new password is absent from the result.                                           | Write | `target-domains-manage` |
+| `target-domain-managed-account-checkout` | Check out the latest password of one managed account under the given target domain.                              | Write | `target-domains-manage` |
+
+List and get omit bind passwords, Entra client secrets, and checkout password versions, including when `raw` is set or the caller names those fields.
+
+`target-domain-managed-account-checkout` is Trusted because it returns the password, which must pass through unchanged. The handler still checks every other string in that result. See [Trusted tools](../security/security.md#trusted-tools).
+
+Every tool in this topic is sensitive. Each one is registered only when `[permissions].enable_sensitive_data_tools` is set, and by default only a privx-admin can call it. See [Sensitive data tools](../security/security.md#sensitive-data-tools).
 
 ## Access group tools
 
@@ -213,4 +238,4 @@ Duration fields use ISO 8601 format: `P30D` (30 days), `PT1H` (1 hour), `PT5M` (
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | --------------- | ------- |
 | `mcp-info` | Return MCP/PrivX information for the current session: authenticated caller info, PrivX instance config, optional context topics, and example resources. | Read | `authenticated` | Yes     |
 
-`mcp-info` is the one `Trusted` tool: it bypasses the runtime security envelope (stripping, word lists, and the `{meta, data}` wrapper) because its payload is server-generated documentation and example JSON. The handler still sanitizes the PrivX-sourced strings it embeds (caller name, role names) itself. See [Trusted tools](../security/security.md#trusted-tools).
+`mcp-info` is a `Trusted` tool: it bypasses the runtime security envelope (stripping, word lists, and the `{meta, data}` wrapper) because its payload is server-generated documentation and example JSON. The handler still sanitizes the PrivX-sourced strings it embeds (caller name, role names) itself. See [Trusted tools](../security/security.md#trusted-tools).

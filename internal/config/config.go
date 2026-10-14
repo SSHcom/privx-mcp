@@ -105,11 +105,10 @@ type PermissionsConfig struct {
 	MaxedWindowWaitSeconds int
 
 	// EnableSensitiveDataTools gates tools marked Sensitive (e.g.
-	// connection-trail-get) that can surface secrets or raw session content.
-	// Defaults to false: such tools are not registered at all. This key is
-	// intentionally omitted from the example config and documented only in the
-	// README, which warns it should be enabled only with a private/self-hosted
-	// LLM.
+	// connection-trail-get and the target-domain tools) that can surface
+	// secrets or raw session content. Defaults to false: such tools are not
+	// registered at all. This key is intentionally omitted from the example
+	// config. See docs/manual/reference/security/security.md.
 	EnableSensitiveDataTools bool
 	// SensitiveDataToolsAllowNonAdmin only has effect when
 	// EnableSensitiveDataTools is true. Defaults to false: sensitive tools are

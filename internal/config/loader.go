@@ -56,7 +56,7 @@ type tomlConfig struct {
 		RequestWindowSeconds   int      `toml:"request_window_seconds"`
 		MaxRequestsPerWindow   int      `toml:"max_requests_per_window"`
 		MaxedWindowWaitSeconds int      `toml:"maxed_window_wait_seconds"`
-		// Intentionally undocumented in the example config; see README.
+		// Intentionally undocumented in the example config; see security.md.
 		EnableSensitiveDataTools        bool `toml:"enable_sensitive_data_tools"`
 		SensitiveDataToolsAllowNonAdmin bool `toml:"sensitive_data_tools_allow_non_admin"`
 	} `toml:"permissions"`

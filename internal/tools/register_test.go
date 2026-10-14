@@ -12,6 +12,15 @@ func registerWithPermissions(reg registry.Registry, permissions config.Permissio
 	Register(reg, &config.Config{Permissions: permissions})
 }
 
+// permissionsRegisterAll enables every sensitive tool that exists in the tree so
+// full Register smoke tests match the permission map.
+func permissionsRegisterAll() config.PermissionsConfig {
+	return config.PermissionsConfig{
+		DefaultReadOnly:          false,
+		EnableSensitiveDataTools: true,
+	}
+}
+
 func TestRegister_DefaultReadOnlySkipsWriteTools(t *testing.T) {
 	reg := registry.NewRegistry()
 
@@ -209,7 +218,7 @@ func TestRegister_RequiredPermissionsConsistency(t *testing.T) {
 // reg.Register(...) fails loudly.
 func TestRegister_OneToolPerTopic(t *testing.T) {
 	reg := registry.NewRegistry()
-	registerWithPermissions(reg, config.PermissionsConfig{DefaultReadOnly: false})
+	registerWithPermissions(reg, permissionsRegisterAll())
 
 	topics := []string{
 		"access-group-list",
@@ -220,6 +229,7 @@ func TestRegister_OneToolPerTopic(t *testing.T) {
 		"host-list",
 		"network-target-list",
 		"password-policy-list",
+		"target-domain-list",
 		"whitelist-list",
 		"role-list",
 		"user-list",

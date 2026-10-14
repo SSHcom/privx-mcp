@@ -32,8 +32,6 @@ Machine-to-machine mode is for automated clients with no interactive sign-in. Th
 - An RSA key pair (the public key registered in PrivX External Token configuration)
 - For `oauth`: an IdP issuing OIDC tokens
 
-
-
 ## Security Precautions
 
 The server fronts PrivX, a privileged access management platform. Anyone who can reach it and authenticate can act on PrivX resources with their mapped user's roles, so treat it with the same care as PrivX itself.
@@ -44,40 +42,9 @@ The server fronts PrivX, a privileged access management platform. Anyone who can
 - **Keep the server on the local network** where possible, rather than exposing it to the internet.
 - **Use** `m2m` **mode only for automated access.** Interactive users should sign in through `oauth` mode so that actions are tied to their own identity.
 
-
 ## Sensitive data tools
 
-Some tools can surface secrets or raw session content from PrivX. For example, `connection-trail-get` reconstructs the commands typed in a recorded SSH session, and keystroke-level input can include typed passwords, database connection strings, API tokens, and key material that never appeared on screen. These tools are treated as a distinct, higher-risk category.
-
-They are **disabled by default** and are intentionally not listed in `privx-mcp-config-example.toml`. A server that does not set the flags below never registers them, so they cannot be listed or called.
-
-> **Enable these tools only with a private, self-hosted LLM that you fully control.** Tool output is sent to whatever model the MCP client is wired to. With a third-party or hosted model, enabling these tools can send captured passwords and secrets outside your trust boundary. Do not enable them against a public or shared model endpoint.
-
-To enable them, add to the `[permissions]` section of your `privx-mcp-config.toml` (or set the matching environment variables):
-
-```toml
-[permissions]
-# Register sensitive-data tools. Default: false (tools are not registered).
-enable_sensitive_data_tools = true
-
-# Who may use them once enabled. Default: false = privx-admin role only.
-# Set true to also allow non-admins who hold the tool's own PrivX permissions
-# (for connection-trail-get: connections-view AND connections-trail).
-sensitive_data_tools_allow_non_admin = true
-```
-
-Equivalent environment variables:
-
-- `PERMISSIONS_ENABLE_SENSITIVE_DATA_TOOLS=true`
-- `PERMISSIONS_SENSITIVE_DATA_TOOLS_ALLOW_NON_ADMIN=true`
-
-Access model when enabled:
-
-- With `sensitive_data_tools_allow_non_admin = false` (default), only users with the **privx-admin** role can see or call these tools.
-- With `sensitive_data_tools_allow_non_admin = true`, the tool instead requires its own granular PrivX permissions. `connection-trail-get` requires both `connections-view` and `connections-trail`. privx-admin users always retain access.
-
-These gates control whether a tool is exposed and to whom. They do not mask secrets within the tool output. The startup log records a warning whenever the gate is open, including which access mode is in effect.
-
+Some tools can return secrets or raw session content. These need to be enabled by configuration. See [Sensitive data tools](docs/manual/reference/security/security.md#sensitive-data-tools) for more information.
 
 ## Documentation
 
@@ -87,8 +54,6 @@ These gates control whether a tool is exposed and to whom. They do not mask secr
 - [Deployment](deploy/README.md)
   - Examples of how to deploy (Docker, Systemd)
   - Doing a local deployment (Docker + Keycloak) for evaluation purposes
-
-
 
 ## **Support & Commercial Services**
 
