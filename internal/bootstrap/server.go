@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
@@ -54,6 +53,7 @@ func NewServerFromConfig(cfg *config.Config) (*http.Server, func(), error) {
 	}
 
 	logIdentityVerifier(cfg)
+	logSensitiveDataTools(cfg)
 
 	// Build the runtime core. Token verification happens at the edge; the
 	// authenticator consumes already-verified claims from request context.
@@ -153,7 +153,6 @@ func NewServerFromConfig(cfg *config.Config) (*http.Server, func(), error) {
 func buildRuntimeCore(cfg *config.Config, authenticator auth.Authenticator, claimsSource runtime.ClaimsSource, permissionOverride ...*runtime.PermissionEngine) *runtime.Core {
 	reg := registry.NewRegistry()
 	tools.Register(reg, cfg)
-	logTargetDomainRegistration(cfg, reg)
 
 	permissions := runtime.NewPermissionEngine()
 	if len(permissionOverride) > 0 && permissionOverride[0] != nil {
@@ -174,43 +173,6 @@ func buildRuntimeCore(cfg *config.Config, authenticator auth.Authenticator, clai
 			),
 			cfg.PrivXAuth.PrivXBaseURL,
 		),
-	)
-}
-
-// logTargetDomainRegistration records which target-domain tools this process
-// actually registered. A name present in allowed_sensitive_tools but absent
-// here never reaches tools/list, independent of the caller's PrivX roles.
-func logTargetDomainRegistration(cfg *config.Config, reg registry.Registry) {
-	registered := make([]string, 0)
-	present := make(map[string]struct{})
-	for _, tool := range reg.Tools() {
-		if !strings.HasPrefix(tool.Name, "target-domain-") {
-			continue
-		}
-
-		registered = append(registered, tool.Name)
-		present[tool.Name] = struct{}{}
-	}
-
-	missing := make([]string, 0)
-	for _, name := range cfg.Permissions.AllowedSensitiveTools {
-		if !strings.HasPrefix(name, "target-domain-") {
-			continue
-		}
-
-		if _, ok := present[name]; ok {
-			continue
-		}
-
-		missing = append(missing, name)
-	}
-
-	logging.Info(
-		"target domain tool registration",
-		"default_read_only", cfg.Permissions.DefaultReadOnly,
-		"allowed_sensitive_tools", cfg.Permissions.AllowedSensitiveTools,
-		"registered", registered,
-		"configured_but_not_registered", missing,
 	)
 }
 
@@ -268,6 +230,33 @@ func logIdentityVerifier(cfg *config.Config) {
 		"auth_mode", cfg.Server.AuthMode,
 		"service_secrets", len(usernames),
 		"usernames", usernames,
+	)
+}
+
+// logSensitiveDataTools emits a startup warning when the sensitive-data tool
+// gate is open, so an operator can see in the logs that tools which may expose
+// secrets or raw session content are registered, and in which access mode.
+func logSensitiveDataTools(cfg *config.Config) {
+	if !cfg.Permissions.EnableSensitiveDataTools {
+		if cfg.Permissions.SensitiveDataToolsAllowNonAdmin {
+			logging.Warn(
+				"permissions.sensitive_data_tools_allow_non_admin is set but has no effect " +
+					"because permissions.enable_sensitive_data_tools is false",
+			)
+		}
+
+		return
+	}
+
+	access := "privx-admin only"
+	if cfg.Permissions.SensitiveDataToolsAllowNonAdmin {
+		access = "any user with the tool's granular PrivX permissions"
+	}
+
+	logging.Warn(
+		"sensitive-data tools are ENABLED; these can expose secrets and raw session content. "+
+			"Enable only with a private/self-hosted LLM you control.",
+		"access", access,
 	)
 }
 

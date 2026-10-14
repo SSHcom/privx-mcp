@@ -16,20 +16,8 @@ func registerWithPermissions(reg registry.Registry, permissions config.Permissio
 // full Register smoke tests match the permission map.
 func permissionsRegisterAll() config.PermissionsConfig {
 	return config.PermissionsConfig{
-		DefaultReadOnly: false,
-		AllowedSensitiveTools: []string{
-			"target-domain-list",
-			"target-domain-get",
-			"target-domain-create",
-			"target-domain-update",
-			"target-domain-delete",
-			"target-domain-scan",
-			"target-domain-managed-account-list",
-			"target-domain-managed-account-get",
-			"target-domain-managed-account-update",
-			"target-domain-managed-account-rotate",
-			"target-domain-managed-account-checkout",
-		},
+		DefaultReadOnly:          false,
+		EnableSensitiveDataTools: true,
 	}
 }
 
@@ -190,7 +178,14 @@ func TestRegister_BlacklistAlone(t *testing.T) {
 // map entries referencing unimplemented tools.
 func TestRegister_RequiredPermissionsConsistency(t *testing.T) {
 	reg := registry.NewRegistry()
-	registerWithPermissions(reg, permissionsRegisterAll())
+	// Enable sensitive tools with non-admin access so they are registered and
+	// carry their granular (central-map) permissions, keeping both halves of
+	// this consistency check meaningful for sensitive tools too.
+	registerWithPermissions(reg, config.PermissionsConfig{
+		DefaultReadOnly:                 false,
+		EnableSensitiveDataTools:        true,
+		SensitiveDataToolsAllowNonAdmin: true,
+	})
 
 	for _, tool := range reg.Tools() {
 		if tool.Name == "echo" {
@@ -249,62 +244,66 @@ func TestRegister_OneToolPerTopic(t *testing.T) {
 	}
 }
 
-func TestRegister_EmptyAllowedSensitiveToolsDropsTargetDomainTools(t *testing.T) {
-	reg := registry.NewRegistry()
-	registerWithPermissions(reg, config.PermissionsConfig{DefaultReadOnly: false})
-
-	if _, ok := reg.Get("target-domain-list"); ok {
-		t.Fatal("expected target-domain-list to be omitted when allowed_sensitive_tools is empty")
-	}
-	if _, ok := reg.Get("target-domain-get"); ok {
-		t.Fatal("expected target-domain-get to be omitted when allowed_sensitive_tools is empty")
-	}
-}
-
-func TestRegister_AllowedSensitiveToolsBypassesWhitelist(t *testing.T) {
+// TestRegister_SensitiveToolDisabledByDefault asserts a Sensitive tool is not
+// registered unless enable_sensitive_data_tools is set, even with a permissive
+// whitelist and read-only disabled.
+func TestRegister_SensitiveToolDisabledByDefault(t *testing.T) {
 	reg := registry.NewRegistry()
 	registerWithPermissions(reg, config.PermissionsConfig{
 		DefaultReadOnly: false,
-		Whitelist:       []string{"host-"},
-		AllowedSensitiveTools: []string{
-			"target-domain-list",
-		},
+		Whitelist:       []string{"connection-"},
 	})
 
-	if _, ok := reg.Get("target-domain-list"); !ok {
-		t.Fatal("expected target-domain-list when listed in allowed_sensitive_tools")
+	if _, ok := reg.Get("connection-trail-get"); ok {
+		t.Fatal("expected connection-trail-get to be absent when sensitive tools are disabled")
 	}
-	if _, ok := reg.Get("target-domain-get"); ok {
-		t.Fatal("expected target-domain-get to stay omitted when not listed")
-	}
-	if _, ok := reg.Get("host-list"); !ok {
-		t.Fatal("expected host-list to remain via whitelist")
+	// A non-sensitive connection tool is still registered.
+	if _, ok := reg.Get("connection-list"); !ok {
+		t.Fatal("expected connection-list to be registered")
 	}
 }
 
-func TestRegister_AllowedSensitiveToolsPrefixDoesNotMatch(t *testing.T) {
+// TestRegister_SensitiveToolAdminOnly asserts that when enabled without the
+// non-admin opt-in, the Sensitive tool is registered requiring privx-admin.
+func TestRegister_SensitiveToolAdminOnly(t *testing.T) {
 	reg := registry.NewRegistry()
 	registerWithPermissions(reg, config.PermissionsConfig{
-		DefaultReadOnly:       false,
-		AllowedSensitiveTools: []string{"target-domain-"},
+		DefaultReadOnly:          false,
+		EnableSensitiveDataTools: true,
 	})
 
-	if _, ok := reg.Get("target-domain-list"); ok {
-		t.Fatal("expected target-domain-list to require an exact allowed_sensitive_tools entry")
+	tool, ok := reg.Get("connection-trail-get")
+	if !ok {
+		t.Fatal("expected connection-trail-get to be registered when sensitive tools are enabled")
+	}
+
+	want := []string{PermissionPrivxAdmin}
+	if !reflect.DeepEqual(tool.RequiredPermissions, want) {
+		t.Fatalf("RequiredPermissions = %v, want %v", tool.RequiredPermissions, want)
 	}
 }
 
-func TestRegister_AllowedSensitiveToolsDoesNotBypassWhitelistForNonSensitive(t *testing.T) {
+// TestRegister_SensitiveToolNonAdminUsesGranularScopes asserts that with the
+// non-admin opt-in, the Sensitive tool requires its granular PrivX scopes.
+func TestRegister_SensitiveToolNonAdminUsesGranularScopes(t *testing.T) {
 	reg := registry.NewRegistry()
 	registerWithPermissions(reg, config.PermissionsConfig{
-		DefaultReadOnly: false,
-		Whitelist:       []string{"host-"},
-		AllowedSensitiveTools: []string{
-			"user-list",
-		},
+		DefaultReadOnly:                 false,
+		EnableSensitiveDataTools:        true,
+		SensitiveDataToolsAllowNonAdmin: true,
 	})
 
-	if _, ok := reg.Get("user-list"); ok {
-		t.Fatal("expected user-list to stay filtered by whitelist")
+	tool, ok := reg.Get("connection-trail-get")
+	if !ok {
+		t.Fatal("expected connection-trail-get to be registered")
+	}
+
+	want := RequiredPermissionsForTool("connection-trail-get")
+	if !reflect.DeepEqual(tool.RequiredPermissions, want) {
+		t.Fatalf("RequiredPermissions = %v, want %v (granular scopes)", tool.RequiredPermissions, want)
+	}
+	// Sanity: the granular set is the two connection scopes, not privx-admin.
+	if len(want) != 2 {
+		t.Fatalf("expected 2 granular scopes, got %v", want)
 	}
 }

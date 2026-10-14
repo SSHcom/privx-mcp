@@ -32,8 +32,6 @@ Machine-to-machine mode is for automated clients with no interactive sign-in. Th
 - An RSA key pair (the public key registered in PrivX External Token configuration)
 - For `oauth`: an IdP issuing OIDC tokens
 
-
-
 ## Security Precautions
 
 The server fronts PrivX, a privileged access management platform. Anyone who can reach it and authenticate can act on PrivX resources with their mapped user's roles, so treat it with the same care as PrivX itself.
@@ -44,7 +42,9 @@ The server fronts PrivX, a privileged access management platform. Anyone who can
 - **Keep the server on the local network** where possible, rather than exposing it to the internet.
 - **Use** `m2m` **mode only for automated access.** Interactive users should sign in through `oauth` mode so that actions are tied to their own identity.
 
+## Sensitive data tools
 
+Some tools can return secrets or raw session content. These need to be enabled by configuration. See [Sensitive data tools](docs/manual/reference/security/security.md#sensitive-data-tools) for more information.
 
 ## Documentation
 
@@ -54,8 +54,6 @@ The server fronts PrivX, a privileged access management platform. Anyone who can
 - [Deployment](deploy/README.md)
   - Examples of how to deploy (Docker, Systemd)
   - Doing a local deployment (Docker + Keycloak) for evaluation purposes
-
-
 
 ## **Support & Commercial Services**
 

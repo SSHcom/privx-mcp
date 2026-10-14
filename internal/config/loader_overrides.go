@@ -118,10 +118,6 @@ func applyEnvOverrides(cfg *Config) {
 		cfg.Permissions.Whitelist = splitCommaList(v)
 	}
 
-	if v := os.Getenv("PERMISSIONS_ALLOWED_SENSITIVE_TOOLS"); v != "" {
-		cfg.Permissions.AllowedSensitiveTools = splitCommaList(v)
-	}
-
 	if v := os.Getenv("PERMISSIONS_BLACKLIST"); v != "" {
 		cfg.Permissions.Blacklist = splitCommaList(v)
 	}
@@ -151,6 +147,14 @@ func applyEnvOverrides(cfg *Config) {
 		if n, err := strconv.Atoi(v); err == nil {
 			cfg.Permissions.MaxedWindowWaitSeconds = n
 		}
+	}
+
+	if v := os.Getenv("PERMISSIONS_ENABLE_SENSITIVE_DATA_TOOLS"); v != "" {
+		cfg.Permissions.EnableSensitiveDataTools = strings.EqualFold(v, "true") || v == "1"
+	}
+
+	if v := os.Getenv("PERMISSIONS_SENSITIVE_DATA_TOOLS_ALLOW_NON_ADMIN"); v != "" {
+		cfg.Permissions.SensitiveDataToolsAllowNonAdmin = strings.EqualFold(v, "true") || v == "1"
 	}
 
 	// OIDC provider

@@ -97,3 +97,22 @@ func extractRoleNames(roles []connectionmanager.ConnectionRole) []string {
 
 	return names
 }
+
+// FormatConnectionTrailMeta projects the trail-relevant metadata of a connection
+// into a compact map. Used by connection-trail-get alongside the trail entries.
+func FormatConnectionTrailMeta(conn *connectionmanager.Connection) map[string]any {
+	return map[string]any{
+		"id":            conn.ID,
+		"type":          conn.Type,
+		"status":        conn.Status,
+		"user":          conn.User.DisplayName,
+		"target_host":   conn.TargetHost.CommonName,
+		"connected":     conn.Connected,
+		"disconnected":  conn.Disconnected,
+		"audit_enabled": conn.AuditEnabled,
+		"trail_id":      conn.TrailID,
+		"trail_removed": conn.TrailRemoved,
+		"index_status":  conn.IndexStatus,
+		"session_id":    conn.SessionID,
+	}
+}

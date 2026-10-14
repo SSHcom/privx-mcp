@@ -85,10 +85,7 @@ type PermissionsConfig struct {
 	Whitelist []string
 	// Blacklist is a prefix deny-list for tool names, e.g. ["host-delete", "user-delete-"].
 	// Empty means no blacklist filtering. Applied after Whitelist.
-	Blacklist []string
-	// AllowedSensitiveTools lists full tool names for Sensitive tools that may register.
-	// Empty means no sensitive tool is registered. Prefix whitelist does not apply to them.
-	AllowedSensitiveTools []string
+	Blacklist       []string
 	SessionCacheTTL time.Duration
 	// RefreshCooldown is the minimum interval between on-deny PrivX role
 	// refreshes for the same identity. Zero disables on-deny refresh.
@@ -106,6 +103,19 @@ type PermissionsConfig struct {
 	// MaxRequestsPerWindow. Zero disables the extra wait. Must be 0 when
 	// rate limiting is disabled.
 	MaxedWindowWaitSeconds int
+
+	// EnableSensitiveDataTools gates tools marked Sensitive (e.g.
+	// connection-trail-get and the target-domain tools) that can surface
+	// secrets or raw session content. Defaults to false: such tools are not
+	// registered at all. This key is intentionally omitted from the example
+	// config. See docs/manual/reference/security/security.md.
+	EnableSensitiveDataTools bool
+	// SensitiveDataToolsAllowNonAdmin only has effect when
+	// EnableSensitiveDataTools is true. Defaults to false: sensitive tools are
+	// restricted to privx-admin role holders. When true, sensitive tools
+	// instead require their own granular PrivX scopes (e.g. connections-view +
+	// connections-trail), allowing suitably permissioned non-admins to use them.
+	SensitiveDataToolsAllowNonAdmin bool
 }
 
 // OAuthConfig holds OIDC provider settings used by the MCP server to

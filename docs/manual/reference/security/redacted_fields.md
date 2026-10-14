@@ -77,11 +77,11 @@ Other `target_credential` fields, including certificate template and subject fie
 
 `target-domain-get`, `target-domain-list`, `target-domain-managed-account-get`, and `target-domain-managed-account-list`.
 
-| Path                              | What is removed                                      |
-| --------------------------------- | ---------------------------------------------------- |
-| `endpoints[].ldap_bind_password`  | Directory bind password                              |
-| `endpoints[].entra_client_secret` | Entra client secret                                  |
-| `checkouts[].secrets`             | Checkout password versions on a managed account      |
+| Path                              | What is removed                                 |
+| --------------------------------- | ----------------------------------------------- |
+| `endpoints[].ldap_bind_password`  | Directory bind password                         |
+| `endpoints[].entra_client_secret` | Entra client secret                             |
+| `checkouts[].secrets`             | Checkout password versions on a managed account |
 
 `target-domain-create` and `target-domain-update` still accept a bind password and an Entra client secret as write-only input. `target-domain-managed-account-checkout` is the tool that returns a password.
 

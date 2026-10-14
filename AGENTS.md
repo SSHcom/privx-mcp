@@ -60,7 +60,7 @@ internal/tools/<topic>/
 bootstrap → registry.NewRegistry()
          → tools.Register(reg, cfg)
               → <topic>/tool.All()
-              → filterTools (default_read_only / whitelist or allowed_sensitive_tools / blacklist)
+              → filterTools (sensitive gate / default_read_only / whitelist / blacklist)
               → applyPermissions (from permissions.go)
               → reg.Register(...)
          → runtime registers each tool on the MCP server

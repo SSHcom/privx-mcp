@@ -50,13 +50,15 @@ type tomlConfig struct {
 		DefaultReadOnly        bool     `toml:"default_read_only"`
 		Whitelist              []string `toml:"whitelist"`
 		Blacklist              []string `toml:"blacklist"`
-		AllowedSensitiveTools  []string `toml:"allowed_sensitive_tools"`
 		SessionCacheTTL        string   `toml:"session_cache_ttl"`
 		RefreshCooldown        string   `toml:"refresh_cooldown"`
 		SourceType             string   `toml:"source_type"`
 		RequestWindowSeconds   int      `toml:"request_window_seconds"`
 		MaxRequestsPerWindow   int      `toml:"max_requests_per_window"`
 		MaxedWindowWaitSeconds int      `toml:"maxed_window_wait_seconds"`
+		// Intentionally undocumented in the example config; see security.md.
+		EnableSensitiveDataTools        bool `toml:"enable_sensitive_data_tools"`
+		SensitiveDataToolsAllowNonAdmin bool `toml:"sensitive_data_tools_allow_non_admin"`
 	} `toml:"permissions"`
 
 	OAuth struct {
@@ -158,11 +160,13 @@ func tomlToConfig(tc *tomlConfig) *Config {
 			DefaultReadOnly:        tc.Permissions.DefaultReadOnly,
 			Whitelist:              tc.Permissions.Whitelist,
 			Blacklist:              tc.Permissions.Blacklist,
-			AllowedSensitiveTools:  tc.Permissions.AllowedSensitiveTools,
 			SourceType:             tc.Permissions.SourceType,
 			RequestWindowSeconds:   tc.Permissions.RequestWindowSeconds,
 			MaxRequestsPerWindow:   tc.Permissions.MaxRequestsPerWindow,
 			MaxedWindowWaitSeconds: tc.Permissions.MaxedWindowWaitSeconds,
+
+			EnableSensitiveDataTools:        tc.Permissions.EnableSensitiveDataTools,
+			SensitiveDataToolsAllowNonAdmin: tc.Permissions.SensitiveDataToolsAllowNonAdmin,
 		},
 		OAuth: OAuthConfig{
 			IssuerURL:           tc.OAuth.IssuerURL,

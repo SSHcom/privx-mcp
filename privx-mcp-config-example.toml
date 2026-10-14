@@ -218,9 +218,12 @@ identity_mapping_rule = "as-is"
 # Only tools that survive this filter are listed or callable.
 #
 # Resolve order (first to last; each step filters the previous result):
-#   1. default_read_only — when true, drop all write tools
-#   2. whitelist         — keep only tools matching a prefix (empty = no filter)
-#   3. blacklist         — drop tools matching a prefix (empty = no filter)
+#   1. sensitive gate    — drop tools that can surface secrets unless
+#                          enable_sensitive_data_tools is set. See
+#                          docs/manual/reference/security/security.md.
+#   2. default_read_only — when true, drop all write tools
+#   3. whitelist         — keep only tools matching a prefix (empty = no filter)
+#   4. blacklist         — drop tools matching a prefix (empty = no filter)
 #
 # Priority notes:
 #   - default_read_only supersedes whitelist: write tools are removed before
