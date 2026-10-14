@@ -26,6 +26,8 @@ Every tool call runs as the authenticated PrivX user. Granting a permission here
 
 Stay on `default_read_only`, the default, which drops every write tool. Turn it off only deliberately, and scope tools with permissions so each caller sees only what their role needs. Read-only access can still pull data into a model context you do not control, but it cannot change PrivX.
 
+Target-domain tools have one an additional level of protection. Each tool is registered only when its full name is an entry of `[permissions].allowed_sensitive_tools`. An empty list registers none of them. A prefix such as `target-domain-` does not match, and `whitelist` neither admits nor hides these tools. `default_read_only` and `blacklist` still apply. The `allowed_sensitive_tools` parameter is documented in [MCP server configuration](../server/SERVER.md#permissions).
+
 One tool is a deliberate exception. `request-set-decision` approves or denies an access request and survives read-only mode, because approval advances an existing workflow rather than changing configuration. See [Why `request-set-decision` is classified as Read](../user/tools.md#why-request-set-decision-is-classified-as-read).
 
 ## Loop and DDoS protection
@@ -135,7 +137,7 @@ The payload keeps its fields and pagination and only moves under `data`, plus `d
 
 ### Trusted tools
 
-A tool marked `Trusted` in the registry skips stripping, the word lists, and the envelope. This is only for content the server itself produces, today just `mcp-info`, whose documentation and example JSON are meant to read as guidance and naturally contain blacklisted words. A trusted tool that mixes in anything from PrivX, as `mcp-info` does with the caller's name and role names, must run those strings through the blacklist itself.
+A tool marked `Trusted` in the registry skips stripping, the word lists, and the envelope. `mcp-info` is trusted because its documentation and example JSON are server-generated and naturally contain blacklisted words. `target-domain-managed-account-checkout` is trusted because the password must pass through unchanged: a generated password can contain a blacklisted substring, and changing characters would return the wrong password. A trusted tool that mixes in anything else from PrivX must run those strings through the blacklist itself. `mcp-info` does this for the caller's name and role names. The checkout handler does this for every returned string except the password, via `security.PrepareStrings`.
 
 ## What the hardening cannot do
 

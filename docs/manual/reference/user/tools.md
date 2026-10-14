@@ -1,6 +1,6 @@
 # MCP tools
 
-Every tool the PrivX MCP server can register: 65 tools across 13 topics. The `echo` development tool is not covered.
+Every tool the PrivX MCP server can register: 76 tools across 14 topics. The `echo` development tool is not covered.
 
 ## Related documents
 
@@ -142,6 +142,28 @@ Compact fields: `id`, `type`, `mode`, `status`, `user`, `target_host`, `target_h
 
 `api-target-*` has view and manage scopes, but the only write tool is `api-target-delete`. There is no create or update tool.
 
+## Target domain tools
+
+| Tool                                      | Description                                                                                                          | Type  | Permission               |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | ----- | ------------------------ |
+| `target-domain-list`                      | List target domains with pagination (name DESC).                                                                     | Read  | `target-domains-view`   |
+| `target-domain-get`                       | Fetch a single target domain by id.                                                                                  | Read  | `target-domains-view`   |
+| `target-domain-create`                    | Create a target domain with at least one endpoint. Bind password and Entra client secret are write-only.            | Write | `target-domains-manage` |
+| `target-domain-update`                    | Update a target domain by id. Only supplied fields change. Bind password and Entra client secret are write-only.    | Write | `target-domains-manage` |
+| `target-domain-delete`                    | Delete a target domain by id.                                                                                        | Write | `target-domains-manage` |
+| `target-domain-scan`                      | Ask PrivX to read accounts from the domain endpoints.                                                                | Write | `target-domains-manage` |
+| `target-domain-managed-account-list`      | List managed accounts under a target domain with pagination (username DESC).                                        | Read  | `target-domains-view`   |
+| `target-domain-managed-account-get`       | Fetch a managed account by id.                                                                                       | Read  | `target-domains-view`   |
+| `target-domain-managed-account-update`    | Update management flags on a managed account. Omitted fields stay as fetched.                                       | Write | `target-domains-manage` |
+| `target-domain-managed-account-rotate`    | Start a password rotation. The new password is absent from the result.                                              | Write | `target-domains-manage` |
+| `target-domain-managed-account-checkout`  | Check out the latest password of one managed account under the given target domain.                                 | Write | `target-domains-manage` |
+
+List and get omit bind passwords, Entra client secrets, and checkout password versions, including when `raw` is set or the caller names those fields.
+
+`target-domain-managed-account-checkout` is Trusted because it returns the password, which must pass through unchanged. The handler still checks every other string in that result. See [Trusted tools](../security/security.md#trusted-tools).
+
+Every tool in this topic is sensitive. Each one is registered only when its full name is an entry of `allowed_sensitive_tools`. See more abou this topic at [MCP server configuration](../server/SERVER.md#permissions) and [Security considerations](../security/security.md#permissions-and-trust).
+
 ## Access group tools
 
 | Tool                  | Description                                                  | Type  | Permission             |
@@ -213,4 +235,4 @@ Duration fields use ISO 8601 format: `P30D` (30 days), `PT1H` (1 hour), `PT5M` (
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- | --------------- | ------- |
 | `mcp-info` | Return MCP/PrivX information for the current session: authenticated caller info, PrivX instance config, optional context topics, and example resources. | Read | `authenticated` | Yes     |
 
-`mcp-info` is the one `Trusted` tool: it bypasses the runtime security envelope (stripping, word lists, and the `{meta, data}` wrapper) because its payload is server-generated documentation and example JSON. The handler still sanitizes the PrivX-sourced strings it embeds (caller name, role names) itself. See [Trusted tools](../security/security.md#trusted-tools).
+`mcp-info` is a `Trusted` tool: it bypasses the runtime security envelope (stripping, word lists, and the `{meta, data}` wrapper) because its payload is server-generated documentation and example JSON. The handler still sanitizes the PrivX-sourced strings it embeds (caller name, role names) itself. See [Trusted tools](../security/security.md#trusted-tools).

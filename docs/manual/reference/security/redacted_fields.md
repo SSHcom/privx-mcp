@@ -73,6 +73,18 @@ These fields are removed from tool responses before the payload is returned. Rem
 
 Other `target_credential` fields, including certificate template and subject fields, stay.
 
+## Target domains
+
+`target-domain-get`, `target-domain-list`, `target-domain-managed-account-get`, and `target-domain-managed-account-list`.
+
+| Path                              | What is removed                                      |
+| --------------------------------- | ---------------------------------------------------- |
+| `endpoints[].ldap_bind_password`  | Directory bind password                              |
+| `endpoints[].entra_client_secret` | Entra client secret                                  |
+| `checkouts[].secrets`             | Checkout password versions on a managed account      |
+
+`target-domain-create` and `target-domain-update` still accept a bind password and an Entra client secret as write-only input. `target-domain-managed-account-checkout` is the tool that returns a password.
+
 ## Connections
 
 `connection-get`, `connection-list`, and `connection-search`, only when `raw` is true. The compact connection view does not include `target_host_data` or `user_data`.

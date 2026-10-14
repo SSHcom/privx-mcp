@@ -16,6 +16,7 @@ You only see tools you are allowed to call, because visibility and usage follow 
 | Roles               | `roles-view`, `roles-manage`                                      |
 | Network targets     | `network-targets-view`, `network-targets-manage`                  |
 | API targets         | `api-targets-view`, `api-targets-manage`                          |
+| Target domains      | `target-domains-view`, `target-domains-manage`                    |
 | Connections         | `connections-view`, `connections-manage`, `connections-terminate` |
 | Access requests     | `workflows-requests`                                              |
 | Audit logs & Status | `logs-view`                                                       |
