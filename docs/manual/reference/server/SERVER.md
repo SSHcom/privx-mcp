@@ -11,10 +11,10 @@ The server can also be configured entirely through the environment. See [.env-ex
 
 ## Contents
 
-- `[[server]](#server)`
-- `[[privx_auth]](#privx_auth)`
-- `[[permissions]](#permissions)`
-- `[[oauth]](#oauth)`
+- [`[server]`](#server)
+- [`[privx_auth]`](#privx_auth)
+- [`[permissions]`](#permissions)
+- [`[oauth]`](#oauth)
 - [Identity alignment with PrivX](#identity-alignment-with-privx)
 - [Troubleshooting](#troubleshooting)
 
