@@ -148,25 +148,9 @@ Some tools can return secrets or raw session content from PrivX. These tools are
 
 > **Only expose these tools to a private, self-hosted LLM that you fully control.** Tool output is sent to whatever model the MCP client is wired to. With a third-party or hosted model, captured passwords and secrets can be sent outside your trust boundary. Do not enable them against a public or shared model endpoint.
 
-Enable the tools in the `[permissions]` section of the configuration file or through environment variables. See [MCP server configuration](../server/SERVER.md#permissions) for more details.
+Control who can use the tools through the `enable_sensitive_data_tools` and `sensitive_data_tools_allow_non_admin` options in the `[permissions]` section of the [server configuration](../server/SERVER.md#permissions) file.
 
-| Setting                                | When off (default)                                                        | When on                                                                                          |
-| -------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `enable_sensitive_data_tools`          | Sensitive tools are not registered, so they are never listed or callable. | Sensitive tools are registered. Read-only mode, the whitelist, and the blacklist still apply.    |
-| `sensitive_data_tools_allow_non_admin` | Only **privx-admin** role holders can use sensitive tools.                | Non-admins, regardless if they have the required PrivX permissions, cannot see or use the tools. |
-
-Permissions a non-admin needs when `sensitive_data_tools_allow_non_admin` is on:
-
-| Tool             | Required scopes                                  |
-| ---------------- | ------------------------------------------------ |
-| Connection trail | `connections-view` and `connections-trail`       |
-| Target domain    | `target-domains-view` or `target-domains-manage` |
-
-**Recap:**
-
-- Only use the tools with a self hosted LLM that you fully control
-- The settings only control who can see and call the tools.
-- Sensitive data (secrets, access mode, etc) within the tool output is not masked.
+Besides server configuration the authenticated user must also have the proper PrivX permissions (assigned through roles). See more information from [Connection tools](../user/tools.md#connection-tools) (`connection-trail-get` option) and [Target domain tools](../user/tools.md#target-domain-tools) documentation.
 
 ## What the hardening cannot do
 
