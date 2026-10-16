@@ -14,7 +14,7 @@ Password-free login is configured on the host with `host-create` or `host-update
 
 Keep accounts that people use to sign in to PrivX itself outside the scanned subtree, so rotation cannot change their passwords.
 
-All target domain tools are: `target-domain-list`/`get`/`create`/`update`/`delete`/`scan`/`account-search` and `target-domain-managed-account-list`/`get`/`create`/`update`/`delete`/`rotate`/`checkout`. Read tools require the role permission `target-domains-view`. Write tools require `target-domains-manage`, which also grants the read tools. If a tool is not available, it was filtered due to configuration or because the caller's roles lack that permission.
+All target domain tools are: `target-domain-list`/`get`/`create`/`update`/`scan`/`account-search` and `target-domain-managed-account-list`/`get`/`create`/`update`/`delete`/`rotate`/`checkout`. Read tools require the role permission `target-domains-view`. Write tools require `target-domains-manage`, which also grants the read tools. If a tool is not available, it was filtered due to configuration or because the caller's roles lack that permission.
 
 ---
 

@@ -160,7 +160,6 @@ var (
 	targetDomainsWriteTools = []string{
 		"target-domain-create",
 		"target-domain-update",
-		"target-domain-delete",
 		"target-domain-scan",
 		"target-domain-managed-account-create",
 		"target-domain-managed-account-update",
