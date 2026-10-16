@@ -1,6 +1,6 @@
 # MCP tools
 
-Every tool the PrivX MCP server can register: 77 tools across 14 topics. The `echo` development tool is not covered.
+Every tool the PrivX MCP server can register, grouped by topic below. The `echo` development tool is not covered.
 
 ## Related documents
 
@@ -155,13 +155,16 @@ Compact fields: `id`, `type`, `mode`, `status`, `user`, `target_host`, `target_h
 | `target-domain-update`                   | Update a target domain by id. Only supplied fields change. Bind password and Entra client secret are write-only. | Write | `target-domains-manage` |
 | `target-domain-delete`                   | Delete a target domain by id.                                                                                    | Write | `target-domains-manage` |
 | `target-domain-scan`                     | Ask PrivX to read accounts from the domain endpoints.                                                            | Write | `target-domains-manage` |
+| `target-domain-account-search`           | Search scanned accounts under a target domain. Omitting search.state returns UNMANAGED (username DESC).          | Read  | `target-domains-view`   |
 | `target-domain-managed-account-list`     | List managed accounts under a target domain with pagination (username DESC).                                     | Read  | `target-domains-view`   |
 | `target-domain-managed-account-get`      | Fetch a managed account by id.                                                                                   | Read  | `target-domains-view`   |
+| `target-domain-managed-account-create`   | Turn one scanned directory account into a managed account. Does not create a directory user.                     | Write | `target-domains-manage` |
 | `target-domain-managed-account-update`   | Update management flags on a managed account. Omitted fields stay as fetched.                                    | Write | `target-domains-manage` |
+| `target-domain-managed-account-delete`   | Stop PrivX from managing one account. The directory user stays in the domain.                                    | Write | `target-domains-manage` |
 | `target-domain-managed-account-rotate`   | Start a password rotation. The new password is absent from the result.                                           | Write | `target-domains-manage` |
 | `target-domain-managed-account-checkout` | Check out the latest password of one managed account under the given target domain.                              | Write | `target-domains-manage` |
 
-List and get omit bind passwords, Entra client secrets, and checkout password versions, including when `raw` is set or the caller names those fields.
+List and get omit bind passwords, Entra client secrets, and checkout password versions, including when `raw` is set or the caller names those fields. `target-domain-account-search` returns id, username, full_name, email, state, and ignored unless `fields` or `raw` is set.
 
 `target-domain-managed-account-checkout` is Trusted because it returns the password, which must pass through unchanged. The handler still checks every other string in that result. See [Trusted tools](../security/security.md#trusted-tools).
 
