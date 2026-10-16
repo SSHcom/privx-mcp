@@ -42,6 +42,14 @@ var (
 		"comment",
 		"locked",
 	}
+	DefaultScannedAccountFields = []string{
+		"id",
+		"username",
+		"full_name",
+		"email",
+		"state",
+		"ignored",
+	}
 
 	handleFields          = []string{"id", "name", "deleted"}
 	rotationHistoryFields = []string{"version", "rotated", "trigger", "status"}
@@ -171,6 +179,54 @@ func SelectManagedAccountFields(account map[string]any, p ManagedAccountProjecti
 // FormatManagedAccount converts a managed account to a JSON map with checkout passwords removed.
 func FormatManagedAccount(v any) map[string]any {
 	return RedactSensitiveTargetDomainFields(utils.ToJSONMap(v))
+}
+
+// ScannedAccountProjection is the scanned-account field set for search.
+type ScannedAccountProjection struct {
+	Root []string
+}
+
+// ScannedAccountProjectionFromParams merges default scanned-account fields with optional CSV extras.
+func ScannedAccountProjectionFromParams(params map[string]any) ScannedAccountProjection {
+	return ScannedAccountProjection{
+		Root: utils.MergeUnique(DefaultScannedAccountFields, utils.CSVFromMap(params, "fields")),
+	}
+}
+
+// SelectScannedAccountFields builds a filtered scanned-account map.
+// target_domain keeps the handle fields. Unknown names are skipped.
+func SelectScannedAccountFields(account map[string]any, p ScannedAccountProjection) map[string]any {
+	out := make(map[string]any, len(p.Root))
+	for _, field := range p.Root {
+		switch field {
+		case "target_domain":
+			if _, ok := account[field]; ok {
+				out[field] = common.ProjectObject(account[field], handleFields, common.OmitMissing)
+			}
+		default:
+			if value, ok := account[field]; ok {
+				out[field] = value
+			}
+		}
+	}
+
+	return out
+}
+
+// FormatScannedAccountItems converts scanned accounts to response maps. When
+// raw is false, fields are projected with SelectScannedAccountFields.
+func FormatScannedAccountItems(items []secretsmanager.ScannedAccount, raw bool, p ScannedAccountProjection) []map[string]any {
+	out := make([]map[string]any, 0, len(items))
+	for _, item := range items {
+		accountMap := utils.ToJSONMap(item)
+		if !raw {
+			accountMap = SelectScannedAccountFields(accountMap, p)
+		}
+
+		out = append(out, accountMap)
+	}
+
+	return out
 }
 
 // FormatManagedAccountItems converts managed accounts to response maps. When

@@ -18,8 +18,8 @@ func Create() registry.Tool {
 		"A domain needs at least one AD/LDAP or Entra endpoint, scan priorities must be unique, " +
 		"and at least one endpoint is used for password rotation. " +
 		"An AD/LDAP endpoint requires ldap_bind_password; PrivX rejects the create when it is missing. " +
-		"A managed account is a directory user already stored under a target domain, " +
-		"so this call does not create one; the managed-account tools are how existing ones are used. " +
+		"This does not create a managed account. " +
+		"Find a scanned account with target-domain-account-search, then use target-domain-managed-account-create. " +
 		"This call does not attach an account to a host. " +
 		"Returns the created domain id. " +
 		target_domains.SensitiveDataGuidance + " " +

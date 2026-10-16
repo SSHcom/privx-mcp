@@ -11,9 +11,12 @@ func All() []registry.Tool {
 		Update(),
 		Delete(),
 		Scan(),
+		AccountSearch(),
 		ManagedAccountList(),
 		ManagedAccountGet(),
+		ManagedAccountCreate(),
 		ManagedAccountUpdate(),
+		ManagedAccountDelete(),
 		ManagedAccountRotate(),
 		ManagedAccountCheckout(),
 	}

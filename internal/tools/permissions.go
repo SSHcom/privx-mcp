@@ -153,6 +153,7 @@ var (
 	targetDomainsViewTools = []string{
 		"target-domain-list",
 		"target-domain-get",
+		"target-domain-account-search",
 		"target-domain-managed-account-list",
 		"target-domain-managed-account-get",
 	}
@@ -161,7 +162,9 @@ var (
 		"target-domain-update",
 		"target-domain-delete",
 		"target-domain-scan",
+		"target-domain-managed-account-create",
 		"target-domain-managed-account-update",
+		"target-domain-managed-account-delete",
 		"target-domain-managed-account-rotate",
 		"target-domain-managed-account-checkout",
 	}
