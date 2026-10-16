@@ -9,7 +9,8 @@ func All() []registry.Tool {
 		Get(),
 		Create(),
 		Update(),
-		Delete(),
+		// Delete stays implemented but is not registered.
+		// Rationale: A wrong domain deletion has too large a blast radius.
 		Scan(),
 		AccountSearch(),
 		ManagedAccountList(),

@@ -153,7 +153,6 @@ Compact fields: `id`, `type`, `mode`, `status`, `user`, `target_host`, `target_h
 | `target-domain-get`                      | Fetch a single target domain by id.                                                                              | Read  | `target-domains-view`   |
 | `target-domain-create`                   | Create a target domain with at least one endpoint. Bind password and Entra client secret are write-only.         | Write | `target-domains-manage` |
 | `target-domain-update`                   | Update a target domain by id. Only supplied fields change. Bind password and Entra client secret are write-only. | Write | `target-domains-manage` |
-| `target-domain-delete`                   | Delete a target domain by id.                                                                                    | Write | `target-domains-manage` |
 | `target-domain-scan`                     | Ask PrivX to read accounts from the domain endpoints.                                                            | Write | `target-domains-manage` |
 | `target-domain-account-search`           | Search scanned accounts under a target domain. Omitting search.state returns UNMANAGED (username DESC).          | Read  | `target-domains-view`   |
 | `target-domain-managed-account-list`     | List managed accounts under a target domain with pagination (username DESC).                                     | Read  | `target-domains-view`   |
