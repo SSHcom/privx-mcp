@@ -39,11 +39,7 @@ func List() registry.Tool {
 			"default":     false,
 			"description": "Return target-domain objects without field projection. Credential fields are omitted. WARNING: this can return a very large payload and significantly increase token usage in the MCP client response.",
 		}).
-		Set("limit", map[string]any{
-			"type":        "integer",
-			"minimum":     1,
-			"description": fmt.Sprintf("Maximum number of target domains to return. Defaults to %d.", common.TargetDomainsListLimit),
-		}).
+		Set("limit", common.LimitSchema(common.TargetDomainsListLimit, common.TargetDomainsListMax, "")).
 		Set("offset", map[string]any{
 			"type":        "integer",
 			"minimum":     0,
@@ -77,7 +73,7 @@ func listTargetDomainsHandler(ctx context.Context, params map[string]any) (*regi
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	paging, errResult := common.ParsePaging(params, common.TargetDomainsListLimit)
+	paging, errResult := common.ParsePaging(params, common.TargetDomainsListLimit, common.TargetDomainsListMax)
 	if errResult != nil {
 		return errResult, nil
 	}

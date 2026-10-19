@@ -20,11 +20,7 @@ func List() registry.Tool {
 		common.PresentationGuidance
 
 	properties := registry.NewOrderedMap().
-		Set("limit", map[string]any{
-			"type":        "integer",
-			"minimum":     1,
-			"description": fmt.Sprintf("Maximum number of connections to return. Defaults to %d.", common.ConnectionsListLimit),
-		}).
+		Set("limit", common.LimitSchema(common.ConnectionsListLimit, common.ConnectionsListMax, "")).
 		Set("offset", map[string]any{
 			"type":        "integer",
 			"minimum":     0,
@@ -83,7 +79,7 @@ func listConnectionsHandler(ctx context.Context, params map[string]any) (*regist
 
 // parseConnectionsPaging extracts paging params with "connected" as the default sort key.
 func parseConnectionsPaging(params map[string]any) (common.Paging, *registry.ToolResult) {
-	paging, errResult := common.ParsePaging(params, common.ConnectionsListLimit)
+	paging, errResult := common.ParsePaging(params, common.ConnectionsListLimit, common.ConnectionsListMax)
 	if errResult != nil {
 		return paging, errResult
 	}

@@ -16,11 +16,7 @@ func List() registry.Tool {
 		common.PresentationGuidance
 
 	properties := registry.NewOrderedMap().
-		Set("limit", map[string]any{
-			"type":        "integer",
-			"minimum":     1,
-			"description": fmt.Sprintf("Maximum number of whitelists to return. Defaults to %d.", common.WhitelistsListLimit),
-		}).
+		Set("limit", common.LimitSchema(common.WhitelistsListLimit, common.WhitelistsListMax, "")).
 		Set("offset", map[string]any{
 			"type":        "integer",
 			"minimum":     0,
@@ -48,7 +44,7 @@ func listHandler(ctx context.Context, params map[string]any) (*registry.ToolResu
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	paging, errResult := common.ParsePaging(params, common.WhitelistsListLimit)
+	paging, errResult := common.ParsePaging(params, common.WhitelistsListLimit, common.WhitelistsListMax)
 	if errResult != nil {
 		return errResult, nil
 	}
