@@ -15,18 +15,19 @@ The server configuration decides which tools exist at all, for every user, befor
 - **Read-only mode** removes every tool that changes PrivX. It is on by default, and should stay on until you have decided which write tools to allow.
 - **Whitelist and blacklist** narrow the tool set further by tool name, for example to expose only access-request tools.
 - **Rate limiting** caps how many tool calls one identity can make in a time window, with an optional extra cooldown after a maxed-out window. This stops a looping model or a misbehaving client from hammering PrivX and the server.
+- **Response filter** (optional) replaces chosen words with `[redacted]` in tool responses, to mitigate injected instructions in PrivX data.
+  - `whitelist-*` and sensitive tools are not filtered, so be especially careful about who is granted access to them.
 
-Read more: [Which tools are registered](reference/security/user_level_security.md#which-tools-are-registered), [Loop and DDoS protection](reference/security/security.md#loop-and-ddos-protection)
+Read more: [Which tools are registered](reference/security/user_level_security.md#which-tools-are-registered), [Loop and DDoS protection](reference/security/security.md#loop-and-ddos-protection), [Prompt injection hardening](reference/security/security.md#prompt-injection-hardening)
 
 ## MCP server internal hardening
 
 Text stored in PrivX, such as host comments and role descriptions, reaches the language model as-is, so it could carry injected instructions. The server treats all PrivX data and all client input as untrusted:
 
 - Invisible and control characters are stripped from every string.
-- A word blacklist is applied to both requests and responses. A request containing a blocked word is rejected and the word is named. A response containing one is withheld, or for list and search results only the offending rows are dropped.
-- Every successful response is wrapped in an envelope that tells the model the content is data, not instructions.
+- Every successful response from a tool that is not trusted is wrapped in an envelope that tells the model the content is data, not instructions.
 
-This raises the cost of an attack but cannot block it fully, so the permissions below remain the real boundary.
+This raises the cost of an attack but cannot block it fully, so the the real boundary is to only grant trusted user access.
 
 Read more: [Prompt injection hardening](reference/security/security.md#prompt-injection-hardening), [What the hardening cannot do](reference/security/security.md#what-the-hardening-cannot-do)
 
@@ -43,6 +44,7 @@ Read more: [User-level security](reference/security/user_level_security.md), [Pe
 ## Navigation
 
 **Previous**: 
+
 - [Configure OIDC](04-oidc.md)
 - [Configure machine-to-machine access](04-m2m.md)
 

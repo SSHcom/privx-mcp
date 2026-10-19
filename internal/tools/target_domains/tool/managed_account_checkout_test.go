@@ -140,7 +140,7 @@ func TestCheckoutManagedAccountHandler_ExplicitCheckoutDisabled(t *testing.T) {
 	}
 }
 
-func TestCheckoutManagedAccountHandler_BlacklistedUsernameOmitsSecret(t *testing.T) {
+func TestCheckoutManagedAccountHandler_ReturnsPrivXStringsUnchanged(t *testing.T) {
 	conn := testconn.New(t)
 	conn.Handle("GET", "/secrets-manager/api/v1/targetdomains/:id/managedaccounts/:account_id", func(body any) (any, error) {
 		return secretsmanager.ManagedAccount{
@@ -179,11 +179,11 @@ func TestCheckoutManagedAccountHandler_BlacklistedUsernameOmitsSecret(t *testing
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}
-	if !res.IsError {
-		t.Fatal("expected error result")
+	if res.IsError {
+		t.Fatalf("checkout must return PrivX strings unchanged: %s", res.Content[0].Text)
 	}
-	if strings.Contains(res.Content[0].Text, "edit-me-now") {
-		t.Fatalf("secret leaked: %s", res.Content[0].Text)
+	if !strings.Contains(res.Content[0].Text, `"username":"delete me"`) || !strings.Contains(res.Content[0].Text, `"secret":"edit-me-now"`) {
+		t.Fatalf("expected username and password as PrivX sent them, got %s", res.Content[0].Text)
 	}
 }
 

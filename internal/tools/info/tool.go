@@ -49,10 +49,8 @@ func Info(snapshot InstanceSnapshot) registry.Tool {
 			"and resources (example resource JSON objects). " +
 			"Pair related context and resources when looking up a topic (or the reverse).",
 		Writes: false,
-		// Payload and parameter keys are server-owned documentation; several of
-		// them ("access-groups", "delete" in audit event codes) would otherwise
-		// trip the security blacklist. The handler checks the PrivX-sourced
-		// strings it embeds itself.
+		// Payload and parameter keys are server-owned documentation. The handler
+		// sanitizes and word-filters the PrivX-sourced strings it embeds.
 		Trusted: true,
 		InputSchema: registry.NewOrderedMap().
 			Set("type", "object").

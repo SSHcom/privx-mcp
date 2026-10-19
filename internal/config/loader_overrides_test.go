@@ -162,6 +162,20 @@ func TestApplyPermissionsBlacklistEnvOverrides(t *testing.T) {
 	}
 }
 
+func TestApplyPermissionsResponseFilterEnvOverrides(t *testing.T) {
+	t.Setenv("PERMISSIONS_RESPONSE_FILTER", "sudo, sh ,chmod")
+
+	cfg := &Config{}
+	applyEnvOverrides(cfg)
+
+	if len(cfg.Permissions.ResponseFilter) != 3 {
+		t.Fatalf("expected 3 terms, got %d", len(cfg.Permissions.ResponseFilter))
+	}
+	if cfg.Permissions.ResponseFilter[0] != "sudo" || cfg.Permissions.ResponseFilter[1] != "sh" || cfg.Permissions.ResponseFilter[2] != "chmod" {
+		t.Fatalf("unexpected response filter: %v", cfg.Permissions.ResponseFilter)
+	}
+}
+
 func TestApplyPermissionsSessionCacheTTLEnvOverrides(t *testing.T) {
 	t.Setenv("PERMISSIONS_SESSION_CACHE_TTL", "2m")
 

@@ -23,6 +23,7 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/auth/oauth"
 	"github.com/pmsshintegration/privx-mcp/internal/config"
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
+	"github.com/pmsshintegration/privx-mcp/internal/service/security"
 	"github.com/pmsshintegration/privx-mcp/internal/service/session"
 )
 
@@ -51,10 +52,24 @@ type Core struct {
 	claimsSource   ClaimsSource
 	rateLimiter    *session.RateLimiter
 	sessionBaseURL string
+	responseFilter security.Filter
 }
 
 // CoreOption configures optional Core behavior.
 type CoreOption func(*Core)
+
+// WithResponseFilter replaces configured whole words in successful tool
+// responses. The zero filter replaces nothing. Sensitive tools and tools
+// named whitelist-* skip replacement.
+func WithResponseFilter(filter security.Filter) CoreOption {
+	return func(c *Core) {
+		if c == nil {
+			return
+		}
+
+		c.responseFilter = filter
+	}
+}
 
 // WithRateLimiter attaches a per-identity tool-call rate limiter.
 func WithRateLimiter(limiter *session.RateLimiter, baseURL string) CoreOption {

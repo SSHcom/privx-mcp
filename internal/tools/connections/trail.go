@@ -237,6 +237,7 @@ func parseTrailLog(chanID, chanType string, log []byte) []TrailCommand {
 					}
 
 					buf.Reset()
+
 					startTS = ""
 
 					continue

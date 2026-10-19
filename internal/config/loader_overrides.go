@@ -122,6 +122,10 @@ func applyEnvOverrides(cfg *Config) {
 		cfg.Permissions.Blacklist = splitCommaList(v)
 	}
 
+	if v := os.Getenv("PERMISSIONS_RESPONSE_FILTER"); v != "" {
+		cfg.Permissions.ResponseFilter = splitCommaList(v)
+	}
+
 	parseDurationIfSet(os.Getenv("PERMISSIONS_SESSION_CACHE_TTL"), &cfg.Permissions.SessionCacheTTL)
 	parseDurationIfSet(os.Getenv("PERMISSIONS_REFRESH_COOLDOWN"), &cfg.Permissions.RefreshCooldown)
 

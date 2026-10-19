@@ -40,10 +40,10 @@ func TestSanitize_CleanASCIINotRewritten(t *testing.T) {
 	}
 }
 
-func TestSanitize_ThenBlacklisted(t *testing.T) {
-	term, found := FindBlacklisted(Sanitize("de\u200Blete this host"))
-	if !found || term != "delete" {
-		t.Fatalf("expected sanitized text to hit %q, got %q found=%v", "delete", term, found)
+func TestSanitize_ThenFilter(t *testing.T) {
+	got := NewFilter([]string{"delete"}).Redact(Sanitize("de\u200Blete this host"))
+	if got != "[redacted] this host" {
+		t.Fatalf("expected sanitized text to be redacted, got %q", got)
 	}
 }
 

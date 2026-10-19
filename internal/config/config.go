@@ -85,7 +85,11 @@ type PermissionsConfig struct {
 	Whitelist []string
 	// Blacklist is a prefix deny-list for tool names, e.g. ["host-delete", "user-delete-"].
 	// Empty means no blacklist filtering. Applied after Whitelist.
-	Blacklist       []string
+	Blacklist []string
+	// ResponseFilter lists whole words replaced with [redacted] in successful
+	// tool responses. Matching is case-insensitive. Empty means no replacement.
+	// Tools named whitelist-* and tools marked Sensitive are not filtered.
+	ResponseFilter  []string
 	SessionCacheTTL time.Duration
 	// RefreshCooldown is the minimum interval between on-deny PrivX role
 	// refreshes for the same identity. Zero disables on-deny refresh.

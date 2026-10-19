@@ -17,6 +17,7 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/transport"
 	httpservice "github.com/pmsshintegration/privx-mcp/internal/service/http"
 	"github.com/pmsshintegration/privx-mcp/internal/service/logging"
+	"github.com/pmsshintegration/privx-mcp/internal/service/security"
 	"github.com/pmsshintegration/privx-mcp/internal/service/session"
 	"github.com/pmsshintegration/privx-mcp/internal/tools"
 )
@@ -165,6 +166,7 @@ func buildRuntimeCore(cfg *config.Config, authenticator auth.Authenticator, clai
 		reg,
 		permissions,
 		claimsSource,
+		runtime.WithResponseFilter(security.NewFilter(cfg.Permissions.ResponseFilter)),
 		runtime.WithRateLimiter(
 			session.NewRateLimiter(
 				cfg.Permissions.RequestWindowSeconds,

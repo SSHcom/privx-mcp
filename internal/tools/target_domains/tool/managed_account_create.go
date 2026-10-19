@@ -98,6 +98,7 @@ func createManagedAccountHandler(ctx context.Context, params map[string]any) (*r
 	}
 
 	client := secretsmanager.New(authCtx.Connector)
+
 	ids, err := client.BatchCreateManagedAccount(domainID, secretsmanager.ManagedAccountCreateBatch{
 		IDs:  []string{accountID},
 		Data: data,
