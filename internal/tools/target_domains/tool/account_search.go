@@ -86,11 +86,7 @@ func AccountSearch() registry.Tool {
 			"default":     false,
 			"description": "Return scanned-account objects without field projection. WARNING: this can return a very large payload and significantly increase token usage in the MCP client response.",
 		}).
-		Set("limit", map[string]any{
-			"type":        "integer",
-			"minimum":     1,
-			"description": fmt.Sprintf("Maximum number of accounts to return. Defaults to %d.", common.TargetDomainsListLimit),
-		}).
+		Set("limit", common.LimitSchema(common.TargetDomainsListLimit, common.TargetDomainsListMax, "")).
 		Set("offset", map[string]any{
 			"type":        "integer",
 			"minimum":     0,
@@ -125,7 +121,7 @@ func searchTargetDomainAccountsHandler(ctx context.Context, params map[string]an
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	paging, errResult := common.ParsePaging(params, common.TargetDomainsListLimit)
+	paging, errResult := common.ParsePaging(params, common.TargetDomainsListLimit, common.TargetDomainsListMax)
 	if errResult != nil {
 		return errResult, nil
 	}

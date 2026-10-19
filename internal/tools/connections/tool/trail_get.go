@@ -44,11 +44,7 @@ func TrailGet() registry.Tool {
 			"type":        "string",
 			"description": "Case-insensitive substring filter applied to reconstructed commands.",
 		}).
-		Set("limit", map[string]any{
-			"type":        "integer",
-			"minimum":     1,
-			"description": fmt.Sprintf("Maximum number of trail commands to return. Defaults to %d.", common.ConnectionTrailListLimit),
-		}).
+		Set("limit", common.LimitSchema(common.ConnectionTrailListLimit, common.ConnectionTrailListMax, "")).
 		Set("offset", map[string]any{
 			"type":        "integer",
 			"minimum":     0,
@@ -86,7 +82,7 @@ func trailGetHandler(ctx context.Context, params map[string]any) (*registry.Tool
 		return registry.ErrorResult("validation error: missing required field: id"), nil
 	}
 
-	paging, errResult := common.ParsePaging(params, common.ConnectionTrailListLimit)
+	paging, errResult := common.ParsePaging(params, common.ConnectionTrailListLimit, common.ConnectionTrailListMax)
 	if errResult != nil {
 		return errResult, nil
 	}

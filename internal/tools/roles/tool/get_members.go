@@ -25,11 +25,7 @@ func GetMembers() registry.Tool {
 			"minLength":   1,
 			"description": "The id of the role whose members to fetch.",
 		}).
-		Set("limit", map[string]any{
-			"type":        "integer",
-			"minimum":     1,
-			"description": fmt.Sprintf("Maximum number of members to return. Defaults to %d.", common.RolesListLimit),
-		}).
+		Set("limit", common.LimitSchema(common.RolesListLimit, common.UsersListMax, "")).
 		Set("offset", map[string]any{
 			"type":        "integer",
 			"minimum":     0,
@@ -63,7 +59,7 @@ func getRoleMembersHandler(ctx context.Context, params map[string]any) (*registr
 		return registry.ErrorResult("validation error: missing required field: role_id"), nil
 	}
 
-	paging, errResult := common.ParsePaging(params, common.RolesListLimit)
+	paging, errResult := common.ParsePaging(params, common.RolesListLimit, common.UsersListMax)
 	if errResult != nil {
 		return errResult, nil
 	}

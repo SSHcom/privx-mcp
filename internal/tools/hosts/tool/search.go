@@ -61,7 +61,7 @@ func Search() registry.Tool {
 
 	properties := registry.NewOrderedMap().
 		Set("search", searchObject).
-		Set("limit", map[string]any{"type": "integer", "minimum": 1, "description": fmt.Sprintf("Page size. Default %d.", common.HostsListLimit)}).
+		Set("limit", common.LimitSchema(common.HostsListLimit, common.HostsListMax, "")).
 		Set("offset", map[string]any{"type": "integer", "minimum": 0, "description": "Record offset (not page number). Next page: offset+limit."}).
 		Set("sortKey", common.SortKeySchemaWithExamples(`"common_name", "updated"`)).
 		Set("sortDir", common.SortDirSchema()).
@@ -99,7 +99,7 @@ func searchHostsHandler(ctx context.Context, params map[string]any) (*registry.T
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	paging, errResult := common.ParsePaging(params, common.HostsListLimit)
+	paging, errResult := common.ParsePaging(params, common.HostsListLimit, common.HostsListMax)
 	if errResult != nil {
 		return errResult, nil
 	}

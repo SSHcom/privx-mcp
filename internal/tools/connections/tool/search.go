@@ -63,11 +63,7 @@ func Search() registry.Tool {
 			"type":        "string",
 			"description": "Inclusive end of the connected time window (RFC3339).",
 		}).
-		Set("limit", map[string]any{
-			"type":        "integer",
-			"minimum":     1,
-			"description": fmt.Sprintf("Maximum number of connections to return. Defaults to %d.", common.ConnectionsListLimit),
-		}).
+		Set("limit", common.LimitSchema(common.ConnectionsListLimit, common.ConnectionsListMax, "")).
 		Set("offset", map[string]any{
 			"type":        "integer",
 			"minimum":     0,

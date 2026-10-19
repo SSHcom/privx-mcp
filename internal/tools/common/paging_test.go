@@ -7,7 +7,7 @@ import (
 )
 
 func TestParsePaging_Defaults(t *testing.T) {
-	p, errResult := ParsePaging(map[string]any{}, 50)
+	p, errResult := ParsePaging(map[string]any{}, 50, 100)
 	if errResult != nil {
 		t.Fatalf("unexpected error: %s", errResult.Content[0].Text)
 	}
@@ -31,7 +31,7 @@ func TestParsePaging_CustomValues(t *testing.T) {
 		"offset":  20,
 		"sortKey": "common_name",
 		"sortDir": "ASC",
-	}, 50)
+	}, 50, 100)
 	if errResult != nil {
 		t.Fatalf("unexpected error: %s", errResult.Content[0].Text)
 	}
@@ -41,7 +41,7 @@ func TestParsePaging_CustomValues(t *testing.T) {
 }
 
 func TestParsePaging_SortDirDefaultsWhenKeySet(t *testing.T) {
-	p, errResult := ParsePaging(map[string]any{"sortKey": "common_name"}, 50)
+	p, errResult := ParsePaging(map[string]any{"sortKey": "common_name"}, 50, 100)
 	if errResult != nil {
 		t.Fatalf("unexpected error: %s", errResult.Content[0].Text)
 	}
@@ -54,7 +54,7 @@ func TestParsePaging_SortDirDefaultsWhenKeySet(t *testing.T) {
 }
 
 func TestParsePaging_InvalidSortDir(t *testing.T) {
-	_, errResult := ParsePaging(map[string]any{"sortDir": "sideways"}, 50)
+	_, errResult := ParsePaging(map[string]any{"sortDir": "sideways"}, 50, 100)
 	if errResult == nil {
 		t.Fatal("expected error")
 		return
@@ -65,7 +65,7 @@ func TestParsePaging_InvalidSortDir(t *testing.T) {
 }
 
 func TestParsePaging_InvalidLimit(t *testing.T) {
-	_, errResult := ParsePaging(map[string]any{"limit": 0}, 50)
+	_, errResult := ParsePaging(map[string]any{"limit": 0}, 50, 100)
 	if errResult == nil {
 		t.Fatal("expected error")
 		return
@@ -75,8 +75,19 @@ func TestParsePaging_InvalidLimit(t *testing.T) {
 	}
 }
 
+func TestParsePaging_LimitAboveMax(t *testing.T) {
+	_, errResult := ParsePaging(map[string]any{"limit": 26}, 25, 25)
+	if errResult == nil {
+		t.Fatal("expected error")
+		return
+	}
+	if !strings.Contains(errResult.Content[0].Text, "limit must be <= 25") {
+		t.Errorf("got %q", errResult.Content[0].Text)
+	}
+}
+
 func TestParsePaging_InvalidOffset(t *testing.T) {
-	_, errResult := ParsePaging(map[string]any{"offset": -1}, 50)
+	_, errResult := ParsePaging(map[string]any{"offset": -1}, 50, 100)
 	if errResult == nil {
 		t.Fatal("expected error")
 		return

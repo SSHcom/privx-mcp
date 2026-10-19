@@ -33,11 +33,7 @@ func List() registry.Tool {
 			"default":     false,
 			"description": "Return user objects without field projection. Sensitive fields are omitted. WARNING: this can return a very large payload and significantly increase token usage in the MCP client response.",
 		}).
-		Set("limit", map[string]any{
-			"type":        "integer",
-			"minimum":     1,
-			"description": fmt.Sprintf("Maximum number of users to return. Defaults to %d.", common.UsersListLimit),
-		}).
+		Set("limit", common.LimitSchema(common.UsersListLimit, common.UsersListMax, "")).
 		Set("offset", map[string]any{
 			"type":        "integer",
 			"minimum":     0,
@@ -65,7 +61,7 @@ func listUsersHandler(ctx context.Context, params map[string]any) (*registry.Too
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	paging, errResult := common.ParsePaging(params, common.UsersListLimit)
+	paging, errResult := common.ParsePaging(params, common.UsersListLimit, common.UsersListMax)
 	if errResult != nil {
 		return errResult, nil
 	}

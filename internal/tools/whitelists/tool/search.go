@@ -21,11 +21,7 @@ func Search() registry.Tool {
 			"type":        "string",
 			"description": "Free-text search across whitelist fields.",
 		}).
-		Set("limit", map[string]any{
-			"type":        "integer",
-			"minimum":     1,
-			"description": fmt.Sprintf("Maximum number of whitelists to return. Defaults to %d.", common.WhitelistsListLimit),
-		}).
+		Set("limit", common.LimitSchema(common.WhitelistsListLimit, common.WhitelistsListMax, "")).
 		Set("offset", map[string]any{
 			"type":        "integer",
 			"minimum":     0,
@@ -54,7 +50,7 @@ func searchHandler(ctx context.Context, params map[string]any) (*registry.ToolRe
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	paging, errResult := common.ParsePaging(params, common.WhitelistsListLimit)
+	paging, errResult := common.ParsePaging(params, common.WhitelistsListLimit, common.WhitelistsListMax)
 	if errResult != nil {
 		return errResult, nil
 	}

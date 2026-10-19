@@ -20,11 +20,7 @@ func List() registry.Tool {
 		common.PresentationGuidance
 
 	properties := registry.NewOrderedMap().
-		Set("limit", map[string]any{
-			"type":        "integer",
-			"minimum":     1,
-			"description": fmt.Sprintf("Maximum number of roles to return. Defaults to %d.", common.RolesListLimit),
-		}).
+		Set("limit", common.LimitSchema(common.RolesListLimit, common.RolesListMax, "")).
 		Set("offset", map[string]any{
 			"type":        "integer",
 			"minimum":     0,
@@ -52,7 +48,7 @@ func listRolesHandler(ctx context.Context, params map[string]any) (*registry.Too
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	paging, errResult := common.ParsePaging(params, common.RolesListLimit)
+	paging, errResult := common.ParsePaging(params, common.RolesListLimit, common.RolesListMax)
 	if errResult != nil {
 		return errResult, nil
 	}
