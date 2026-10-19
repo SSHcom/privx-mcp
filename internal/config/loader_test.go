@@ -65,6 +65,7 @@ ca_cert = "/tmp/ca.pem"
 default_read_only = false
 whitelist = ["host-", "user-", "test-"]
 blacklist = ["host-delete", "user-delete-"]
+response_filter = ["sudo", "sh"]
 source_type = "AD"
 session_cache_ttl = "45s"
 request_window_seconds = 60
@@ -166,6 +167,9 @@ identity_mapping_rule = "strip-domain"
 	}
 	if cfg.Permissions.Blacklist[0] != "host-delete" || cfg.Permissions.Blacklist[1] != "user-delete-" {
 		t.Errorf("Permissions.Blacklist = %v, want [host-delete user-delete-]", cfg.Permissions.Blacklist)
+	}
+	if len(cfg.Permissions.ResponseFilter) != 2 || cfg.Permissions.ResponseFilter[0] != "sudo" || cfg.Permissions.ResponseFilter[1] != "sh" {
+		t.Errorf("Permissions.ResponseFilter = %v, want [sudo sh]", cfg.Permissions.ResponseFilter)
 	}
 	if cfg.Permissions.SessionCacheTTL != 45*time.Second {
 		t.Errorf("Permissions.SessionCacheTTL = %v, want %v", cfg.Permissions.SessionCacheTTL, 45*time.Second)

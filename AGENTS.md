@@ -12,11 +12,11 @@
 - `service/http/`: HTTP server and mux composition for exposed endpoints.
 - `service/logging/`: slog wrapper with optional lumberjack file rotation.
 - `service/privx_api/`: thin PrivX API wrappers (users, roles, workflow requestable roles) used by runtime and tools.
-- `service/security/`: MCP boundary hardening applied by the runtime — `Sanitize` (drops invisible/control runes), `FindBlacklisted` (partial + full-word term lists), `DefaultOverrides` (key-scoped allowed terms such as `root` on `principal`/`name`, and the command/action terms on `whitelist_patterns` for the SSH command whitelist tools — injection terms stay blocked there), `Prepare` (one in-place walk of string values combining both), `PrepareOutput` (same walk for tool results: drops failing rows from a top-level `items` array instead of rejecting the page), and `Wrap` (the `{meta, data}` response envelope). Tools flagged `Trusted` are exempt; see `docs/manual/reference/security/security.md`.
+- `service/security/`: MCP boundary hardening (sanitizing, response word filter, response envelope). See `docs/manual/reference/security/security.md`.
 - `service/session/`: per-identity user-context cache and tool-call rate limiting.
-- `testutil/testconn/`: test-only fake `restapi.Connector` (route-based dispatch + JSON round-trip) and auth-context helpers for exercising MCP tool handlers without a live PrivX server. Imported only from `*_test.go` files.
+- `testutil/testconn/`: test-only fake `restapi.Connector` and auth-context helpers for tool handler tests.
 - `tools/`: tool registration (`register.go`, `permissions.go`) and one package per topic. Handlers live in `tool/` unless noted.
-  - `tools/common/`: shared tool defaults (e.g. list/search page sizes) and paging/sort helpers (`ParsePaging`, `SortKeySchema`, `SortDirSchema`; default sort `created` DESC).
+  - `tools/common/`: shared tool defaults and paging/sort helpers.
   - `tools/access_groups/`: access groups; handlers only.
   - `tools/api_targets/`: API-target field selection.
   - `tools/audit_events/`: audit events; handlers only.
@@ -32,7 +32,7 @@
   - `tools/target_domains/`: target-domain fields and input schema.
   - `tools/users/`: user schemas, field selection, and edits.
   - `tools/whitelists/`: SSH command whitelists; handlers only.
-- `utils/`: shared helpers (`email`, file, string, bool, map readers like `StringFromMap`, JSON `ToJSONMap`); timezone/weekday logic lives in `utils/date`.
+- `utils/`: shared helpers (strings, files, map readers, JSON, dates).
 - `version/`: build identity from the embedded `version.json` (server and proxy).
 
 ## Anatomy of a Tool Topic
@@ -84,7 +84,7 @@ Tool handlers take `(ctx, params map[string]any) (*registry.ToolResult, error)`:
 4. Project with topic `Format*` helpers (`fields` / nested `*Fields` CSV + `raw`); append `common.PresentationGuidance` to descriptions.
 5. List/search return a pagination envelope: `items`, `count`, `limit`, `offset`, `returned`, `remaining`, `pagesRemaining` (search may add `nextOffset`).
 6. `Writes: true` only for mutating tools; read-only mode drops those at registration.
-7. Return the plain payload JSON. The runtime sanitizes string values, applies the blacklist (with `DefaultOverrides` for identifier keys), and wraps success results in the `service/security` `{meta, data}` envelope; handlers must not build the envelope themselves. List/search payloads with a top-level `items` array drop rows that fail the blacklist and may include `dropped` (`len(items) + dropped` matches `returned` on that page); pagination fields are not rewritten. Error results (`registry.ErrorResult`) are delivered unwrapped. `Trusted: true` opts a tool out of all of it (server-generated content only, e.g. `mcp-info`); such a tool must check its own PrivX-sourced strings via `security.PrepareStrings`, passing `DefaultOverrides["principal"]` or `DefaultOverrides["name"]` for identifier fields.
+7. Return the plain payload JSON. The runtime sanitizes string values, replaces configured whole words from `[permissions].response_filter` (empty means no replacement), and wraps success results in the `service/security` `{meta, data}` envelope; handlers must not build the envelope themselves. List rows and pagination stay; a match is replaced in that string. Tools named `whitelist-*` and tools flagged `Sensitive` are sanitized and wrapped but not word-filtered. Error results (`registry.ErrorResult`) are delivered unwrapped. `Trusted: true` opts a tool out of all of it (server-generated content only, e.g. `mcp-info`); `mcp-info` still runs PrivX-sourced names through `security.PrepareStrings` with the filter from context. `target-domain-managed-account-checkout` returns PrivX strings unchanged.
 
 Reference topics: `users` (list/search/get + nested role fields), `hosts` (nested service/principal fields).
 

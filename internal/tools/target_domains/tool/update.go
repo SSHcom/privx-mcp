@@ -29,6 +29,7 @@ func Update() registry.Tool {
 			"minLength":   1,
 			"description": "The id of the target domain to update.",
 		})
+
 	target_domains.DomainFieldProperties().ForEach(func(key string, value any) {
 		properties.Set(key, value)
 	})

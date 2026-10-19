@@ -32,7 +32,7 @@ internal/
     http/              # Shared HTTP mux + server helpers
     logging/           # Logging
     privx_api/         # Thin PrivX API wrappers (users, roles)
-    security/          # MCP boundary hardening (sanitize, blacklist, envelope)
+    security/          # MCP boundary hardening (sanitize, response filter, envelope)
     session/           # Per-identity user-context cache and rate limiting
   testutil/testconn/   # Test-only fake Connector and auth-context helpers
   tools/

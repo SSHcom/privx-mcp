@@ -27,7 +27,7 @@ Threat model and intended controls: [security.md](../manual/reference/security/s
 ## Trust chain
 
 ```
-MCP client --bearer--> /mcp (JWKS) --> rate limit --> RSA JWT mint --> PrivX as that user --> PermissionEngine --> tool handler --> sanitize / blacklist / envelope
+MCP client --bearer--> /mcp (JWKS) --> rate limit --> RSA JWT mint --> PrivX as that user --> PermissionEngine --> tool handler --> sanitize / response filter / envelope
 ```
 
 ## Checklist
@@ -59,16 +59,15 @@ Read tool registration, permission mapping, and the MCP runtime.
 
 - Write tools are dropped when read-only mode is on. A mutating tool classified as non-writing is an issue unless the product docs call that out as an exception; if they do, record the judgement as `ok`.
 - A tool with no required PrivX scopes is listed and judged: any authenticated caller can invoke it. Record that as `ok` on this section, not as Notes.
-- Trusted tools are for server-generated content only. A Trusted tool that mixes in PrivX-sourced strings must run the same string hardening the runtime uses for everyone else.
+- Trusted tools are for server-generated content only. `mcp-info` still sanitizes PrivX-sourced names and applies the response filter to them. `target-domain-managed-account-checkout` returns PrivX strings unchanged.
 - Session cache TTL: a stale **allow** after revoke until TTL expires is documented; a stale allow that never expires is an issue.
 
 ### 4. MCP data boundary
 
 Read the MCP security package and the runtime that applies it on tool calls.
 
-- Non-Trusted tools: inbound hardening on params; outbound sanitize, blacklist, envelope.
-- List/search: drop failing `items` rows; single-object get withholds the whole payload; do not name the blocked word on the way out.
-- Blacklist exceptions stay key-scoped and match [security.md](../manual/reference/security/security.md). Injection terms are not excepted on fields where that document still blocks them.
+- Non-Trusted tools: inbound sanitize on params; outbound sanitize, optional whole-word response filter, envelope.
+- The response filter replaces configured whole words and keeps the payload, including list rows. It does not run on `whitelist-*` tools or sensitive tools.
 - Homoglyph / non-English instruction gaps are known limits in `security.md`, not new issues unless a bypass is worse than documented.
 
 ### 5. Handler trust
@@ -83,7 +82,7 @@ On a first full-repo scan, sample several resource topics (see AGENTS.md for lay
 
 - Config loaders: secrets from TOML/env/files, not logs.
 - `.gitignore` covers live config and key material.
-- MCP client must not see omitted-row bodies or bearer tokens. Server logs that help an operator clean a blacklisted record are fine if the client never sees them.
+- MCP client must not see bearer tokens. The response filter replaces words in place; it does not omit rows.
 
 ### 7. Proxy
 

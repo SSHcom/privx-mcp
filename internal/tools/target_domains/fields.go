@@ -189,6 +189,7 @@ func endpointsFromParam(raw any) ([]secretsmanager.TargetDomainEndpoint, error) 
 	}
 
 	endpoints := make([]secretsmanager.TargetDomainEndpoint, 0, len(items))
+
 	seenScanPriority := make(map[int]struct{}, len(items))
 	for i, item := range items {
 		epMap, ok := item.(map[string]any)

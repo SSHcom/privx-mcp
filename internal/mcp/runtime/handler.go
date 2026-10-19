@@ -3,7 +3,6 @@ package runtime
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -23,21 +22,20 @@ func (c *Core) createToolHandler(tool registry.Tool) mcp.ToolHandler {
 		}
 
 		if !tool.Trusted {
-			if _, term, found := security.Prepare(params); found {
-				logging.Debug("blocked tool call input", "tool", tool.Name, "term", term)
-				return errorCallResult(security.InputRejectedMessage(term)), nil
-			}
+			security.Prepare(params)
 		}
 
 		logging.Debug("tool call input params", "tool", tool.Name, "params", params)
 
+		ctx = security.ContextWithFilter(ctx, c.responseFilter)
+
 		result, err := safeHandler(ctx, params)
 		if err != nil {
 			errResult := ToMCPError(err)
-			return toCallToolResult(errResult, tool.Trusted, tool.Name), nil
+			return toCallToolResult(errResult, tool, c.responseFilter), nil
 		}
 
-		return toCallToolResult(result, tool.Trusted, tool.Name), nil
+		return toCallToolResult(result, tool, c.responseFilter), nil
 	}
 }
 
@@ -117,10 +115,10 @@ func toolTitle(name string) string {
 
 // toCallToolResult converts a tool result to the MCP wire form. Unless the tool
 // is trusted (registry.Tool.Trusted), successful payloads are sanitized,
-// blacklist-checked, and wrapped in the security envelope. List/search
-// payloads with a top-level items array drop failing rows instead of
-// rejecting the page. Error results are always delivered as plain text.
-func toCallToolResult(result *registry.ToolResult, trusted bool, toolName string) *mcp.CallToolResult {
+// word-filtered, and wrapped in the security envelope. Sensitive tools and
+// tools named whitelist-* are sanitized and wrapped, but not word-filtered.
+// Error results are always delivered as plain text.
+func toCallToolResult(result *registry.ToolResult, tool registry.Tool, filter security.Filter) *mcp.CallToolResult {
 	if result == nil {
 		return textCallResult("")
 	}
@@ -141,8 +139,8 @@ func toCallToolResult(result *registry.ToolResult, trusted bool, toolName string
 	texts := make([]string, 0, len(result.Content))
 	for _, block := range result.Content {
 		text := block.Text
-		if !trusted {
-			secured, rejection := secureText(text, toolName)
+		if !tool.Trusted {
+			secured, rejection := secureText(text, tool, filter)
 			if rejection != "" {
 				return errorCallResult(rejection)
 			}
@@ -175,29 +173,21 @@ func errorCallResult(text string) *mcp.CallToolResult {
 }
 
 // secureText sanitizes a successful tool payload and wraps it in the security
-// envelope. A payload that is not valid JSON becomes the envelope's data
-// string as-is. A non-empty rejection means nothing is revealed and that
-// message is returned to the client instead.
-func secureText(text, toolName string) (payload, rejection string) {
+// envelope. Whole words from filter are replaced unless the tool is sensitive
+// or named whitelist-*. A payload that is not valid JSON becomes the
+// envelope's data string. A non-empty rejection means the envelope could not
+// be built and that message is returned to the client instead.
+func secureText(text string, tool registry.Tool, filter security.Filter) (payload, rejection string) {
 	var decoded any
 	if err := json.Unmarshal([]byte(text), &decoded); err != nil {
 		decoded = text
 	}
 
-	cleaned, omitted, term, found := security.PrepareOutput(decoded)
-	if found {
-		logging.Warn("blocked tool call output", "type", toolName, "term", term)
-		return "", security.OutputRejectedMessage()
-	}
-
-	for _, item := range omitted {
-		logOmitted(toolName, item)
-	}
-
-	if len(omitted) > 0 {
-		if root, ok := cleaned.(map[string]any); ok {
-			root["dropped"] = len(omitted)
-		}
+	var cleaned any
+	if skipResponseFilter(tool) {
+		cleaned = security.Prepare(decoded)
+	} else {
+		cleaned = security.PrepareResponse(decoded, filter)
 	}
 
 	wrapped, err := security.Wrap(cleaned)
@@ -209,21 +199,8 @@ func secureText(text, toolName string) (payload, rejection string) {
 	return string(wrapped), ""
 }
 
-func logOmitted(toolName string, item security.OmittedItem) {
-	if item.HasID {
-		logging.Warn("omitted insecure record",
-			"type", toolName, "id", item.ID, "key", item.Key, "value", item.Value, "term", item.Term)
-
-		return
-	}
-
-	record := fmt.Sprintf("%v", item.Record)
-	if encoded, err := json.Marshal(item.Record); err == nil {
-		record = string(encoded)
-	}
-
-	logging.Warn("omitted insecure record",
-		"type", toolName, "record", record, "term", item.Term)
+func skipResponseFilter(tool registry.Tool) bool {
+	return tool.Sensitive || strings.HasPrefix(tool.Name, "whitelist-")
 }
 
 // RecoverMiddleware turns a panicking handler into a generic error result so a

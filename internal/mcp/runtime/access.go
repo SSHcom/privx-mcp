@@ -115,6 +115,7 @@ func (c *Core) filterByPermissions(ctx context.Context, identity *oauth.Identity
 		}
 
 		hidden++
+
 		if strings.HasPrefix(tool.Name, "target-domain-") {
 			hiddenTargetDomains = append(hiddenTargetDomains, tool.Name+": "+reason)
 		}
@@ -265,7 +266,7 @@ func (c *Core) authMiddleware(next mcp.ToolHandler) mcp.ToolHandler {
 			)
 			result := ToMCPError(err)
 
-			return toCallToolResult(result, false, toolName), nil
+			return toCallToolResult(result, registry.Tool{Name: toolName}, c.responseFilter), nil
 		}
 
 		if err := c.bindIssuerSubject(authCtx, claims); err != nil {
@@ -284,7 +285,7 @@ func (c *Core) authMiddleware(next mcp.ToolHandler) mcp.ToolHandler {
 		tool, ok := c.registry.Get(toolName)
 		if !ok {
 			result := ToMCPError(&AuthorizationError{ToolName: toolName})
-			return toCallToolResult(result, false, toolName), nil
+			return toCallToolResult(result, registry.Tool{Name: toolName}, c.responseFilter), nil
 		}
 
 		decision := c.permissions.IsAllowed(ctx, claims, tool.RequiredPermissions)
@@ -300,7 +301,7 @@ func (c *Core) authMiddleware(next mcp.ToolHandler) mcp.ToolHandler {
 				result = scopeDeniedToolResult(toolName, decision.RolesChanged)
 			}
 
-			return toCallToolResult(result, false, toolName), nil
+			return toCallToolResult(result, tool, c.responseFilter), nil
 		}
 
 		// After permission gating, copy user ID and active roles onto

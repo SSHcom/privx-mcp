@@ -10,8 +10,6 @@ import (
 	"github.com/SSHcom/privx-sdk-go/v2/api/secretsmanager"
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
-	"github.com/pmsshintegration/privx-mcp/internal/service/logging"
-	"github.com/pmsshintegration/privx-mcp/internal/service/security"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/target_domains"
 )
@@ -22,8 +20,8 @@ const (
 )
 
 // ManagedAccountCheckout returns the target-domain-managed-account-checkout tool definition.
-// Trusted: the secret is PrivX-sourced and must be returned unchanged; every
-// other string is checked in the handler.
+// Trusted and sensitive: the password and the other checkout fields are returned
+// as PrivX sent them. The response word filter does not apply.
 func ManagedAccountCheckout() registry.Tool {
 	description := "Check out the current password of one managed account under a PrivX target domain. " +
 		"Call with the target domain id and the account id or username. A value containing @ is the username. " +
@@ -81,13 +79,16 @@ func checkoutManagedAccountHandler(ctx context.Context, params map[string]any) (
 	}
 
 	accounts := secretsmanager.New(authCtx.Connector)
+
 	account, err := loadCheckoutAccount(accounts, domainID, accountRef)
 	if err != nil {
 		return registry.ErrorResult(fmt.Sprintf("failed to fetch managed account: %v", err)), nil
 	}
+
 	if !account.ExplicitCheckout {
 		return registry.ErrorResult("explicit checkout is disabled for this managed account"), nil
 	}
+
 	if account.Username == "" {
 		return registry.ErrorResult("managed account has no username"), nil
 	}
@@ -98,22 +99,26 @@ func checkoutManagedAccountHandler(ctx context.Context, params map[string]any) (
 	}
 
 	secrets := authorizer.New(authCtx.Connector)
+
 	path, err := findTargetDomainSecretPath(secrets, domainID, account.Username)
 	if err != nil {
 		return registry.ErrorResult(fmt.Sprintf("failed to search account secrets: %v", err)), nil
 	}
+
 	if path == "" {
 		return registry.ErrorResult("managed account is not available for checkout; it must be added to a host with a role"), nil
 	}
 
 	// CheckoutAccountSecret decodes a ResultSet. This PrivX returns one checkout object.
 	var checkout authorizer.Checkout
+
 	_, err = authCtx.Connector.
 		URL("/authorizer/api/v1/secrets/checkouts").
 		Post(authorizer.CheckoutRequest{Path: path}, &checkout)
 	if err != nil {
 		return registry.ErrorResult(fmt.Sprintf("failed to check out managed account: %v", err)), nil
 	}
+
 	if !checkoutBelongsToDomain(checkout, domainID, accountID) {
 		return registry.ErrorResult("checkout secret is not under this target domain"), nil
 	}
@@ -121,11 +126,6 @@ func checkoutManagedAccountHandler(ctx context.Context, params map[string]any) (
 	latest, ok := latestSecret(checkout.Secrets)
 	if !ok || latest.Secret == "" {
 		return registry.ErrorResult("checkout returned no password"), nil
-	}
-
-	if term, blocked := prepareCheckout(&checkout); blocked {
-		logging.Warn("blocked tool call output", "type", "target-domain-managed-account-checkout", "term", term)
-		return registry.ErrorResult(security.OutputRejectedMessage()), nil
 	}
 
 	return common.JSONResult(map[string]any{
@@ -152,6 +152,7 @@ func loadCheckoutAccount(
 	if err != nil {
 		return nil, err
 	}
+
 	if account.TargetDomain.ID != "" && account.TargetDomain.ID != domainID {
 		return nil, fmt.Errorf("managed account is not under this target domain")
 	}
@@ -165,8 +166,11 @@ func findManagedAccountByUsername(
 	username string,
 ) (*secretsmanager.ManagedAccount, error) {
 	offset := 0
+
 	var found secretsmanager.ManagedAccount
+
 	matched := false
+
 	for {
 		result, err := client.SearchManagedAccounts(
 			domainID,
@@ -181,12 +185,15 @@ func findManagedAccountByUsername(
 			if item.TargetDomain.ID != "" && item.TargetDomain.ID != domainID {
 				continue
 			}
+
 			if !strings.EqualFold(item.Username, username) && !strings.EqualFold(item.Email, username) {
 				continue
 			}
+
 			if matched && found.ID != item.ID {
 				return nil, fmt.Errorf("multiple managed accounts match %q under this target domain", username)
 			}
+
 			found = item
 			matched = true
 		}
@@ -196,6 +203,7 @@ func findManagedAccountByUsername(
 			break
 		}
 	}
+
 	if !matched {
 		return nil, fmt.Errorf("managed account %q was not found under this target domain", username)
 	}
@@ -207,6 +215,7 @@ func findManagedAccountByUsername(
 // managed under other target domains; keep the secret for this domain.
 func findTargetDomainSecretPath(client *authorizer.Authorizer, domainID, username string) (string, error) {
 	prefix := targetDomainSecretPrefix(domainID)
+
 	offset := 0
 	for {
 		result, err := client.SearchAccountSecrets(
@@ -221,9 +230,11 @@ func findTargetDomainSecretPath(client *authorizer.Authorizer, domainID, usernam
 			if item.Type != targetDomainSecretType || item.TargetDomain.ID != domainID {
 				continue
 			}
+
 			if item.Username != username || !strings.HasPrefix(item.Path, prefix) {
 				continue
 			}
+
 			return item.Path, nil
 		}
 
@@ -242,9 +253,11 @@ func checkoutBelongsToDomain(checkout authorizer.Checkout, domainID, accountID s
 	if checkout.Path == "" || !strings.HasPrefix(checkout.Path, targetDomainSecretPrefix(domainID)) {
 		return false
 	}
+
 	if checkout.TargetDomain.ID != "" && checkout.TargetDomain.ID != domainID {
 		return false
 	}
+
 	if checkout.ManagedAccountID != "" && checkout.ManagedAccountID != accountID {
 		return false
 	}
@@ -265,19 +278,4 @@ func latestSecret(secrets []authorizer.Secrets) (authorizer.Secrets, bool) {
 	}
 
 	return best, true
-}
-
-// prepareCheckout checks every returned string except the password.
-// Name-like fields allow the name override. There is no principal field.
-func prepareCheckout(checkout *authorizer.Checkout) (string, bool) {
-	if term, blocked := security.PrepareStrings(
-		nil,
-		&checkout.Path,
-		&checkout.Expires,
-		&checkout.ManagedAccountID,
-	); blocked {
-		return term, true
-	}
-
-	return security.PrepareStrings(security.DefaultOverrides["name"], &checkout.Username)
 }

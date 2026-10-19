@@ -246,6 +246,18 @@ whitelist = ["-list", "-get", "-search", "echo", "mcp-info"]
 #          user-get and user-search remain but user-list is dropped.
 blacklist = ["-delete"]
 
+# Whole words replaced with [redacted] in successful tool responses.
+# Empty means no replacement. Matching is case-insensitive and whole-word
+# only, so "sh" does not hit "ssh".
+#
+# These tools skip replacement. Sensitive tools are off unless
+# enable_sensitive_data_tools is set. Whitelist tools are admin-only.
+# Callers who can use them are trusted, and few users should have that access:
+#   - whitelist-            SSH command whitelist tools. The payload is the command list.
+#   - target-domain-        every target-domain tool, including checkout.
+#   - connection-trail-get  recorded session commands.
+response_filter = ["sudo", "chmod", "chown", "curl", "wget", "ping", "nslookup", "sh", "bash", "zsh", "cmd", "exec", "eval"]
+
 # PrivX user directory used when resolving the authenticated identity to a
 # PrivX user. Required. When the same identifier exists in multiple sources,
 # only the user whose source_type matches this value is selected.
