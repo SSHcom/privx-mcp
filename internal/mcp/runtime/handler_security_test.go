@@ -340,6 +340,91 @@ func textHandler(payload string) registry.ToolHandler {
 	}
 }
 
+func TestToolHandler_CreateAndUpdateRejectRedactedMarker(t *testing.T) {
+	cases := []struct {
+		name      string
+		tool      string
+		sensitive bool
+		params    map[string]any
+		reject    bool
+	}{
+		{
+			name:   "nested update value",
+			tool:   "host-update",
+			params: map[string]any{"services": []any{map[string]any{"address": "ok [redacted]"}}},
+			reject: true,
+		},
+		{
+			name:   "marker split by invisible character",
+			tool:   "user-update-local",
+			params: map[string]any{"comment": "[red\u200Bacted]"},
+			reject: true,
+		},
+		{
+			name:   "whitelist update",
+			tool:   "whitelist-update",
+			params: map[string]any{"comment": "[redacted]"},
+			reject: true,
+		},
+		{
+			name:      "sensitive create",
+			tool:      "target-domain-create",
+			sensitive: true,
+			params:    map[string]any{"name": "x [redacted] y"},
+			reject:    true,
+		},
+		{
+			name:   "search is not checked",
+			tool:   "host-search",
+			params: map[string]any{"keywords": "[redacted]"},
+		},
+		{
+			name:   "delete is not checked",
+			tool:   "host-delete",
+			params: map[string]any{"id": "keep [redacted]"},
+		},
+		{
+			name:   "marker in a key",
+			tool:   "host-update",
+			params: map[string]any{"[redacted]": "fine"},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			called := false
+			tool := registry.Tool{
+				Name:      tc.tool,
+				Sensitive: tc.sensitive,
+				Handler: func(ctx context.Context, params map[string]any) (*registry.ToolResult, error) {
+					called = true
+					return registry.TextResult(`{"ok":true}`), nil
+				},
+			}
+
+			result := callTool(t, tool, tc.params)
+			if tc.reject {
+				if !result.IsError {
+					t.Fatal("expected the call to be rejected")
+				}
+				if got := callToolText(t, result); got != `invalid tool arguments: "[redacted]" is not allowed in a value` {
+					t.Errorf("error = %q", got)
+				}
+				if called {
+					t.Error("handler must not run")
+				}
+				return
+			}
+			if result.IsError {
+				t.Fatalf("call must proceed: %s", callToolText(t, result))
+			}
+			if !called {
+				t.Error("handler must run")
+			}
+		})
+	}
+}
+
 func TestToolHandler_InboundSanitizedParamsReachHandler(t *testing.T) {
 	var seen string
 	tool := registry.Tool{

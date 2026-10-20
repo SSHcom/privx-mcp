@@ -89,6 +89,7 @@ type PermissionsConfig struct {
 	// ResponseFilter lists whole words replaced with [redacted] in successful
 	// tool responses. Matching is case-insensitive. Empty means no replacement.
 	// Tools named whitelist-* and tools marked Sensitive are not filtered.
+	// Create and update tools reject any value containing [redacted].
 	ResponseFilter  []string
 	SessionCacheTTL time.Duration
 	// RefreshCooldown is the minimum interval between on-deny PrivX role

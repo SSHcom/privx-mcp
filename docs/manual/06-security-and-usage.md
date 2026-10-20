@@ -17,6 +17,7 @@ The server configuration decides which tools exist at all, for every user, befor
 - **Rate limiting** caps how many tool calls one identity can make in a time window, with an optional extra cooldown after a maxed-out window. This stops a looping model or a misbehaving client from hammering PrivX and the server.
 - **Response filter** (optional) replaces chosen words with `[redacted]` in tool responses, to mitigate injected instructions in PrivX data.
   - `whitelist-*` and sensitive tools are not filtered, so be especially careful about who is granted access to them.
+  - Create and update tools reject any value that contains `[redacted]`, including tools that skip the filter.
 
 Read more: [Which tools are registered](reference/security/user_level_security.md#which-tools-are-registered), [Loop and DDoS protection](reference/security/security.md#loop-and-ddos-protection), [Prompt injection hardening](reference/security/security.md#prompt-injection-hardening)
 
