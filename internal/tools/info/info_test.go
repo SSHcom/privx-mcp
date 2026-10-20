@@ -153,8 +153,8 @@ func TestInfoHandler_PrivXInfoAlwaysIncluded(t *testing.T) {
 
 func TestInfoHandler_ContextAndResources(t *testing.T) {
 	result, err := infoHandler(testSnapshot())(testAuthContext(), map[string]any{
-		"context":   []any{"users-and-roles", "hosts", "connection", "network-targets", "audit-events", "whitelists", "access-groups", "api-targets", "target-domains"},
-		"resources": []any{"host", "connection", "network-target", "api-target", "audit-event", "user", "role", "role-member", "request (access)", "whitelist", "access-group", "target-domain", "managed-account"},
+		"context":   []any{"users-and-roles", "hosts", "connection", "network-targets", "audit-events", "whitelists", "access-groups", "api-targets", "target-domains", "user-secrets"},
+		"resources": []any{"host", "connection", "network-target", "api-target", "audit-event", "user", "role", "role-member", "request (access)", "whitelist", "access-group", "target-domain", "managed-account", "user-secret"},
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -200,6 +200,10 @@ func TestInfoHandler_ContextAndResources(t *testing.T) {
 	if !strings.Contains(targetDomains, "host-update") || !strings.Contains(targetDomains, "target_domain") || !strings.Contains(targetDomains, "dropped") {
 		t.Fatalf("target-domains context missing host-update note: %q", targetDomains)
 	}
+	userSecrets := contextMap["user-secrets"].(string)
+	if !strings.Contains(userSecrets, "# User secrets") || !strings.Contains(userSecrets, "vault-add") || !strings.Contains(userSecrets, "user-secret-delete") {
+		t.Fatalf("unexpected user-secrets content: %q", userSecrets)
+	}
 
 	resources := got["resources"].(map[string]any)
 	host := resources["host"].(map[string]any)
@@ -241,6 +245,18 @@ func TestInfoHandler_ContextAndResources(t *testing.T) {
 	wl := resources["whitelist"].(map[string]any)
 	if wl["name"] != "example-whitelist" {
 		t.Fatalf("unexpected whitelist example: %#v", wl)
+	}
+	secret := resources["user-secret"].(map[string]any)
+	personal := secret["personal"].(map[string]any)
+	if personal["name"] != "mcp-create-smoke" || personal["owner_id"] != "<user-id>" {
+		t.Fatalf("unexpected personal secret example: %#v", personal)
+	}
+	global := secret["global"].(map[string]any)
+	if global["name"] != "mcp-global-privx-admin" || global["path"] != "/secrets/mcp-global-privx-admin" {
+		t.Fatalf("unexpected global secret example: %#v", global)
+	}
+	if _, ok := global["owner_id"]; ok {
+		t.Fatalf("global secret example includes owner_id: %#v", global)
 	}
 	ag := resources["access-group"].(map[string]any)
 	if ag["name"] != "example-access-group" {

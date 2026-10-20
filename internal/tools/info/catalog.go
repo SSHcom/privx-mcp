@@ -29,6 +29,7 @@ var contextFiles = map[string]string{
 	"hosts":           "context/hosts-and-connections.md",
 	"network-targets": "context/network-targets.md",
 	"target-domains":  "context/target-domains.md",
+	"user-secrets":    "context/user-secrets.md",
 	"users-and-roles": "context/users-and-roles.md",
 	"whitelists":      "context/whitelists.md",
 }
@@ -51,6 +52,7 @@ var resourceFiles = map[string]string{
 	"role-member":       "resources/role-member.json",
 	"target-domain":     "resources/target-domain.json",
 	"user":              "resources/user.json",
+	"user-secret":       "resources/user-secret.json",
 	"whitelist":         "resources/whitelist.json",
 	// monitor status
 	"components-status": "resources/components-status.json",

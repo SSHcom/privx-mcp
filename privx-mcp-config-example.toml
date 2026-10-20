@@ -254,6 +254,7 @@ blacklist = ["-delete"]
 #   - whitelist-            SSH command whitelist tools. The payload is the command list.
 #   - target-domain-        every target-domain tool, including checkout.
 #   - connection-trail-get  recorded session commands.
+#   - user-secret-          vault secrets, including secret data.
 #
 # Create and update tools reject a value that contains "[redacted]", including
 # the tools above. Other tools do not.
