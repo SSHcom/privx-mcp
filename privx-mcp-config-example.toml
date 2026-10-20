@@ -254,6 +254,9 @@ blacklist = ["-delete"]
 #   - whitelist-            SSH command whitelist tools. The payload is the command list.
 #   - target-domain-        every target-domain tool, including checkout.
 #   - connection-trail-get  recorded session commands.
+#
+# Create and update tools reject a value that contains "[redacted]", including
+# the tools above. Other tools do not.
 response_filter = ["sudo", "chmod", "chown", "curl", "wget", "ping", "nslookup", "sh", "bash", "zsh", "cmd", "exec", "eval"]
 
 # PrivX user directory used when resolving the authenticated identity to a

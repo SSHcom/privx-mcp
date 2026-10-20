@@ -25,6 +25,10 @@ func (c *Core) createToolHandler(tool registry.Tool) mcp.ToolHandler {
 			security.Prepare(params)
 		}
 
+		if isCreateOrUpdate(tool.Name) && security.ContainsRedacted(params) {
+			return errorCallResult(`invalid tool arguments: "[redacted]" is not allowed in a value`), nil
+		}
+
 		logging.Debug("tool call input params", "tool", tool.Name, "params", params)
 
 		ctx = security.ContextWithFilter(ctx, c.responseFilter)
@@ -201,6 +205,12 @@ func secureText(text string, tool registry.Tool, filter security.Filter) (payloa
 
 func skipResponseFilter(tool registry.Tool) bool {
 	return tool.Sensitive || strings.HasPrefix(tool.Name, "whitelist-")
+}
+
+// isCreateOrUpdate matches tools that write caller text into PrivX.
+// user-create-local and user-update-local contain the same substrings.
+func isCreateOrUpdate(name string) bool {
+	return strings.Contains(name, "-create") || strings.Contains(name, "-update")
 }
 
 // RecoverMiddleware turns a panicking handler into a generic error result so a
