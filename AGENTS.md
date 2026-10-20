@@ -31,6 +31,7 @@
   - `tools/status/`: status field selection.
   - `tools/target_domains/`: target-domain fields and input schema.
   - `tools/users/`: user schemas, field selection, and edits.
+  - `tools/user_secrets/`: personal and global vault secrets; handlers only.
   - `tools/whitelists/`: SSH command whitelists; handlers only.
 - `utils/`: shared helpers (strings, files, map readers, JSON, dates).
 - `version/`: build identity from the embedded `version.json` (server and proxy).

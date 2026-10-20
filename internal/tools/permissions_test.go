@@ -61,6 +61,12 @@ func TestRequiredPermissionsForTool_PrefersViewOverManage(t *testing.T) {
 		{"access-group-list", PermissionAccessGroupsManage},
 		{"access-group-create", PermissionAccessGroupsManage},
 
+		{"user-secret-list", PermissionVaultManage},
+		{"user-secret-get", PermissionVaultManage},
+		{"user-secret-create", PermissionVaultAdd},
+		{"user-secret-update", PermissionVaultManage},
+		{"user-secret-delete", PermissionVaultManage},
+
 		{"password-policy-list", PermissionPrivxAdmin},
 		{"whitelist-list", PermissionPrivxAdmin},
 		{"whitelist-evaluate", PermissionPrivxAdmin},

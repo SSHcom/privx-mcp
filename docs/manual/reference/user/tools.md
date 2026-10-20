@@ -169,6 +169,20 @@ List and get omit bind passwords, Entra client secrets, and checkout password ve
 
 Every tool in this topic is sensitive. Each one is registered only when `[permissions].enable_sensitive_data_tools` is set, and by default only a privx-admin can call it. See [Sensitive data tools](../security/security.md#sensitive-data-tools).
 
+## User secret tools
+
+| Tool               | Description                                                                              | Type | Permission     |
+| ------------------ | ---------------------------------------------------------------------------------------- | ---- | -------------- |
+| `user-secret-list`   | List secrets, with pagination (created DESC). Includes `data`. Omit `user_id` for global secrets. | Read  | `vault-manage` |
+| `user-secret-get`    | Fetch one secret by name. The key is `name`, not a UUID. Includes `data`. Omit `user_id` for a global secret. | Read  | `vault-manage` |
+| `user-secret-create` | Create a secret. `data` is a free-form object. Omit `user_id` for a global secret. With `user_id`, `owner_id` is that user. | Write | `vault-add`    |
+| `user-secret-update` | Full replacement after overlay. Fetch the current secret, then replace `data`, `read_roles`, and `write_roles` when those arguments are set. | Write | `vault-manage` |
+| `user-secret-delete` | Delete a secret by name. Omit `user_id` for a global secret. | Write | `vault-manage` |
+
+Omit `user_id` to call the global vault API. With `user_id` the call is personal and `owner_id` is that user. Create and update accept `name`, `data`, `read_roles`, and `write_roles`. Role objects keep `id` and an optional `name`. Update fetches the current secret and replaces only the fields that were sent.
+
+Every tool in this topic is sensitive. Each one is registered only when `[permissions].enable_sensitive_data_tools` is set, and by default only a privx-admin can call it. See [Sensitive data tools](../security/security.md#sensitive-data-tools).
+
 ## Access group tools
 
 | Tool                  | Description                                                  | Type  | Permission             |

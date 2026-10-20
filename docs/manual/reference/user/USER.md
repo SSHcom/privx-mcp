@@ -22,6 +22,7 @@ You only see tools you are allowed to call, because visibility and usage follow 
 | Access requests     | `workflows-requests`                                                                   |
 | Audit logs & Status | `logs-view`                                                                            |
 | Access groups       | `access-groups-manage`                                                                 |
+| User secrets        | `vault-add`, `vault-manage`                                                            |
 
 
 A few tools, such as `mcp-info` and `host-search`, are available to any signed-in user. `host-search` only returns hosts you already have access to unless you also hold `hosts-view`. Users with the `privx-admin` role can use all tools.

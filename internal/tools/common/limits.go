@@ -37,4 +37,7 @@ const (
 
 	WhitelistsListLimit = 50
 	WhitelistsListMax   = 100
+
+	UserSecretsListLimit = 50
+	UserSecretsListMax   = 100
 )

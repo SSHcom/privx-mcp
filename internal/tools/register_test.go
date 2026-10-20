@@ -232,6 +232,7 @@ func TestRegister_OneToolPerTopic(t *testing.T) {
 		"target-domain-list",
 		"whitelist-list",
 		"role-list",
+		"user-secret-list",
 		"user-list",
 		"request-list",
 		"mcp-info",

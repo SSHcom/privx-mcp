@@ -39,6 +39,8 @@ const (
 	PermissionTargetDomainsView    = "target-domains-view"
 	PermissionTargetDomainsManage  = "target-domains-manage"
 	PermissionAccessGroupsManage   = "access-groups-manage"
+	PermissionVaultAdd             = "vault-add"
+	PermissionVaultManage          = "vault-manage"
 
 	PermissionAuthenticated = registry.PermissionAuthenticated
 	PermissionPublic        = registry.PermissionPublic
@@ -196,6 +198,17 @@ var (
 		"access-group-update",
 		"access-group-delete",
 	}
+
+	// User secrets. vault-add is create only. vault-manage is list, get, update, and delete.
+	vaultAddTools = []string{
+		"user-secret-create",
+	}
+	vaultManageTools = []string{
+		"user-secret-list",
+		"user-secret-get",
+		"user-secret-update",
+		"user-secret-delete",
+	}
 )
 
 // toolsByPermission maps each permission scope to the MCP tool names it grants
@@ -240,6 +253,9 @@ func init() {
 		PermissionPrivxAdmin: concat(passwordPoliciesTools, commandWhitelistsTools),
 
 		PermissionAccessGroupsManage: accessGroupsTools,
+
+		PermissionVaultAdd:    vaultAddTools,
+		PermissionVaultManage: vaultManageTools,
 
 		PermissionAuthenticated: {
 			"mcp-info",
