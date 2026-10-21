@@ -102,6 +102,7 @@ func createHandler(ctx context.Context, params map[string]any) (*registry.ToolRe
 	} else {
 		created, err = client.CreateUserSecret(userID, secret)
 	}
+
 	if err != nil {
 		return registry.ErrorResult(fmt.Sprintf("failed to create secret: %v", err)), nil
 	}

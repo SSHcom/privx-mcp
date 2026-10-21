@@ -75,6 +75,7 @@ func listHandler(ctx context.Context, params map[string]any) (*registry.ToolResu
 	} else {
 		result, err = client.GetUserSecrets(userID, opts...)
 	}
+
 	if err != nil {
 		return registry.ErrorResult(fmt.Sprintf("failed to fetch secrets: %v", err)), nil
 	}

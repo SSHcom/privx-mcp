@@ -67,6 +67,7 @@ func deleteHandler(ctx context.Context, params map[string]any) (*registry.ToolRe
 	} else {
 		err = client.DeleteUserSecret(userID, name)
 	}
+
 	if err != nil {
 		return registry.ErrorResult(fmt.Sprintf("failed to delete secret: %v", err)), nil
 	}
