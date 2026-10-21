@@ -252,7 +252,7 @@ func TestInfoHandler_ContextAndResources(t *testing.T) {
 		t.Fatalf("unexpected personal secret example: %#v", personal)
 	}
 	global := secret["global"].(map[string]any)
-	if global["name"] != "mcp-global-privx-admin" || global["path"] != "/secrets/mcp-global-privx-admin" {
+	if global["name"] != "mcp-global-linux-admin" || global["path"] != "/secrets/mcp-global-linux-admin" {
 		t.Fatalf("unexpected global secret example: %#v", global)
 	}
 	if _, ok := global["owner_id"]; ok {

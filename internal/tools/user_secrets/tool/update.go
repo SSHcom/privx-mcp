@@ -62,6 +62,7 @@ func updateHandler(ctx context.Context, params map[string]any) (*registry.ToolRe
 	} else {
 		current, err = client.GetUserSecret(userID, name)
 	}
+
 	if err != nil {
 		return registry.ErrorResult(fmt.Sprintf("failed to fetch secret: %v", err)), nil
 	}
@@ -69,6 +70,7 @@ func updateHandler(ctx context.Context, params map[string]any) (*registry.ToolRe
 	req := current.SecretRequest
 	req.Name = name
 	req.OwnerID = userID
+
 	if errResult := overlaySecret(&req, params); errResult != nil {
 		return errResult, nil
 	}
@@ -78,6 +80,7 @@ func updateHandler(ctx context.Context, params map[string]any) (*registry.ToolRe
 	} else {
 		err = client.UpdateUserSecret(userID, name, &req)
 	}
+
 	if err != nil {
 		return registry.ErrorResult(fmt.Sprintf("failed to update secret: %v", err)), nil
 	}

@@ -3,6 +3,8 @@ package tool
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	"github.com/SSHcom/privx-sdk-go/v2/api/connectionmanager"
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
@@ -12,11 +14,18 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
+const (
+	connectionSearchDefaultWindow = 7 * 24 * time.Hour
+	connectionSearchMaxWindow     = 30 * 24 * time.Hour
+)
+
 // Search returns the connections-search tool definition.
 func Search() registry.Tool {
 	description := "Search PrivX connections with filters. " +
 		"Supports filtering by status (CONNECTED, DISCONNECTED, TERMINATED), " +
 		"type (SSH, RDP, VNC, WEB, DB), user, host, time range, and keywords. " +
+		"connected_start and connected_end default to the last 7 days. " +
+		"The window can be any dates and cannot exceed 30 days. " +
 		"Sorted by connected time descending by default. " +
 		common.PresentationGuidance
 
@@ -56,12 +65,16 @@ func Search() registry.Tool {
 			"description": "Filter by target host common names.",
 		}).
 		Set("connected_start", map[string]any{
-			"type":        "string",
-			"description": "Inclusive start of the connected time window (RFC3339).",
+			"type": "string",
+			"description": "Inclusive RFC3339 start of the connected window. " +
+				"Defaults to 7 days before connected_end, or to 7 days ago when both bounds are omitted. " +
+				"The window can be any dates and cannot exceed 30 days.",
 		}).
 		Set("connected_end", map[string]any{
-			"type":        "string",
-			"description": "Inclusive end of the connected time window (RFC3339).",
+			"type": "string",
+			"description": "Inclusive RFC3339 end of the connected window. " +
+				"Defaults to 7 days after connected_start, or to now when both bounds are omitted. " +
+				"The window can be any dates and cannot exceed 30 days.",
 		}).
 		Set("limit", common.LimitSchema(common.ConnectionsListLimit, common.ConnectionsListMax, "")).
 		Set("offset", map[string]any{
@@ -186,15 +199,77 @@ func buildConnectionSearch(params map[string]any) (*connectionmanager.Connection
 		search.TargetHostCommonName = sl
 	}
 
-	connStart := utils.StringFromMap(params, "connected_start")
+	connStart, connEnd, errResult := resolveConnectedWindow(
+		utils.StringFromMap(params, "connected_start"),
+		utils.StringFromMap(params, "connected_end"),
+		time.Now(),
+	)
+	if errResult != nil {
+		return nil, errResult
+	}
 
-	connEnd := utils.StringFromMap(params, "connected_end")
-	if connStart != "" || connEnd != "" {
-		search.Connected = &connectionmanager.TimestampSearch{
-			Start: connStart,
-			End:   connEnd,
-		}
+	search.Connected = &connectionmanager.TimestampSearch{
+		Start: connStart,
+		End:   connEnd,
 	}
 
 	return search, nil
+}
+
+// resolveConnectedWindow fills a missing connected window with the last 7 days
+// and rejects a span longer than 30 days. A single bound anchors a 7-day window.
+func resolveConnectedWindow(startRaw, endRaw string, now time.Time) (string, string, *registry.ToolResult) {
+	startRaw = strings.TrimSpace(startRaw)
+	endRaw = strings.TrimSpace(endRaw)
+
+	switch {
+	case startRaw == "" && endRaw == "":
+		end := now.UTC()
+		start := end.Add(-connectionSearchDefaultWindow)
+
+		return start.Format(time.RFC3339), end.Format(time.RFC3339), nil
+	case startRaw != "" && endRaw == "":
+		start, errResult := parseConnectedTime("connected_start", startRaw)
+		if errResult != nil {
+			return "", "", errResult
+		}
+
+		return startRaw, start.Add(connectionSearchDefaultWindow).UTC().Format(time.RFC3339), nil
+	case startRaw == "" && endRaw != "":
+		end, errResult := parseConnectedTime("connected_end", endRaw)
+		if errResult != nil {
+			return "", "", errResult
+		}
+
+		return end.Add(-connectionSearchDefaultWindow).UTC().Format(time.RFC3339), endRaw, nil
+	}
+
+	start, errResult := parseConnectedTime("connected_start", startRaw)
+	if errResult != nil {
+		return "", "", errResult
+	}
+
+	end, errResult := parseConnectedTime("connected_end", endRaw)
+	if errResult != nil {
+		return "", "", errResult
+	}
+
+	if end.Before(start) {
+		return "", "", registry.ErrorResult("validation error: connected_end must not be before connected_start")
+	}
+
+	if end.Sub(start) > connectionSearchMaxWindow {
+		return "", "", registry.ErrorResult("validation error: connected range cannot exceed 30 days")
+	}
+
+	return startRaw, endRaw, nil
+}
+
+func parseConnectedTime(field, value string) (time.Time, *registry.ToolResult) {
+	parsed, err := time.Parse(time.RFC3339Nano, value)
+	if err != nil {
+		return time.Time{}, registry.ErrorResult(fmt.Sprintf("validation error: %s must be RFC3339", field))
+	}
+
+	return parsed, nil
 }

@@ -122,7 +122,7 @@ Compact fields: `id`, `type`, `mode`, `status`, `user`, `target_host`, `target_h
 - `type`: SSH, RDP, VNC, WEB, DB, NET, API
 - `keywords`: free-text search
 - `target_host_common_name`: filter by host name
-- `connected_start` / `connected_end`: RFC3339 time range
+- `connected_start` / `connected_end`: RFC3339 window. Defaults to the last 7 days. At most 30 days, on any dates. A single bound anchors a 7-day window.
 
 ## Network target tools
 

@@ -70,6 +70,7 @@ func getHandler(ctx context.Context, params map[string]any) (*registry.ToolResul
 	} else {
 		secret, err = client.GetUserSecret(userID, name)
 	}
+
 	if err != nil {
 		return registry.ErrorResult(fmt.Sprintf("failed to fetch secret: %v", err)), nil
 	}
