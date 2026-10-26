@@ -36,6 +36,11 @@ type StreamConfig struct {
 
 	// Stateless maps to mcp.StreamableHTTPOptions.Stateless.
 	Stateless bool
+
+	// CheckAPIKey gates /mcp on X-API-KEY before bearer verification.
+	// APIKeySum is the SHA-256 of the configured key.
+	CheckAPIKey bool
+	APIKeySum   [32]byte
 }
 
 // NewStream builds a streamable MCP transport endpoint handler.
@@ -92,6 +97,9 @@ func RegisterRoutes(mux *http.ServeMux, core *runtime.Core, cfg StreamConfig) er
 		}
 
 		handler = WithBearerVerification(cfg.PublicURL, cfg.Verifier, handler)
+		if cfg.CheckAPIKey {
+			handler = WithAPIKey(cfg.APIKeySum, handler)
+		}
 	}
 
 	handler = withRequestLogging(handler)

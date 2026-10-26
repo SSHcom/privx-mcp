@@ -27,8 +27,11 @@ type tomlConfig struct {
 		LogFile  string `toml:"log_file"`
 		LogLevel string `toml:"log_level"`
 
-		AuthMode       string `toml:"auth_mode"`
-		ServiceSecrets string `toml:"service_secrets"`
+		AuthMode             string `toml:"auth_mode"`
+		M2MIdentityMapper    string `toml:"m2m_identity_mapper"`
+		M2MJWTKey            string `toml:"m2m_jwt_key"`
+		M2MJWTIdentityMapper string `toml:"m2m_jwt_identity_mapper"`
+		M2MJWTIssuer         string `toml:"m2m_jwt_issuer"`
 	} `toml:"server"`
 
 	PrivXAuth struct {
@@ -141,7 +144,10 @@ func tomlToConfig(tc *tomlConfig) *Config {
 			LogFile:                    tc.Server.LogFile,
 			LogLevel:                   tc.Server.LogLevel,
 			AuthMode:                   tc.Server.AuthMode,
-			serviceSecretsRaw:          tc.Server.ServiceSecrets,
+			m2mIdentityMapperRaw:       tc.Server.M2MIdentityMapper,
+			m2mJWTKeyRaw:               tc.Server.M2MJWTKey,
+			m2mJWTIdentityMapperRaw:    tc.Server.M2MJWTIdentityMapper,
+			M2MJWTIssuer:               tc.Server.M2MJWTIssuer,
 		},
 		PrivXAuth: PrivXAuthConfig{
 			PrivXBaseURL:         tc.PrivXAuth.PrivXBaseURL,

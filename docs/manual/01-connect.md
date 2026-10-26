@@ -2,7 +2,7 @@
 
 Use this page the MCP server is already deployed and you only need to point an MCP client at it, complete OAuth, and call tools over `/mcp`.
 
-For an `m2m` deployment, follow [Configure machine-to-machine access](04-m2m.md).
+For an `m2m` or `m2m-jwt` deployment, follow [Configure machine-to-machine access](04-m2m.md).
 
 ## Prerequisites
 

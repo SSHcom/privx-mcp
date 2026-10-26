@@ -15,7 +15,7 @@ How the PrivX MCP server decides **which tools a user can see** and **which tool
 
 Access control has three layers:
 
-1. **Who is calling?** The server identifies the user from an OAuth token or, in `m2m` mode, from a configured service secret.
+1. **Who is calling?** The server identifies the user from an OAuth token, from a configured service secret in `m2m` mode, or from a mapped JWT claim in `m2m-jwt` mode.
 2. **Which tools exist for this deployment?** Server config can hide write tools or limit tools by name prefix before anyone connects.
 3. **What may this user do in PrivX?** The user's PrivX roles and permissions decide which remaining tools are visible and callable.
 
@@ -24,7 +24,7 @@ Layers 1 and 3 are evaluated per user. Layer 2 is global for the server process.
 ```
 MCP client
     |
-    |  OAuth bearer token, or a service secret in m2m mode
+    |  OAuth bearer token, a service secret in m2m mode, or an API key plus a JWT in m2m-jwt mode
     v
 MCP server
     |
@@ -39,7 +39,7 @@ tools/call  →  allow or deny the specific tool
 
 ## Identifying the user
 
-The MCP client presents an OAuth access token, or in `m2m` mode a configured service secret as a bearer. The server verifies it. For OAuth it reads identity claims such as email, UPN, or subject. For a service secret the PrivX username is the configured principal, and identity mapping is not applied.
+The MCP client presents an OAuth access token, in `m2m` mode a configured service secret as a bearer, or in `m2m-jwt` mode `X-API-KEY` plus a bearer JWT. The server verifies it. For OAuth it reads identity claims such as email, UPN, or subject. For a service secret the PrivX username is the configured principal, and identity mapping is not applied. For `m2m-jwt` the PrivX username is the one matching mapper row, and identity mapping is not applied.
 
 That identity is then matched to a PrivX user directory entry, using the claim values against PrivX fields such as email, Windows account, or principal name. A value containing `@` matches the PrivX email and Windows account. Any other value matches the principal.
 

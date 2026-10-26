@@ -54,8 +54,20 @@ func applyEnvOverrides(cfg *Config) {
 		cfg.Server.AuthMode = v
 	}
 
-	if v := os.Getenv("SERVER_SERVICE_SECRETS"); v != "" {
-		cfg.Server.serviceSecretsRaw = v
+	if v := os.Getenv("SERVER_M2M_IDENTITY_MAPPER"); v != "" {
+		cfg.Server.m2mIdentityMapperRaw = v
+	}
+
+	if v := os.Getenv("SERVER_M2M_JWT_KEY"); v != "" {
+		cfg.Server.m2mJWTKeyRaw = v
+	}
+
+	if v := os.Getenv("SERVER_M2M_JWT_IDENTITY_MAPPER"); v != "" {
+		cfg.Server.m2mJWTIdentityMapperRaw = v
+	}
+
+	if v := os.Getenv("SERVER_M2M_JWT_ISSUER"); v != "" {
+		cfg.Server.M2MJWTIssuer = v
 	}
 
 	if v := os.Getenv("PRIVX_PRIVX_BASE_URL"); v != "" {
