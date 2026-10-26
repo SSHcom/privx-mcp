@@ -94,7 +94,7 @@ tls_cert_file = "/path-to/.tls/mcp-tls-cert.pem" # Enables HTTPS
 tls_key_file = "/path-to/.tls/mcp-tls-key.pem"   # Enables HTTPS
 log_level = "info" # Use "debug" for more detail
 
-m2m_jwt_key = "7220922f1f9a1fb9e6fa790f82c6c2257367c7fb86c0e8de6bc995f14cfe8c2b"
+m2m_jwt_key = "722092********"
 m2m_jwt_issuer = "https://keycloak-example/realms/example" # Optional check (validate JWT issuer)
 m2m_jwt_identity_mapper = "preferred_username john.done demouser"
 
@@ -136,7 +136,7 @@ This example is from a Cursor MCP client configuration.
     "privx-mcp-m2m-jwt": {
       "url": "https://localhost:8181/mcp",
       "headers": {
-        "X-API-KEY": "7220922f1f9a1fb9e6fa790f82c6c2257367c7fb86c0e8de6bc995f14cfe8c2b",
+        "X-API-KEY": "722092********",
         "Authorization": "Bearer eyJhbGciOi**********.sig"
       }
     }
