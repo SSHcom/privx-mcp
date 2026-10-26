@@ -12,7 +12,7 @@ import (
 func TestVerifier_MatchAndMiss(t *testing.T) {
 	a := strings.Repeat("a", 32)
 	b := strings.Repeat("b", 32)
-	v := NewVerifier([]config.ServiceSecret{
+	v := NewVerifier([]config.M2MIdentity{
 		{Username: "svc-ci", Sum: sha256.Sum256([]byte(a))},
 		{Username: "svc-nightly", Sum: sha256.Sum256([]byte(b))},
 	})
@@ -38,7 +38,7 @@ func TestVerifier_MatchAndMiss(t *testing.T) {
 		t.Fatal("expected miss")
 	}
 
-	dup := NewVerifier([]config.ServiceSecret{
+	dup := NewVerifier([]config.M2MIdentity{
 		{Username: "one", Sum: sha256.Sum256([]byte(a))},
 		{Username: "two", Sum: sha256.Sum256([]byte(a))},
 	})

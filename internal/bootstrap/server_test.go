@@ -9,8 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/SSHcom/privx-sdk-go/v2/restapi"
+	"github.com/golang-jwt/jwt/v5"
+
 	"github.com/pmsshintegration/privx-mcp/internal/config"
 )
 
@@ -172,7 +175,7 @@ name = "privx-mcp-server"
 version = "test"
 public_url = "https://127.0.0.1:8181"
 auth_mode = "m2m"
-service_secrets = "svc-ci %s"
+m2m_identity_mapper = "svc-ci %s"
 
 [privx_auth]
 privx_base_url = "https://privx.example.com"
@@ -226,6 +229,120 @@ source_type = "AD"
 	if wk.Code != http.StatusNotFound {
 		t.Fatalf("well-known: got %d", wk.Code)
 	}
+}
+
+func TestNewServer_M2MJWT(t *testing.T) {
+	originalConnect := connectWithAPICredentials
+	connectWithAPICredentials = func(*config.Config) (restapi.Connector, error) {
+		return stubConnector{}, nil
+	}
+	defer func() {
+		connectWithAPICredentials = originalConnect
+	}()
+
+	keyFile := writeKeyFile(t)
+	apiKey := "0123456789abcdef"
+	configPath := filepath.Join(t.TempDir(), "config.toml")
+	configBody := fmt.Sprintf(`
+[server]
+name = "privx-mcp-server"
+version = "test"
+public_url = "http://127.0.0.1:8181"
+auth_mode = "m2m-jwt"
+m2m_jwt_key = "%s"
+m2m_jwt_issuer = "https://idp.example"
+m2m_jwt_identity_mapper = "preferred_username jdone john.done"
+
+[privx_auth]
+privx_base_url = "https://privx.example.com"
+rsa_key_file = "%s"
+rsa_key_id = "test-kid"
+audience = "privx-mcp-client"
+token_issuer = "privx-mcp"
+api_oauth_client_id = "privx-external"
+api_oauth_client_secret = "oauth-secret"
+api_client_id = "api-client-id"
+api_client_secret = "api-client-secret"
+
+[permissions]
+default_read_only = true
+source_type = "AD"
+`, apiKey, keyFile)
+	if err := os.WriteFile(configPath, []byte(configBody), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	server, cleanup, err := NewServer(configPath)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	defer cleanup()
+
+	valid := m2mJWT(t, jwt.MapClaims{
+		"iss":                "https://idp.example",
+		"preferred_username": "jdone",
+		"exp":                jwt.NewNumericDate(time.Now().Add(time.Hour)),
+	})
+	post := func(apiKey, bearer string) int {
+		t.Helper()
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/mcp", http.NoBody)
+		if apiKey != "" {
+			req.Header.Set("X-API-KEY", apiKey)
+		}
+
+		if bearer != "" {
+			req.Header.Set("Authorization", "Bearer "+bearer)
+		}
+
+		server.Handler.ServeHTTP(rec, req)
+
+		return rec.Code
+	}
+
+	if got := post("wrong-api-key!!", valid); got != http.StatusUnauthorized {
+		t.Fatalf("wrong api key: got %d", got)
+	}
+
+	if got := post(apiKey, valid); got == http.StatusUnauthorized {
+		t.Fatal("mapped jwt rejected")
+	}
+
+	expired := m2mJWT(t, jwt.MapClaims{
+		"iss":                "https://idp.example",
+		"preferred_username": "jdone",
+		"exp":                jwt.NewNumericDate(time.Now().Add(-time.Hour)),
+	})
+	if got := post(apiKey, expired); got != http.StatusUnauthorized {
+		t.Fatalf("expired jwt: got %d", got)
+	}
+
+	unmapped := m2mJWT(t, jwt.MapClaims{
+		"iss":                "https://idp.example",
+		"preferred_username": "nobody",
+		"exp":                jwt.NewNumericDate(time.Now().Add(time.Hour)),
+	})
+	if got := post(apiKey, unmapped); got != http.StatusUnauthorized {
+		t.Fatalf("unmapped jwt: got %d", got)
+	}
+
+	wk := httptest.NewRecorder()
+	server.Handler.ServeHTTP(wk, httptest.NewRequest(http.MethodGet, "/.well-known/oauth-protected-resource", http.NoBody))
+	if wk.Code != http.StatusNotFound {
+		t.Fatalf("well-known: got %d", wk.Code)
+	}
+}
+
+func m2mJWT(t *testing.T, claims jwt.MapClaims) string {
+	t.Helper()
+
+	raw, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("not-checked"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return raw
 }
 
 func TestResolveVerifierEndpoints_ConfiguredURI(t *testing.T) {

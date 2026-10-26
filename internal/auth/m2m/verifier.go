@@ -15,11 +15,11 @@ const Issuer = "privx-mcp-service"
 
 // Verifier accepts a bearer that matches one configured service secret.
 type Verifier struct {
-	secrets []config.ServiceSecret
+	secrets []config.M2MIdentity
 }
 
 // NewVerifier returns a verifier for the hashed mappings from config.
-func NewVerifier(secrets []config.ServiceSecret) *Verifier {
+func NewVerifier(secrets []config.M2MIdentity) *Verifier {
 	return &Verifier{secrets: secrets}
 }
 

@@ -45,17 +45,37 @@ type ServerConfig struct {
 	// true, the streamable endpoint runs in stateless mode.
 	Stateless bool
 
-	// AuthMode is "oauth" (default) or "m2m". One process uses one mode.
+	// AuthMode is "oauth" (default), "m2m", or "m2m-jwt". One process uses one mode.
 	AuthMode string
-	// ServiceSecrets are the parsed username-to-secret mappings for m2m.
+	// M2MIdentityMapper is the parsed username-to-secret mappings for m2m.
 	// The plaintext is not retained after a successful load.
-	ServiceSecrets []ServiceSecret
-	// serviceSecretsRaw is the TOML or env string. validate parses it and clears it.
-	serviceSecretsRaw string
+	M2MIdentityMapper []M2MIdentity
+	// m2mIdentityMapperRaw is the TOML or env string. validate parses it and clears it.
+	m2mIdentityMapperRaw string
+
+	// M2MJWTKeySet is true when m2m_jwt_key was configured. The plaintext is not retained.
+	M2MJWTKeySet bool
+	// M2MJWTKey is the SHA-256 of m2m_jwt_key.
+	M2MJWTKey [32]byte
+	// M2MJWTIdentityMapper maps a JWT claim value to a PrivX username.
+	M2MJWTIdentityMapper []M2MJWTIdentity
+	// M2MJWTIssuer is an optional exact match for jwt.iss. Empty skips the check.
+	M2MJWTIssuer string
+	// m2mJWTKeyRaw and m2mJWTIdentityMapperRaw are the TOML or env strings.
+	// validate parses them and clears them.
+	m2mJWTKeyRaw            string
+	m2mJWTIdentityMapperRaw string
 }
 
-// ServiceSecret is one m2m mapping. Sum is the SHA-256 of the secret.
-type ServiceSecret struct {
+// M2MJWTIdentity is one m2m-jwt mapping. Claim is preferred_username or email.
+type M2MJWTIdentity struct {
+	Claim    string
+	Value    string
+	Username string
+}
+
+// M2MIdentity is one m2m mapping. Sum is the SHA-256 of the secret.
+type M2MIdentity struct {
 	Username string
 	Sum      [32]byte
 }

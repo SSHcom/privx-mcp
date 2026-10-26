@@ -76,7 +76,7 @@ func NewServerFromConfig(cfg *config.Config) (*http.Server, func(), error) {
 	// The MCP server acts as a resource server only; clients perform the
 	// browser-based OAuth flow directly with the provider.
 	registrars := []httpservice.RouteRegistrar{}
-	if cfg.Server.AuthMode != "m2m" {
+	if cfg.Server.AuthMode != "m2m" && cfg.Server.AuthMode != "m2m-jwt" {
 		registrars = append(registrars,
 			func(m *http.ServeMux) error {
 				authServer := cfg.OAuth.IssuerURL
@@ -120,6 +120,8 @@ func NewServerFromConfig(cfg *config.Config) (*http.Server, func(), error) {
 			Verifier:                   verifier,
 			DisableLocalhostProtection: cfg.Server.DisableLocalhostProtection,
 			Stateless:                  cfg.Server.Stateless,
+			CheckAPIKey:                cfg.Server.M2MJWTKeySet,
+			APIKeySum:                  cfg.Server.M2MJWTKey,
 		})
 	})
 
@@ -178,15 +180,19 @@ func buildRuntimeCore(cfg *config.Config, authenticator auth.Authenticator, clai
 	)
 }
 
-// identityVerifier is the HTTP-edge bearer check. OAuth uses JWKS; m2m uses service secrets.
+// identityVerifier is the HTTP-edge bearer check.
+// OAuth uses JWKS, m2m compares a secret, and m2m-jwt maps a JWT claim.
 type identityVerifier interface {
 	Verify(ctx context.Context, raw string) (*oauth.IdentityClaims, error)
 	Close()
 }
 
 func buildIdentityVerifier(cfg *config.Config) (identityVerifier, error) {
-	if cfg.Server.AuthMode == "m2m" {
-		return m2m.NewVerifier(cfg.Server.ServiceSecrets), nil
+	switch cfg.Server.AuthMode {
+	case "m2m":
+		return m2m.NewVerifier(cfg.Server.M2MIdentityMapper), nil
+	case "m2m-jwt":
+		return m2m.NewJWTVerifier(cfg.Server.M2MJWTIdentityMapper, cfg.Server.M2MJWTIssuer), nil
 	}
 
 	provider := cfg.OAuth
@@ -222,15 +228,20 @@ func resolveVerifierEndpoints(issuerURL, jwksURI string) (string, string, error)
 }
 
 func logIdentityVerifier(cfg *config.Config) {
-	usernames := make([]string, len(cfg.Server.ServiceSecrets))
-	for i, secret := range cfg.Server.ServiceSecrets {
-		usernames[i] = secret.Username
+	usernames := make([]string, 0, len(cfg.Server.M2MIdentityMapper)+len(cfg.Server.M2MJWTIdentityMapper))
+	for _, mapping := range cfg.Server.M2MIdentityMapper {
+		usernames = append(usernames, mapping.Username)
+	}
+
+	for _, mapping := range cfg.Server.M2MJWTIdentityMapper {
+		usernames = append(usernames, mapping.Username)
 	}
 
 	logging.Info(
 		"identity verifier ready",
 		"auth_mode", cfg.Server.AuthMode,
-		"service_secrets", len(usernames),
+		"m2m_identity_mapper", len(cfg.Server.M2MIdentityMapper),
+		"m2m_jwt_identity_mapper", len(cfg.Server.M2MJWTIdentityMapper),
 		"usernames", usernames,
 	)
 }

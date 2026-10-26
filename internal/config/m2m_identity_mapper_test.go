@@ -8,12 +8,12 @@ import (
 	"testing"
 )
 
-func TestParseServiceSecrets(t *testing.T) {
+func TestParseM2MIdentityMapper(t *testing.T) {
 	a := strings.Repeat("a", 32)
 	b := strings.Repeat("b", 32)
-	got, err := ParseServiceSecrets("svc-ci " + a + "| svc-ci " + b)
+	got, err := ParseM2MIdentityMapper("svc-ci " + a + "| svc-ci " + b)
 	if err != nil {
-		t.Fatalf("ParseServiceSecrets: %v", err)
+		t.Fatalf("ParseM2MIdentityMapper: %v", err)
 	}
 	if len(got) != 2 || got[0].Username != "svc-ci" || got[1].Username != "svc-ci" {
 		t.Fatalf("usernames = %#v", got)
@@ -22,34 +22,34 @@ func TestParseServiceSecrets(t *testing.T) {
 		t.Fatal("sums do not match the secrets")
 	}
 
-	if _, err := ParseServiceSecrets("svc-ci " + a + "|svc-nightly " + a); err == nil || !strings.Contains(err.Error(), "repeated secret") {
+	if _, err := ParseM2MIdentityMapper("svc-ci " + a + "|svc-nightly " + a); err == nil || !strings.Contains(err.Error(), "repeated secret") {
 		t.Fatalf("duplicate secret: %v", err)
 	}
-	if _, err := ParseServiceSecrets("svc-ci " + a[:31]); err == nil || !strings.Contains(err.Error(), "shorter than 32") {
+	if _, err := ParseM2MIdentityMapper("svc-ci " + a[:31]); err == nil || !strings.Contains(err.Error(), "shorter than 32") {
 		t.Fatalf("short secret: %v", err)
 	}
-	if _, err := ParseServiceSecrets("svc-ci " + a + " tail"); err == nil || !strings.Contains(err.Error(), "space") {
+	if _, err := ParseM2MIdentityMapper("svc-ci " + a + " tail"); err == nil || !strings.Contains(err.Error(), "space") {
 		t.Fatalf("embedded space: %v", err)
 	}
-	if _, err := ParseServiceSecrets("svc-ci " + a + "|"); err == nil || !strings.Contains(err.Error(), "empty mapping") {
+	if _, err := ParseM2MIdentityMapper("svc-ci " + a + "|"); err == nil || !strings.Contains(err.Error(), "empty mapping") {
 		t.Fatalf("trailing pipe: %v", err)
 	}
-	if _, err := ParseServiceSecrets("svc-ci" + a); err == nil || !strings.Contains(err.Error(), "no space") {
+	if _, err := ParseM2MIdentityMapper("svc-ci" + a); err == nil || !strings.Contains(err.Error(), "no space") {
 		t.Fatalf("no space: %v", err)
 	}
 }
 
-func TestLoadConfig_M2MServiceSecrets(t *testing.T) {
+func TestLoadConfig_M2MIdentityMapper(t *testing.T) {
 	keyFile := writeKeyFile(t)
 	secret := strings.Repeat("c", 64)
 
 	t.Run("https loopback", func(t *testing.T) {
 		cfg := loadM2M(t, keyFile, "https://127.0.0.1:8181", "svc-ci "+secret, "")
-		if cfg.Server.AuthMode != "m2m" || len(cfg.Server.ServiceSecrets) != 1 || cfg.Server.ServiceSecrets[0].Username != "svc-ci" {
-			t.Fatalf("mapping = %#v mode %q", cfg.Server.ServiceSecrets, cfg.Server.AuthMode)
+		if cfg.Server.AuthMode != "m2m" || len(cfg.Server.M2MIdentityMapper) != 1 || cfg.Server.M2MIdentityMapper[0].Username != "svc-ci" {
+			t.Fatalf("mapping = %#v mode %q", cfg.Server.M2MIdentityMapper, cfg.Server.AuthMode)
 		}
-		if cfg.Server.serviceSecretsRaw != "" {
-			t.Fatal("plaintext service_secrets retained")
+		if cfg.Server.m2mIdentityMapperRaw != "" {
+			t.Fatal("plaintext m2m_identity_mapper retained")
 		}
 		if cfg.OAuth.IdentityClaimField != "email" {
 			t.Fatalf("identity default = %q", cfg.OAuth.IdentityClaimField)
@@ -86,7 +86,7 @@ func TestLoadConfig_M2MServiceSecrets(t *testing.T) {
 
 	t.Run("empty secrets", func(t *testing.T) {
 		err := loadM2MErr(t, keyFile, "https://mcp.example.com", "", "")
-		if err == nil || !strings.Contains(err.Error(), "service_secrets is required") {
+		if err == nil || !strings.Contains(err.Error(), "m2m_identity_mapper is required") {
 			t.Fatalf("empty secrets: %v", err)
 		}
 	})
@@ -120,7 +120,7 @@ func TestLoadConfig_M2MServiceSecrets(t *testing.T) {
 [server]
 public_url = "http://localhost:8181"
 auth_mode = "oauth"
-service_secrets = "svc-ci ` + secret + `"
+m2m_identity_mapper = "svc-ci ` + secret + `"
 
 [privx_auth]
 privx_base_url = "https://privx.example.com"
@@ -135,25 +135,25 @@ issuer_url = "https://idp.example.com"
 audience = "test-client"
 `
 		err := loadTOML(t, content)
-		if err == nil || !strings.Contains(err.Error(), "service_secrets must be empty") {
+		if err == nil || !strings.Contains(err.Error(), "m2m_identity_mapper must be empty") {
 			t.Fatalf("oauth secrets: %v", err)
 		}
 	})
 }
 
-func TestLoadConfig_ServiceSecretsEnvReplacesFile(t *testing.T) {
+func TestLoadConfig_M2MIdentityMapperEnvReplacesFile(t *testing.T) {
 	keyFile := writeKeyFile(t)
 	envSecret := strings.Repeat("d", 32)
-	t.Setenv("SERVER_SERVICE_SECRETS", "svc-nightly "+envSecret)
+	t.Setenv("SERVER_M2M_IDENTITY_MAPPER", "svc-nightly "+envSecret)
 	cfg := loadM2M(t, keyFile, "https://127.0.0.1:8181", "svc-ci "+strings.Repeat("e", 32), "")
-	if len(cfg.Server.ServiceSecrets) != 1 || cfg.Server.ServiceSecrets[0].Username != "svc-nightly" {
-		t.Fatalf("env mapping = %#v", cfg.Server.ServiceSecrets)
+	if len(cfg.Server.M2MIdentityMapper) != 1 || cfg.Server.M2MIdentityMapper[0].Username != "svc-nightly" {
+		t.Fatalf("env mapping = %#v", cfg.Server.M2MIdentityMapper)
 	}
-	if cfg.Server.ServiceSecrets[0].Sum != sha256.Sum256([]byte(envSecret)) {
+	if cfg.Server.M2MIdentityMapper[0].Sum != sha256.Sum256([]byte(envSecret)) {
 		t.Fatal("env secret was not the one hashed")
 	}
-	if cfg.Server.serviceSecretsRaw != "" {
-		t.Fatal("plaintext service_secrets retained")
+	if cfg.Server.m2mIdentityMapperRaw != "" {
+		t.Fatal("plaintext m2m_identity_mapper retained")
 	}
 }
 
@@ -204,7 +204,7 @@ func m2mTOML(keyFile, publicURL, secrets, oauth string) string {
 [server]
 public_url = "` + publicURL + `"
 auth_mode = "m2m"
-service_secrets = "` + secrets + `"
+m2m_identity_mapper = "` + secrets + `"
 
 [privx_auth]
 privx_base_url = "https://privx.example.com"

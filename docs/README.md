@@ -1,8 +1,8 @@
 # PrivX MCP documentation
 
-The PrivX MCP server speaks streamable HTTP at `/mcp`, with no SSE transport. In `oauth` mode, MCP clients authenticate with an OIDC access token. In `m2m` mode, a machine client sends a configured service secret as a bearer. The server verifies the caller, resolves a PrivX user, and runs tools as that user.
+The PrivX MCP server speaks streamable HTTP at `/mcp`, with no SSE transport. In `oauth` mode, MCP clients authenticate with an OIDC access token. In `m2m` mode, a machine client sends a configured service secret as a bearer. In `m2m-jwt` mode, the client sends a shared `X-API-KEY` and a bearer JWT whose claim is mapped to a PrivX user. The server verifies the caller, resolves a PrivX user, and runs tools as that user.
 
-An unauthenticated POST to `{public_url}/mcp` returns `401`, which points the client at RFC 9728 discovery on `/.well-known/oauth-protected-resource`. The client then sends the user to the OIDC issuer for browser sign-in and retries `/mcp` with the resulting Bearer token. See [OIDC configuration](manual/reference/oidc/OIDC.md) for token validation and identity mapping details. An `m2m` server does not publish that discovery document. The client must already hold the secret. See [Configure machine-to-machine access](manual/04-m2m.md).
+An unauthenticated POST to `{public_url}/mcp` returns `401`, which points the client at RFC 9728 discovery on `/.well-known/oauth-protected-resource`. The client then sends the user to the OIDC issuer for browser sign-in and retries `/mcp` with the resulting Bearer token. See [OIDC configuration](manual/reference/oidc/OIDC.md) for token validation and identity mapping details. An `m2m` or `m2m-jwt` server does not publish that discovery document. The client must already hold the secret, or the API key and a JWT. See [Configure machine-to-machine access](manual/04-m2m.md).
 
 Prefer the client's native HTTP OAuth flow when it works. Clients that only start local stdio processes can use [privx-mcp-proxy](manual/reference/clients/privx-mcp-proxy.md) as a bridge.
 

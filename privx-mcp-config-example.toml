@@ -14,20 +14,32 @@
 name = "privx-mcp-server"
 version = "dev"
 
-# auth_mode is "oauth" (default) or "m2m". One process uses one mode.
-# oauth requires [oauth] issuer_url and audience, and service_secrets must be empty.
-# m2m requires service_secrets and forbids issuer_url, audience, jwks_uri, scopes,
-# and the DCR stub settings. An http public_url is allowed in both modes
-# (for example TLS terminated at a proxy) and logs a startup warning.
+# auth_mode is "oauth" (default), "m2m", or "m2m-jwt". One process uses one mode.
+# oauth requires [oauth] issuer_url and audience. The m2m keys below must be empty.
+# m2m and m2m-jwt forbid issuer_url, audience, jwks_uri, scopes, and the DCR stub settings.
+# An http public_url is allowed in every mode and logs a startup warning.
 # auth_mode = "oauth"
 
-# service_secrets binds each PrivX username to one secret of at least 32 characters.
+# --- auth_mode = "m2m" ---
+# m2m_identity_mapper binds each PrivX username to one secret of at least 32 characters.
 # "|" separates mappings. The first space separates the username from the secret.
+# The client sends that secret as Authorization: Bearer.
 # The same username may appear twice, for rotation. The same secret may not.
 # Usernames and secrets cannot contain a space or "|".
-# Prefer SERVER_SERVICE_SECRETS so the value stays out of this file.
+# Prefer SERVER_M2M_IDENTITY_MAPPER so the value stays out of this file.
 # openssl rand -hex 32
-# service_secrets = "svc-ci <secret>|svc-nightly <secret>"
+# m2m_identity_mapper = "svc-ci <secret>|svc-nightly <secret>"
+
+# --- auth_mode = "m2m-jwt" ---
+# The client sends X-API-KEY and Authorization: Bearer <jwt>.
+# m2m_jwt_key is one shared key of at least 12 characters. Prefer SERVER_M2M_JWT_KEY.
+# m2m_jwt_issuer is an optional exact match on jwt.iss.
+# m2m_jwt_identity_mapper maps a JWT claim to a PrivX username.
+# "|" separates records. A space separates claim, claim value, and PrivX username.
+# claim is preferred_username or email.
+# m2m_jwt_key = "<at least 12 characters>"
+# m2m_jwt_issuer = "https://keycloak-example/realms/example"
+# m2m_jwt_identity_mapper = "preferred_username jdone john.done|email john.done@leonardo.com john.done"
 
 # Externally reachable base URL for this server.
 # Preferably use https or put behind a reverse proxy
@@ -38,6 +50,7 @@ public_url = "http://localhost:8181"
 # could trick your browser into sending requests to the server.
 # Disable only if you understand and accept this risk.
 disable_localhost_protection = false
+
 
 # Serve /mcp as stateless streamable HTTP.
 stateless = true

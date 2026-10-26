@@ -42,6 +42,7 @@ Set `[server].auth_mode` for your use case:
 
 - `oauth` for regular user sign-in
 - `m2m` for machine-to-machine service secrets
+- `m2m-jwt` for a shared API key plus a bearer JWT
 
 If you omit it, the default is `oauth`.
 

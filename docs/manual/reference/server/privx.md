@@ -37,8 +37,8 @@ If PrivX uses a certificate signed by a private CA, `ca_cert` supplies an additi
 
 For each authenticated MCP user, the server creates a PrivX client through an external JWT token exchange:
 
-1. The server verifies the bearer token issued by the configured OAuth provider. In `m2m` mode this check is a configured service secret instead of an IdP token, and the PrivX username is that secret's principal rather than a mapped claim.
-2. In `oauth` mode, it reads the configured identity claim, such as `email`, and maps it to a PrivX username. `m2m` skips this step.
+1. The server verifies the bearer token issued by the configured OAuth provider. In `m2m` mode this check is a configured service secret instead of an IdP token, and the PrivX username is that secret's principal rather than a mapped claim. In `m2m-jwt` mode the client presents `X-API-KEY` and a bearer JWT, and the PrivX username comes from `m2m_jwt_identity_mapper`.
+2. In `oauth` mode, it reads the configured identity claim, such as `email`, and maps it to a PrivX username. `m2m` and `m2m-jwt` skip this step.
 3. It creates a short-lived JWT whose `sub` claim identifies that username.
 4. It signs the JWT with the RSA private key configured by `rsa_key_file`.
 5. It exchanges the signed JWT with PrivX for a PrivX access token.

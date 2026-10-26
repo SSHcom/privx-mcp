@@ -4,7 +4,7 @@
 
 `internal/` is organized by responsibility:
 
-- `auth/`: authentication flows and identity integrations (`oauth`, `privx`, `m2m` service secrets, context, and auth errors).
+- `auth/`: authentication flows and identity integrations (`oauth`, `privx`, `m2m` service secrets and `m2m-jwt`, context, and auth errors).
 - `bootstrap/`: server startup wiring.
 - `config/`: config models, loading, defaults, overrides, and validation.
 - `mcp/`: MCP runtime (`runtime`), HTTP transport (`transport`), and tool registry (`registry`).

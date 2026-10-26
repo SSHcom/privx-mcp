@@ -71,10 +71,10 @@ func ConnectWithExternalJWT(ctx context.Context, cfg *config.Config, claims *oau
 	return connector, username, nil
 }
 
-// usernameFromClaims resolves the PrivX username. A service-secret caller is
-// the configured subject. An OAuth caller goes through identity mapping.
+// usernameFromClaims resolves the PrivX username. m2m and m2m-jwt callers
+// use the configured subject. An OAuth caller goes through identity mapping.
 func usernameFromClaims(cfg *config.Config, claims *oauth.IdentityClaims) (string, error) {
-	if claims.Issuer == m2m.Issuer {
+	if m2m.UsesConfiguredUsername(claims.Issuer) {
 		if claims.Subject == "" {
 			return "", fmt.Errorf("m2m subject is required")
 		}
