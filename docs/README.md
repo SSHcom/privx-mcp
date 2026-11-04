@@ -14,7 +14,7 @@ Documentation has been split into four parts:
 3. [Configure the server](guide/03-configure.md)
 4. Choose one auth path:
    - [Configure OIDC](guide/04-oidc.md) (Keycloak, Microsoft Entra ID, or Okta)
-   - [Configure machine-to-machine access](guide/04-m2m.md)
+   - [Configure machine-to-machine access](guide/04-m2m/04-m2m.md)
 5. [Security and user operations](guide/05-security-and-usage.md)
 
 ## Reference
@@ -23,7 +23,7 @@ Supporting documentation, grouped by topic. The guide points into these pages.
 
 - Server
   - [MCP server configuration](reference/server/SERVER.md)
-  - [Configure machine-to-machine access](guide/04-m2m.md)
+  - [Configure machine-to-machine access](guide/04-m2m/04-m2m.md)
   - [PrivX configuration](reference/server/privx.md)
   - [TLS (HTTPS)](reference/server/tls.md)
 

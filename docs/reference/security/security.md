@@ -6,7 +6,7 @@
 - [Redacted fields](redacted_fields.md)
 - [MCP tools](../user/tools.md)
 - [MCP server configuration](../server/SERVER.md)
-- [Configure machine-to-machine access](../../guide/04-m2m.md)
+- [Configure machine-to-machine access](../../guide/04-m2m/04-m2m.md)
 
 ## Deploy the MCP server remotely in production
 

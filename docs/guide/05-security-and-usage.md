@@ -47,7 +47,7 @@ Read more: [User-level security](../reference/security/user_level_security.md), 
 **Previous**: 
 
 - [Configure OIDC](04-oidc.md)
-- [Configure machine-to-machine access](04-m2m.md)
+- [Configure machine-to-machine access](04-m2m/04-m2m.md)
 
 ---
 

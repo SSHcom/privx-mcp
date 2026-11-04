@@ -1,8 +1,6 @@
 # Connect to an already running server
 
-Use this page the MCP server is already deployed and you only need to point an MCP client at it, complete OAuth, and call tools over `/mcp`.
-
-For an `m2m` or `m2m-jwt` deployment, follow [Configure machine-to-machine access](04-m2m.md).
+Use this page the MCP server is already deployed and you only need to point an MCP client at it, complete OAuth, and call tools over `/mcp`. Note, this document is not applicable for a server running in `m2m` mode ([skip this page](02-install.md)).
 
 ## Prerequisites
 
@@ -25,6 +23,7 @@ Expect `401` from `/mcp` before login and a JSON discovery document from `/.well
 ## 2) Connection method and client configuration
 
 Pick a method or client type from the table, then follow the section for your client in [MCP client configuration](../reference/clients/CLIENTS.md).
+
 | Method / Client type | Use when |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | Generic MCP client (Claude, Codex, Cursor, etc.) | The client supports HTTP streaming and OAuth authentication |

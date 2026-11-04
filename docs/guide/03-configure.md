@@ -89,7 +89,7 @@ If mandatory options are missing, the server will not start.
 
 **Next**:
 - [Configure OIDC](04-oidc.md) for browser clients
-- [Configure machine-to-machine access](04-m2m.md) for clients that send their own bearer
+- [Configure machine-to-machine access](04-m2m/04-m2m.md) for clients that send their own bearer
 
 ---
 

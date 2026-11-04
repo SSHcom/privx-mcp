@@ -100,7 +100,7 @@ The simplest way to get started is to copy `privx-mcp-config-example.toml` to `p
 
 Pick a setup:
 
-- **m2m**: simplest when you are not working on OAuth. See [Configure machine-to-machine access](../guide/04-m2m.md).
+- **m2m**: simplest when you are not working on OAuth. See [Configure machine-to-machine access](../guide/04-m2m/04-m2m.md).
 - **OAuth, local server**
   - Run Keycloak with `docker compose -f docker-compose-keycloak.yml up`
   - Create a client configuration in Keycloak. The [Keycloak OIDC](../../deploy/docker/demo/README.md) documentation has details about this.

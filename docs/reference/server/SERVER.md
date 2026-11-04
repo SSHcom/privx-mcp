@@ -27,7 +27,7 @@ The server can also be configured entirely through the environment. Each paramet
 - [PrivX configuration](privx.md)
 - [TLS (HTTPS)](tls.md)
 - [OIDC configuration](../oidc/OIDC.md)
-- [Configure machine-to-machine access](../../guide/04-m2m.md)
+- [Configure machine-to-machine access](../../guide/04-m2m/04-m2m.md)
 - [User-level security](../security/user_level_security.md)
 - [Security considerations](../security/security.md)
 
