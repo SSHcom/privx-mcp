@@ -52,7 +52,7 @@ This creates `bin/privx-mcp-proxy`. Use the absolute path to this binary when co
 
 ## Config file
 
-Copy [privx-mcp-proxy.toml.example](../../../../privx-mcp-proxy.toml.example), then set `mcp_url` and the `[client]` fields. The file holds the OAuth application credentials (`client_id` and `client_secret`) and the connection settings, so keep it out of git.
+Copy [privx-mcp-proxy-example.toml](../../../privx-mcp-proxy-example.toml), then set `mcp_url` and the `[client]` fields. The file holds the OAuth application credentials (`client_id` and `client_secret`) and the connection settings, so keep it out of git.
 
 The access and refresh tokens the IdP issues for the user after sign-in are stored separately, not in the TOML file:
 

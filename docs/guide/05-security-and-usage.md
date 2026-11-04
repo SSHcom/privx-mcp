@@ -6,7 +6,7 @@ Security is layered. Each area below covers one layer, from the network in front
 
 Serve the MCP server over HTTPS, either with TLS enabled in the server itself or behind a reverse proxy that terminates TLS. Bearer tokens and service secrets travel in every request, so plain HTTP is only acceptable on localhost. Run a single shared remote server for production PrivX, and keep its key pair and API credentials on that server only.
 
-Read more: [TLS (HTTPS)](reference/server/tls.md), [Deploy the MCP server remotely in production](reference/security/security.md#deploy-the-mcp-server-remotely-in-production)
+Read more: [TLS (HTTPS)](../reference/server/tls.md), [Deploy the MCP server remotely in production](../reference/security/security.md#deploy-the-mcp-server-remotely-in-production)
 
 ## MCP server configuration
 
@@ -19,7 +19,7 @@ The server configuration decides which tools exist at all, for every user, befor
   - `whitelist-*` and sensitive tools are not filtered, so be especially careful about who is granted access to them.
   - Create and update tools reject any value that contains `[redacted]`, including tools that skip the filter.
 
-Read more: [Which tools are registered](reference/security/user_level_security.md#which-tools-are-registered), [Loop and DDoS protection](reference/security/security.md#loop-and-ddos-protection), [Prompt injection hardening](reference/security/security.md#prompt-injection-hardening)
+Read more: [Which tools are registered](../reference/security/user_level_security.md#which-tools-are-registered), [Loop and DDoS protection](../reference/security/security.md#loop-and-ddos-protection), [Prompt injection hardening](../reference/security/security.md#prompt-injection-hardening)
 
 ## MCP server internal hardening
 
@@ -30,7 +30,7 @@ Text stored in PrivX, such as host comments and role descriptions, reaches the l
 
 This raises the cost of an attack but cannot block it fully, so the the real boundary is to only grant trusted user access.
 
-Read more: [Prompt injection hardening](reference/security/security.md#prompt-injection-hardening), [What the hardening cannot do](reference/security/security.md#what-the-hardening-cannot-do)
+Read more: [Prompt injection hardening](../reference/security/security.md#prompt-injection-hardening), [What the hardening cannot do](../reference/security/security.md#what-the-hardening-cannot-do)
 
 ## PrivX
 
@@ -40,7 +40,7 @@ When a user's roles change, some clients keep showing a stale tool list until th
 
 Tool responses drop credential and key material before they reach the client, including when `raw` is set. Identity fields such as email and principal stay.
 
-Read more: [User-level security](reference/security/user_level_security.md), [Permissions and trust](reference/security/security.md#permissions-and-trust), [Redacted fields](reference/security/redacted_fields.md), [MCP tools](reference/user/tools.md)
+Read more: [User-level security](../reference/security/user_level_security.md), [Permissions and trust](../reference/security/security.md#permissions-and-trust), [Redacted fields](../reference/security/redacted_fields.md), [MCP tools](../reference/user/tools.md)
 
 ## Navigation
 
@@ -51,4 +51,4 @@ Read more: [User-level security](reference/security/user_level_security.md), [Pe
 
 ---
 
-**Overview**: [Manual](README.md) | [Documents Hub](../README.md)
+**Overview**: [Documents Hub](../README.md)

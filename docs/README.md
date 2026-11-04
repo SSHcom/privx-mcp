@@ -1,17 +1,56 @@
 # PrivX MCP documentation
 
-The PrivX MCP server speaks streamable HTTP at `/mcp`, with no SSE transport. In `oauth` mode, MCP clients authenticate with an OIDC access token. In `m2m` mode, a machine client sends a configured service secret as a bearer. In `m2m-jwt` mode, the client sends a shared `X-API-KEY` and a bearer JWT whose claim is mapped to a PrivX user. The server verifies the caller, resolves a PrivX user, and runs tools as that user.
+Documentation has been split into four parts:
 
-An unauthenticated POST to `{public_url}/mcp` returns `401`, which points the client at RFC 9728 discovery on `/.well-known/oauth-protected-resource`. The client then sends the user to the OIDC issuer for browser sign-in and retries `/mcp` with the resulting Bearer token. See [OIDC configuration](manual/reference/oidc/OIDC.md) for token validation and identity mapping details. An `m2m` or `m2m-jwt` server does not publish that discovery document. The client must already hold the secret, or the API key and a JWT. See [Configure machine-to-machine access](manual/04-m2m.md).
+1. Guide – A guided reading path of the installation and configuration
+2. Reference - In-dept instructions and descriptions (the guide will link to these)
+3. Development - Development HowTos
+4. Diagrams - Architectural diagrams (Browser based)
 
-Prefer the client's native HTTP OAuth flow when it works. Clients that only start local stdio processes can use [privx-mcp-proxy](manual/reference/clients/privx-mcp-proxy.md) as a bridge.
+## Guide
 
-## Documentation
+1. [Connect to an already running server](guide/01-connect.md)
+2. [Installation](guide/02-install.md)
+3. [Configure the server](guide/03-configure.md)
+4. Choose one auth path:
+   - [Configure OIDC](guide/04-oidc.md) (Keycloak, Microsoft Entra ID, or Okta)
+   - [Configure machine-to-machine access](guide/04-m2m.md)
+5. [Security and user operations](guide/05-security-and-usage.md)
 
-- [Manual](manual/README.md)
-- [Reference](manual/reference/README.md)
+## Reference
+
+Supporting documentation, grouped by topic. The guide points into these pages.
+
+- Server
+  - [MCP server configuration](reference/server/SERVER.md)
+  - [Configure machine-to-machine access](guide/04-m2m.md)
+  - [PrivX configuration](reference/server/privx.md)
+  - [TLS (HTTPS)](reference/server/tls.md)
+
+- OIDC
+  - [OIDC configuration](reference/oidc/OIDC.md)
+  - [Keycloak](reference/oidc/keycloak.md)
+  - [Microsoft Entra ID](reference/oidc/entra-id/ENTRA-ID.md)
+  - [Entra auth flow diagram](reference/oidc/entra-id/auth-flow.md)
+  - [Okta](reference/oidc/okta.md), including federation to Microsoft Entra ID
+
+- Clients
+  - [MCP client configuration](reference/clients/CLIENTS.md)
+  - [privx-mcp-proxy](reference/clients/privx-mcp-proxy.md)
+
+- Security
+  - [Security considerations](reference/security/security.md)
+  - [User-level security](reference/security/user_level_security.md)
+  - [Redacted fields](reference/security/redacted_fields.md)
+
+- User
+  - [User documentation](reference/user/USER.md)
+  - [MCP tools](reference/user/tools.md)
+
+## Development
+
 - [Development](development/DEVELOPMENT.md)
 
 ## Diagrams
 
-Interactive architecture and tool call diagrams live in [Diagrams](diagrams/) and open in a browser.
+- [Diagrams](diagrams/)

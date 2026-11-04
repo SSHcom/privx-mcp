@@ -2,13 +2,13 @@
 
 Start a local **Keycloak** + **PrivX MCP server** stack. You need an existing PrivX test/dev instance.
 
-This document is the **demo import shortcut** path. For manual Keycloak setup in production-style environments, use [Keycloak](../../../docs/manual/reference/oidc/keycloak.md).
+This document is the **demo import shortcut** path. For manual Keycloak setup in production-style environments, use [Keycloak](../../../docs/reference/oidc/keycloak.md).
 
 ## Navigation
 
-- **Back to flow**: [Manual](../../../docs/manual/README.md)
-- **Manual provider setup**: [Keycloak](../../../docs/manual/reference/oidc/keycloak.md)
-- **Client connection**: [MCP client configuration](../../../docs/manual/reference/clients/CLIENTS.md)
+- **Back to flow**: [Guide](../../../docs/README.md#guide)
+- **Manual provider setup**: [Keycloak](../../../docs/reference/oidc/keycloak.md)
+- **Client connection**: [MCP client configuration](../../../docs/reference/clients/CLIENTS.md)
 
 Run every command from the **repository root**.
 
@@ -116,12 +116,12 @@ In PrivX: **Administration** → **Deployment** → **External Token Provider** 
 | Public Key                     | Paste the full contents of `.pem/public-key.pem` |
 
 
-The import file already includes the Keycloak audience mapper used by this project. If you build clients manually instead of importing, configure it as shown in [Audience mapper](../../../docs/manual/reference/oidc/keycloak.md#audience-mapper).
+The import file already includes the Keycloak audience mapper used by this project. If you build clients manually instead of importing, configure it as shown in [Audience mapper](../../../docs/reference/oidc/keycloak.md#audience-mapper).
 
 ## 8. Connect an AI client
 
-See [MCP client configuration](../../../docs/manual/reference/clients/CLIENTS.md) for how to point your AI client at this MCP server.
+See [MCP client configuration](../../../docs/reference/clients/CLIENTS.md) for how to point your AI client at this MCP server.
 
-To avoid most OAuth callback issues, put [privx-mcp-proxy](../../../docs/manual/reference/clients/privx-mcp-proxy.md) between the AI client and the MCP server.
+To avoid most OAuth callback issues, put [privx-mcp-proxy](../../../docs/reference/clients/privx-mcp-proxy.md) between the AI client and the MCP server.
 
 If you connect the client directly (no stdio proxy), it must use a redirect URI that Keycloak allows. The imported `privx-mcp-client` already includes common callback URLs. Add any missing ones on that client's **Settings** tab (**Valid redirect URIs**).

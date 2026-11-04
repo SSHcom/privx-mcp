@@ -2,7 +2,7 @@
 
 Every section and parameter in `privx-mcp-config-example.toml`. It is assumed you have copied that file to your own `privx-mcp-config.toml`.
 
-The server can also be configured entirely through the environment. Each parameter below lists its environment override. [.env-example](../../../../.env-example) is a starter file with the same names. Values are loaded in this order:
+The server can also be configured entirely through the environment. Each parameter below lists its environment override. [.env-example](../../../.env-example) is a starter file with the same names. Values are loaded in this order:
 
 1. Config file, skipped when missing.
 2. Defaults for unset optional keys.
@@ -27,7 +27,7 @@ The server can also be configured entirely through the environment. Each paramet
 - [PrivX configuration](privx.md)
 - [TLS (HTTPS)](tls.md)
 - [OIDC configuration](../oidc/OIDC.md)
-- [Configure machine-to-machine access](../../04-m2m.md)
+- [Configure machine-to-machine access](../../guide/04-m2m.md)
 - [User-level security](../security/user_level_security.md)
 - [Security considerations](../security/security.md)
 

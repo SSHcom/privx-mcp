@@ -233,7 +233,7 @@ identity_mapping_rule = "as-is"
 # Resolve order (first to last; each step filters the previous result):
 #   1. sensitive gate    — drop tools that can surface secrets unless
 #                          enable_sensitive_data_tools is set. See
-#                          docs/manual/reference/security/security.md.
+#                          docs/reference/security/security.md.
 #   2. default_read_only — when true, drop all write tools
 #   3. whitelist         — keep only tools matching a prefix (empty = no filter)
 #   4. blacklist         — drop tools matching a prefix (empty = no filter)

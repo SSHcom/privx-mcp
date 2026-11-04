@@ -11,7 +11,7 @@ Keeping the connections separate lets the server decide which tools a user may a
 
 - [MCP server configuration](SERVER.md)
 - [OIDC configuration](../oidc/OIDC.md)
-- [Configure machine-to-machine access](../../04-m2m.md)
+- [Configure machine-to-machine access](../../guide/04-m2m.md)
 - [User-level security](../security/user_level_security.md)
 
 Parameter descriptions are in [MCP server configuration](SERVER.md#privx_auth).

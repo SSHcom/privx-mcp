@@ -9,6 +9,32 @@ Product behaviour we inspected and chose not to change. Scanners read this befor
 
 Each entry has a one-line summary, then **Behaviour**, **Accepted because**, and **Revisit if**.
 
+## m2m and m2m-jwt trust shared secrets plus mapper
+
+- Date: 2026-11-04
+- Path: `internal/auth/m2m/verifier.go`, `internal/auth/m2m/jwt_verifier.go`, `internal/mcp/transport/auth_challenge.go`, `internal/config/m2m_jwt.go`
+
+In both machine-to-machine modes, security depends on keeping the shared secret material private.
+
+**Behaviour:**
+
+- `m2m`: `Authorization: Bearer <secret>` is matched against configured secret-to-user mapper rows.
+- `m2m-jwt`: `X-API-KEY` is matched, then JWT claims are used for claim-to-user mapping.
+- In `m2m-jwt`, JWT signature is not checked; `exp` is required and `iss` can be checked when configured.
+- In both modes, only explicitly mapped users are reachable; unmapped identities are rejected.
+
+**Accepted because:**
+
+- We support shielded and black-box deployments, so `m2m-jwt` cannot assume external signature authority access; in this mode the API key is the security boundary and the JWT is claim-routing data.
+- The trust model matches common MCP deployments that rely on static header credentials between trusted components.
+- Blast radius is limited by mapper rows, and machine-to-machine mode is not intended for end-user authentication.
+
+**Revisit if:**
+
+- Product requirements mandate signature verification in `m2m-jwt`.
+- A default-safe local-key or JWKS verification path becomes available for target deployments.
+- End-user scenarios must be supported in these modes.
+
 ## A failed JWKS refresh keeps the last signing keys
 
 - Date: 2026-09-25

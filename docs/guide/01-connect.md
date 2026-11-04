@@ -24,11 +24,11 @@ Expect `401` from `/mcp` before login and a JSON discovery document from `/.well
 
 ## 2) Connection method and client configuration
 
-Pick a method or client type from the table, then follow the section for your client in [MCP client configuration](reference/clients/CLIENTS.md).
+Pick a method or client type from the table, then follow the section for your client in [MCP client configuration](../reference/clients/CLIENTS.md).
 | Method / Client type | Use when |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | Generic MCP client (Claude, Codex, Cursor, etc.) | The client supports HTTP streaming and OAuth authentication |
-| [privx-mcp-proxy](reference/clients/privx-mcp-proxy.md) | The client only starts local stdio processes, or the client page recommends the proxy |
+| [privx-mcp-proxy](../reference/clients/privx-mcp-proxy.md) | The client only starts local stdio processes, or the client page recommends the proxy |
 | MCP proxy or gateway | Extra policy, routing, isolation, or logging already sits in front of this server |
 
 **Note**: In principle a proxy or gateway will be configured like a generic MCP client. How a generic client will connect to a proxy or gateway is beyond the scope of this documentation.
@@ -41,7 +41,7 @@ On first connect, most clients open a browser. Sign in with the same identity th
 
 Run one safe read operation, for example `mcp-info`, `host-list`, or `host-search`, and confirm you get data rather than an auth error.
 
-If the client still shows stale tools after role changes, restart the client or reconnect to refresh the tools list. See [known issues](reference/clients/CLIENTS.md#known-issues) in the client configuration reference.
+If the client still shows stale tools after role changes, restart the client or reconnect to refresh the tools list. See [known issues](../reference/clients/CLIENTS.md#known-issues) in the client configuration reference.
 
 ## Navigation
 
@@ -49,4 +49,4 @@ If the client still shows stale tools after role changes, restart the client or 
 
 ---
 
-**Overview**: [Manual](README.md) | [Documents Hub](../README.md)
+**Overview**: [Documents Hub](../README.md)

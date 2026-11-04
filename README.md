@@ -4,7 +4,7 @@ An MCP (Model Context Protocol) server written in Go providing agents secure acc
 
 Secure access starts with identity. The server runs in `oauth` or `m2m` (machine-to-machine) mode: an IdP token or a service secret is mapped to a PrivX user, and that user's roles decide which resources they can see, add, or update.
 
-An [mcp proxy](docs/manual/reference/clients/privx-mcp-proxy.md) is also available for clients that have issues with streaming, OAuth, etc.
+An [mcp proxy](docs/reference/clients/privx-mcp-proxy.md) is also available for clients that have issues with streaming, OAuth, etc.
 
 ## Architecture
 
@@ -44,16 +44,16 @@ The server fronts PrivX, a privileged access management platform. Anyone who can
 
 ## Sensitive data tools
 
-Some tools can return secrets or raw session content. These need to be enabled by configuration. See [Sensitive data tools](docs/manual/reference/security/security.md#sensitive-data-tools) for more information.
+Some tools can return secrets or raw session content. These need to be enabled by configuration. See [Sensitive data tools](docs/reference/security/security.md#sensitive-data-tools) for more information.
 
 ## Documentation
 
 - [Documents Hub](docs/README.md)
-- [Manual](docs/manual/README.md)
-- [Developer guide](docs/development/DEVELOPMENT.md)
-- [Deployment](deploy/README.md)
-  - Examples of how to deploy (Docker, Systemd)
-  - Doing a local deployment (Docker + Keycloak) for evaluation purposes
+  - [Guide](docs/README.md#guide) – A guided reading path of the installation and configuration
+  - [Reference](docs/README.md#reference) - In-dept instructions and descriptions
+  - [Development](docs/development/DEVELOPMENT.md) – Development HowTos
+  - [Diagrams](docs/diagrams/) - Architectural diagrams (Browser based)
+- [Deployment](deploy/README.md) – Deployment Examples (Docker, Systemd, Keycloak)
 
 ## **Support & Commercial Services**
 

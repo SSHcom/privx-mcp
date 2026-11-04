@@ -12,6 +12,7 @@ research_do_not_search
 .env
 privx-mcp-config.toml
 privx-mcp-config.toml.*
+privx-mcp-config-m2m*
 docker-compose*.yml
 coverage.html
 *.out

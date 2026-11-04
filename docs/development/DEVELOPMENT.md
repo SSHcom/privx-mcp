@@ -95,12 +95,12 @@ The server loads the first config file it finds, in this order:
 
 The simplest way to get started is to copy `privx-mcp-config-example.toml` to `privx-mcp-config.toml` and modify it as needed:
 
-- Configuration options are in [MCP server configuration](../manual/reference/server/SERVER.md)
+- Configuration options are in [MCP server configuration](../reference/server/SERVER.md)
 - After creating the configuration run `./bin/privx-mcp-server` from project root
 
 Pick a setup:
 
-- **m2m**: simplest when you are not working on OAuth. See [Configure machine-to-machine access](../manual/04-m2m.md).
+- **m2m**: simplest when you are not working on OAuth. See [Configure machine-to-machine access](../guide/04-m2m.md).
 - **OAuth, local server**
   - Run Keycloak with `docker compose -f docker-compose-keycloak.yml up`
   - Create a client configuration in Keycloak. The [Keycloak OIDC](../../deploy/docker/demo/README.md) documentation has details about this.

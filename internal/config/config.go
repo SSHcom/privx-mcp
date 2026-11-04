@@ -133,7 +133,7 @@ type PermissionsConfig struct {
 	// connection-trail-get, the target-domain tools, and the user-secret tools) that can surface
 	// secrets or raw session content. Defaults to false: such tools are not
 	// registered at all. This key is intentionally omitted from the example
-	// config. See docs/manual/reference/security/security.md.
+	// config. See docs/reference/security/security.md.
 	EnableSensitiveDataTools bool
 	// SensitiveDataToolsAllowNonAdmin only has effect when
 	// EnableSensitiveDataTools is true. Defaults to false: sensitive tools are
