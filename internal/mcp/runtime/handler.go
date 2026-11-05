@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"sort"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -22,14 +23,18 @@ func (c *Core) createToolHandler(tool registry.Tool) mcp.ToolHandler {
 		}
 
 		if !tool.Trusted {
-			security.Prepare(params)
+			security.PrepareExcept(params, tool.Verbatim)
 		}
 
 		if isCreateOrUpdate(tool.Name) && security.ContainsRedacted(params) {
 			return errorCallResult(`invalid tool arguments: "[redacted]" is not allowed in a value`), nil
 		}
 
-		logging.Debug("tool call input params", "tool", tool.Name, "params", params)
+		if tool.Sensitive {
+			logging.Debug("tool call input params", "tool", tool.Name, "keys", paramKeys(params))
+		} else {
+			logging.Debug("tool call input params", "tool", tool.Name, "params", params)
+		}
 
 		ctx = security.ContextWithFilter(ctx, c.responseFilter)
 
@@ -41,6 +46,17 @@ func (c *Core) createToolHandler(tool registry.Tool) mcp.ToolHandler {
 
 		return toCallToolResult(result, tool, c.responseFilter), nil
 	}
+}
+
+func paramKeys(params map[string]any) []string {
+	keys := make([]string, 0, len(params))
+	for key := range params {
+		keys = append(keys, key)
+	}
+
+	sort.Strings(keys)
+
+	return keys
 }
 
 func argumentsMap(request *mcp.CallToolRequest) (map[string]any, error) {
@@ -121,7 +137,8 @@ func toolTitle(name string) string {
 // is trusted (registry.Tool.Trusted), successful payloads are sanitized,
 // word-filtered, and wrapped in the security envelope. Sensitive tools and
 // tools named whitelist-* are sanitized and wrapped, but not word-filtered.
-// Error results are always delivered as plain text.
+// Paths listed on registry.Tool.Verbatim are left unchanged in either
+// direction. Error results are always delivered as plain text.
 func toCallToolResult(result *registry.ToolResult, tool registry.Tool, filter security.Filter) *mcp.CallToolResult {
 	if result == nil {
 		return textCallResult("")
@@ -178,9 +195,10 @@ func errorCallResult(text string) *mcp.CallToolResult {
 
 // secureText sanitizes a successful tool payload and wraps it in the security
 // envelope. Whole words from filter are replaced unless the tool is sensitive
-// or named whitelist-*. A payload that is not valid JSON becomes the
-// envelope's data string. A non-empty rejection means the envelope could not
-// be built and that message is returned to the client instead.
+// or named whitelist-*. Paths listed on tool.Verbatim are not sanitized and
+// not word-filtered. A payload that is not valid JSON becomes the envelope's
+// data string. A non-empty rejection means the envelope could not be built
+// and that message is returned to the client instead.
 func secureText(text string, tool registry.Tool, filter security.Filter) (payload, rejection string) {
 	var decoded any
 	if err := json.Unmarshal([]byte(text), &decoded); err != nil {
@@ -189,9 +207,9 @@ func secureText(text string, tool registry.Tool, filter security.Filter) (payloa
 
 	var cleaned any
 	if skipResponseFilter(tool) {
-		cleaned = security.Prepare(decoded)
+		cleaned = security.PrepareExcept(decoded, tool.Verbatim)
 	} else {
-		cleaned = security.PrepareResponse(decoded, filter)
+		cleaned = security.PrepareResponseExcept(decoded, filter, tool.Verbatim)
 	}
 
 	wrapped, err := security.Wrap(cleaned)

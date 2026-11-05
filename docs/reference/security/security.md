@@ -117,7 +117,7 @@ Much of what PrivX stores is text somebody typed: host comments, role descriptio
 
 The server treats everything from PrivX, and everything a client sends in, as untrusted text:
 
-- Invisible characters are stripped on the way in and on the way out, see [Schema validation and parameter sanitation](#schema-validation-and-parameter-sanitation).
+- Invisible characters are stripped on the way in and on the way out, except the secret values named in [Invisible characters](#invisible-characters).
 - In a successful tool response, words from the [response word filter](#response-word-filter) are overwritten with `[redacted]`.
 - Tool inputs are sanitized and then passed through.
 - Create and update tools reject the call when any value contains the string `[redacted]`, including tools that skip word replacement. This keeps a filtered response from being written back into PrivX by accident.
@@ -229,7 +229,9 @@ Every string in tool parameters and responses is stripped of invisible character
 
 These characters therefore cannot split a configured word: a zero-width space inside `sudo` still matches `sudo` when that word is in the response filter. Line breaks, tabs, and ordinary international text (`käyttäjä`) stay. Homoglyphs, such as Cyrillic `а` against Latin `a`, are a known gap.
 
-The response word filter runs after this strip, and only on successful tool responses, see [Prompt injection hardening](#prompt-injection-hardening). Create and update tools reject any parameter value that contains `[redacted]` after the same strip.
+Secret values that must round-trip unchanged are left as they are. On `user-secret-create` and `user-secret-update`, the `data` object is stored as given, and on `user-secret-get` and `user-secret-list` it is returned as PrivX sent it, including every nested string (`items[].data` on a list page). On `target-domain-create` and `target-domain-update`, `ldap_bind_password` and `entra_client_secret` are stored as given. Those two fields are removed from target-domain reads, so they are not returned. Other strings on those tools are still stripped. `target-domain-managed-account-checkout` skips this strip for its whole result, because it is a trusted tool.
+
+The response word filter runs after this strip, and only on successful tool responses, see [Prompt injection hardening](#prompt-injection-hardening). Create and update tools reject any parameter value that contains `[redacted]` after the same strip. A verbatim secret value is checked as given, without that strip.
 
 ## SQL injection
 

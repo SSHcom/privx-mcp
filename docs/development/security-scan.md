@@ -66,7 +66,7 @@ Read tool registration, permission mapping, and the MCP runtime.
 
 Read the MCP security package and the runtime that applies it on tool calls.
 
-- Non-Trusted tools: inbound sanitize on params; outbound sanitize, optional whole-word response filter, envelope.
+- Non-Trusted tools: inbound sanitize on params; outbound sanitize, optional whole-word response filter, envelope. `Verbatim` paths are left unchanged in both directions: user-secret `data` and `items[].data`, and target-domain `endpoints[].ldap_bind_password` and `endpoints[].entra_client_secret`.
 - The response filter replaces configured whole words and keeps the payload, including list rows. It does not run on `whitelist-*` tools or sensitive tools. Create and update tools reject any parameter value containing `[redacted]`, including those tools.
 - Homoglyph / non-English instruction gaps are known limits in `security.md`, not new issues unless a bypass is worse than documented.
 

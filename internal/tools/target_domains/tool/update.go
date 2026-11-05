@@ -45,6 +45,7 @@ func Update() registry.Tool {
 		Description: description,
 		Writes:      true,
 		Sensitive:   true,
+		Verbatim:    target_domains.VerbatimBindSecretPaths,
 		InputSchema: inputSchema,
 		Handler:     updateTargetDomainHandler,
 	}

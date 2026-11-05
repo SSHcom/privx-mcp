@@ -36,6 +36,7 @@ func Create() registry.Tool {
 		Description: description,
 		Writes:      true,
 		Sensitive:   true,
+		Verbatim:    target_domains.VerbatimBindSecretPaths,
 		InputSchema: inputSchema,
 		Handler:     createTargetDomainHandler,
 	}

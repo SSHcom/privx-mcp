@@ -48,7 +48,15 @@ type Tool struct {
 	// unless the operator explicitly opts in, and are then restricted to
 	// privx-admin role holders unless non-admin access is also opted in. The
 	// marker is intrinsic to the tool and cannot be cleared by config.
+	// Sensitive skips the response word filter. It does not skip sanitizing;
+	// use Verbatim for values that must stay character-for-character.
 	Sensitive bool
+	// Verbatim lists JSON paths whose values are not sanitized and not
+	// word-filtered, on the way in and on the way out. A path is dot-separated.
+	// A segment ending in [] walks each object in that array. The named value
+	// and every nested string stay as received or as the handler returned them.
+	// Other strings on the same tool are still sanitized.
+	Verbatim []string
 	// InputSchema is the JSON schema for the tool's input. It may be a
 	// map[string]any (keys marshalled in sorted order by encoding/json) or
 	// an *OrderedMap to preserve a specific key order on the wire.

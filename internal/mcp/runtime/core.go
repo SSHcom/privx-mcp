@@ -133,6 +133,21 @@ func (c *Core) registerTools() {
 // Server returns the underlying MCP server the transport serves.
 func (c *Core) Server() *mcp.Server { return c.mcpServer }
 
+// LogToolBody reports whether a tools/call for name may include its arguments
+// and response in the debug log. Sensitive tools and unknown names are refused.
+func (c *Core) LogToolBody(name string) bool {
+	if c == nil || c.registry == nil || name == "" {
+		return false
+	}
+
+	tool, ok := c.registry.Get(name)
+	if !ok {
+		return false
+	}
+
+	return !tool.Sensitive
+}
+
 // ServerInfo returns the server name and version as a display string.
 func (c *Core) ServerInfo() string { return fmt.Sprintf("%s v%s", c.cfg.Name, c.cfg.Version) }
 

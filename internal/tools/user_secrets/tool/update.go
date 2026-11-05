@@ -34,6 +34,7 @@ func Update() registry.Tool {
 		Description: description,
 		Writes:      true,
 		Sensitive:   true,
+		Verbatim:    verbatimSecretData,
 		InputSchema: inputSchema,
 		Handler:     updateHandler,
 	}

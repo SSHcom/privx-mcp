@@ -25,7 +25,7 @@ Read more: [Which tools are registered](../reference/security/user_level_securit
 
 Text stored in PrivX, such as host comments and role descriptions, reaches the language model as-is, so it could carry injected instructions. The server treats all PrivX data and all client input as untrusted:
 
-- Invisible and control characters are stripped from every string.
+- Invisible and control characters are stripped from every string. A few secret fields are left unchanged: vault secret `data`, the bind password and Entra client secret written by target-domain create and update, and the managed-account checkout result.
 - Every successful response from a tool that is not trusted is wrapped in an envelope that tells the model the content is data, not instructions.
 
 This raises the cost of an attack but cannot block it fully, so the the real boundary is to only grant trusted user access.

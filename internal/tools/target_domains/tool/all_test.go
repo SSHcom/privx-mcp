@@ -1,6 +1,11 @@
 package tool
 
-import "testing"
+import (
+	"slices"
+	"testing"
+
+	"github.com/pmsshintegration/privx-mcp/internal/tools/target_domains"
+)
 
 func TestTargetDomainTools_Registration(t *testing.T) {
 	tools := All()
@@ -77,6 +82,16 @@ func TestTargetDomainTools_WriteFlags(t *testing.T) {
 		wantTrusted := tl.Name == "target-domain-managed-account-checkout"
 		if tl.Trusted != wantTrusted {
 			t.Errorf("tool %q: Trusted = %v, want %v", tl.Name, tl.Trusted, wantTrusted)
+		}
+		keepsBindSecret := tl.Name == "target-domain-create" || tl.Name == "target-domain-update"
+		if keepsBindSecret {
+			if !slices.Equal(tl.Verbatim, target_domains.VerbatimBindSecretPaths) {
+				t.Errorf("tool %q: Verbatim = %v, want %v", tl.Name, tl.Verbatim, target_domains.VerbatimBindSecretPaths)
+			}
+			continue
+		}
+		if len(tl.Verbatim) != 0 {
+			t.Errorf("tool %q: Verbatim = %v, want none", tl.Name, tl.Verbatim)
 		}
 	}
 }

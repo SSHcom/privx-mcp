@@ -173,6 +173,25 @@ func TestGrantRoleHandler_MissingFields(t *testing.T) {
 	}
 }
 
+func TestGrantRoleHandler_FloatingLengthTooLarge(t *testing.T) {
+	conn := testconn.New(t)
+	conn.Handle("GET", "/role-store/api/v1/roles/:id", func(body any) (any, error) {
+		return rolestore.Role{ID: "r1", Name: "ops"}, nil
+	})
+	res, err := grantRoleHandler(testconn.CtxWithAuth(conn), map[string]any{
+		"user_id":         "u1",
+		"role_id":         "r1",
+		"grant_type":      "floating",
+		"floating_length": maxFloatingLengthHours + 1,
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !res.IsError || !strings.Contains(res.Content[0].Text, "floating_length") {
+		t.Errorf("got %q", res.Content[0].Text)
+	}
+}
+
 func TestGrantRoleHandler_FloatingMissingLength(t *testing.T) {
 	conn := testconn.New(t)
 	conn.Handle("GET", "/role-store/api/v1/roles/:id", func(body any) (any, error) {

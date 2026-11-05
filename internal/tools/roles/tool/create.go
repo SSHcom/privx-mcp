@@ -41,42 +41,7 @@ func Create() registry.Tool {
 			"type":        "string",
 			"description": "Optional access group ID for the role.",
 		}).
-		Set("context", map[string]any{
-			"type":        "object",
-			"description": "Optional contextual restrictions for the role.",
-			"properties": map[string]any{
-				"enabled": map[string]any{
-					"type":        "boolean",
-					"description": "Whether contextual restrictions are active.",
-				},
-				"block_role": map[string]any{
-					"type":        "boolean",
-					"description": "Block role entirely when restrictions are not met.",
-				},
-				"validity": map[string]any{
-					"type":        "array",
-					"items":       map[string]any{"type": "string"},
-					"description": "Active weekdays (e.g. [\"MON\",\"TUE\",\"WED\",\"THU\",\"FRI\"]).",
-				},
-				"start_time": map[string]any{
-					"type":        "string",
-					"description": "Daily start time (e.g. \"09:00\").",
-				},
-				"end_time": map[string]any{
-					"type":        "string",
-					"description": "Daily end time (e.g. \"17:00\").",
-				},
-				"timezone": map[string]any{
-					"type":        "string",
-					"description": "Timezone (e.g. \"UTC\", \"Europe/Helsinki\").",
-				},
-				"ip_masks": map[string]any{
-					"type":        "array",
-					"items":       map[string]any{"type": "string"},
-					"description": "Allowed source IP ranges in CIDR notation (e.g. [\"172.0.0.1/24\"]).",
-				},
-			},
-		})
+		Set("context", roleContextProperty("Optional contextual restrictions for the role."))
 
 	inputSchema := registry.NewOrderedMap().
 		Set("type", "object").
@@ -135,8 +100,8 @@ func createRoleHandler(ctx context.Context, params map[string]any) (*registry.To
 	}
 
 	if raw, ok := params["context"]; ok {
-		if ctxMap, ok := raw.(map[string]any); ok {
-			role.Context = parseRoleContext(ctxMap)
+		if err := mergeRoleContext(&role.Context, raw); err != nil {
+			return registry.ErrorResult("validation error: " + err.Error()), nil
 		}
 	}
 
