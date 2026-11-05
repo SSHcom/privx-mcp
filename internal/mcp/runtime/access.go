@@ -304,11 +304,21 @@ func (c *Core) authMiddleware(next mcp.ToolHandler) mcp.ToolHandler {
 			return toCallToolResult(result, tool, c.responseFilter), nil
 		}
 
-		// After permission gating, copy user ID and active roles onto
-		// AuthContext for handler-side checks. Resolve hits the session cache
-		// when IsAllowed already resolved the user; failure leaves UserID/Roles
-		// empty (allowed authenticated-only tools still proceed).
-		if resolved, resolveErr := c.permissions.ResolveUserContext(ctx, claims); resolveErr == nil && resolved != nil {
+		// Resolve and bind every non-public tool call to a PrivX user so the
+		// mapped connector identity cannot run unchecked when lookup fails.
+		if len(tool.RequiredPermissions) > 0 {
+			resolved, resolveErr := c.permissions.ResolveUserContext(ctx, claims)
+			if resolveErr != nil || resolved == nil {
+				logging.Warn(
+					"permission user resolution failed during tool call",
+					"tool", toolName,
+					"mapped_username", authCtx.Username,
+					"err", resolveErr,
+				)
+
+				return errorCallResult("authentication failed: unable to resolve authorized user"), nil
+			}
+
 			authCtx.UserID = resolved.ID
 			authCtx.Roles = activeRoles(resolved)
 

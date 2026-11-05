@@ -13,9 +13,10 @@ import (
 const requestTimeout = 10 * time.Second
 
 // NewClient returns a client with a per-request timeout, no cookie jar, and
-// rejection of non-loopback http URLs unless allowHTTP is set. The check
-// covers the initial request and redirects, so metadata and token requests
-// cannot leave over plain HTTP when allowHTTP is false.
+// rejection of non-loopback http URLs unless allowHTTP is set. A redirect is
+// followed only when its host matches the first request. The checks cover the
+// initial request and redirects, so metadata and token requests cannot leave
+// over plain HTTP when allowHTTP is false, and cannot be sent to another host.
 func NewClient(allowHTTP bool) *http.Client {
 	return &http.Client{
 		Timeout:   requestTimeout,
@@ -27,6 +28,16 @@ func NewClient(allowHTTP bool) *http.Client {
 
 			if len(via) >= 10 {
 				return fmt.Errorf("stopped after 10 redirects")
+			}
+
+			origin := via[0].URL
+			if !sameRedirectHost(origin, req.URL) {
+				from := ""
+				if origin != nil {
+					from = origin.Host
+				}
+
+				return fmt.Errorf("refusing redirect from %q to %q", from, req.URL.Host)
 			}
 
 			return nil
@@ -131,6 +142,29 @@ func RejectInsecureHTTP(u *url.URL, allowHTTP bool) error {
 	}
 
 	return fmt.Errorf("refusing http URL %q (allow_http is false)", u.String())
+}
+
+func sameRedirectHost(from, to *url.URL) bool {
+	if from == nil || to == nil {
+		return false
+	}
+
+	return strings.EqualFold(from.Hostname(), to.Hostname()) && redirectPort(from) == redirectPort(to)
+}
+
+func redirectPort(u *url.URL) string {
+	port := u.Port()
+	if port == "" {
+		return ""
+	}
+
+	defaultHTTPS := u.Scheme == "https" && port == "443"
+	defaultHTTP := u.Scheme == "http" && port == "80"
+	if defaultHTTPS || defaultHTTP {
+		return ""
+	}
+
+	return port
 }
 
 func isLoopbackHost(host string) bool {

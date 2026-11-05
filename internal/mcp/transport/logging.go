@@ -3,6 +3,7 @@ package transport
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -11,12 +12,14 @@ import (
 	"time"
 
 	applog "github.com/pmsshintegration/privx-mcp/internal/service/logging"
+	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // withRequestLogging wraps an http.Handler with a single-line log per
 // incoming request, including method, path, remote addr, and the resulting
 // status code / duration. For POST /mcp it also captures and logs the
-// JSON-RPC request and response bodies to aid debugging.
+// JSON-RPC request and response bodies to aid debugging. A POST body above
+// utils.MaxRequestBody is rejected with 413 before the next handler runs.
 func withRequestLogging(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -26,7 +29,13 @@ func withRequestLogging(next http.Handler) http.Handler {
 		// Capture request body for POST so we can see the JSON-RPC method.
 		var reqBody []byte
 		if r.Method == http.MethodPost {
-			reqBody, _ = io.ReadAll(r.Body)
+			body, err := utils.ReadLimitedBody(w, r)
+			if err != nil {
+				writeRequestBodyError(w, err)
+				return
+			}
+
+			reqBody = body
 			r.Body = io.NopCloser(bytes.NewReader(reqBody))
 		}
 
@@ -49,6 +58,15 @@ func withRequestLogging(next http.Handler) http.Handler {
 			applog.Debug("http response body", "body", string(truncate(rr.body.Bytes(), 2000)))
 		}
 	})
+}
+
+func writeRequestBodyError(w http.ResponseWriter, err error) {
+	if errors.Is(err, utils.ErrBodyTooLarge) {
+		http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+		return
+	}
+
+	http.Error(w, "failed to read request body", http.StatusBadRequest)
 }
 
 func requestHasSessionID(r *http.Request) bool {
