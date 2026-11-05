@@ -9,7 +9,7 @@ How the PrivX MCP server decides **which tools a user can see** and **which tool
 - [User documentation](../user/USER.md)
 - [MCP server configuration](../server/SERVER.md)
 - [PrivX configuration](../server/privx.md)
-- [Configure machine-to-machine access](../../04-m2m.md)
+- [Configure machine-to-machine access](../../guide/04-m2m/04-m2m.md)
 
 ## Overview
 

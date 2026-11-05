@@ -25,7 +25,7 @@ task build:proxy
 ```
 
 - Start by copying `privx-mcp-proxy-example.toml` and modify as needed.
-- Read more about configuration and how to run from the [privx-mcp-proxy](../manual/reference/clients/privx-mcp-proxy.md) reference document.
+- Read more about configuration and how to run from the [privx-mcp-proxy](../reference/clients/privx-mcp-proxy.md) reference document.
 
 ## Tests
 

@@ -58,7 +58,7 @@ Decide whether the server runs behind a reverse proxy.
 - **Without a proxy**: always use HTTPS. Set `[server].tls_cert_file` and `[server].tls_key_file`. The certificate can be self-signed or issued by a certificate authority.
 - **In both cases**: `public_url` must use the scheme and address that clients actually reach.
 
-See [TLS (HTTPS)](reference/server/tls.md).
+See [TLS (HTTPS)](../reference/server/tls.md).
 
 ### User directory source
 
@@ -78,10 +78,10 @@ If mandatory options are missing, the server will not start.
 
 ## Reference
 
-- [MCP server configuration](reference/server/SERVER.md)
-- [PrivX configuration](reference/server/privx.md)
-- [TLS (HTTPS)](reference/server/tls.md)
-- [User-level security](reference/security/user_level_security.md)
+- [MCP server configuration](../reference/server/SERVER.md)
+- [PrivX configuration](../reference/server/privx.md)
+- [TLS (HTTPS)](../reference/server/tls.md)
+- [User-level security](../reference/security/user_level_security.md)
 
 ## Navigation
 
@@ -89,8 +89,8 @@ If mandatory options are missing, the server will not start.
 
 **Next**:
 - [Configure OIDC](04-oidc.md) for browser clients
-- [Configure machine-to-machine access](04-m2m.md) for clients that send their own bearer
+- [Configure machine-to-machine access](04-m2m/04-m2m.md) for clients that send their own bearer
 
 ---
 
-**Overview**: [Manual](README.md) | [Documents Hub](../README.md)
+**Overview**: [Documents Hub](../README.md)

@@ -38,6 +38,7 @@ deploy/k8s/secret.yaml
 
 privx-mcp-proxy.*
 privx-mcp-config.*
+privx-mcp-config-m2m*
 
 # Agent files
 .agents/

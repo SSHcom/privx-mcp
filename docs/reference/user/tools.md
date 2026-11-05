@@ -10,8 +10,8 @@ Every tool the PrivX MCP server can register, grouped by topic below. The `echo`
 
 Tool names, the Read/Write column, and the required permission scope are generated from code:
 
-- Names and required scopes come from [`internal/tools/permissions.go`](../../../../internal/tools/permissions.go).
-- The Read/Write column comes from each tool factory's `Writes` field in [`internal/tools/*/tool/`](../../../../internal/tools/).
+- Names and required scopes come from [`internal/tools/permissions.go`](../../../internal/tools/permissions.go).
+- The Read/Write column comes from each tool factory's `Writes` field in [`internal/tools/*/tool/`](../../../internal/tools/).
 
 `Read` tools survive `default_read_only = true`, while `Write` tools are pruned by it. See [User-level security](../security/user_level_security.md) for how registration-time filtering and per-call authorization interact.
 

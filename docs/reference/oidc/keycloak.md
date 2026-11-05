@@ -1,6 +1,6 @@
 # Keycloak
 
-Manual Keycloak setup as the identity provider for this MCP server. It applies to every MCP client, including the [privx-mcp-proxy](../clients/privx-mcp-proxy.md) stdio bridge. For a local import-based shortcut, use the [Local Docker demo](../../../../deploy/docker/demo/README.md).
+Manual Keycloak setup as the identity provider for this MCP server. It applies to every MCP client, including the [privx-mcp-proxy](../clients/privx-mcp-proxy.md) stdio bridge. For a local import-based shortcut, use the [Local Docker demo](../../../deploy/docker/demo/README.md).
 
 ## Related documents
 
@@ -8,7 +8,7 @@ Manual Keycloak setup as the identity provider for this MCP server. It applies t
 - [Microsoft Entra ID](entra-id/ENTRA-ID.md)
 - [MCP client configuration](../clients/CLIENTS.md)
 - [privx-mcp-proxy](../clients/privx-mcp-proxy.md)
-- [Local Docker demo](../../../../deploy/docker/demo/README.md)
+- [Local Docker demo](../../../deploy/docker/demo/README.md)
 
 ## Realm and user configuration
 
@@ -17,7 +17,7 @@ If you are starting with a blank Keycloak configuration:
 1. Create a realm, for example `mcp`.
 2. Add the users who will authenticate MCP clients to that realm. The default user settings are sufficient, and users do not need any specific Keycloak groups or roles.
 
-Each user's **username** or **email** must be resolvable through these settings from [privx-mcp-config-example.toml](../../../../privx-mcp-config-example.toml):
+Each user's **username** or **email** must be resolvable through these settings from [privx-mcp-config-example.toml](../../../privx-mcp-config-example.toml):
 
 - `[oauth].identity_claim_field`
 - `[oauth].identity_mapping_rule`

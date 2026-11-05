@@ -25,7 +25,7 @@ Two apps do not mean two logins. The user signs in once, and the second app is b
 
 > <p>&nbsp;</p>
 > <div style="text-align: center;">
->   <image src="../../../../../.md-images/entraid-oidc-flow.png" width="400">
+>   <image src="../../../../.md-images/entraid-oidc-flow.png" width="400">
 > </div>
 > <p>&nbsp;</p>
 >

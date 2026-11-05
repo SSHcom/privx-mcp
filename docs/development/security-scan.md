@@ -4,7 +4,7 @@ Agent and human instruction for reviewing **this** process: an HTTP MCP resource
 
 Walk the trust chain in the code. Optional tools on `PATH` may add secrets and dependency CVEs; they do not replace reading that chain. The checklist below is a floor: known claims to verify, not the set of paths you are allowed to look at.
 
-Threat model and intended controls: [security.md](../manual/reference/security/security.md), [user_level_security.md](../manual/reference/security/user_level_security.md). Accepted product behaviour: [security-decisions.md](security-decisions.md). Package layout: [AGENTS.md](../../AGENTS.md). If the threat-model docs and the code disagree, the code is what you scan. Do not rewrite this file during the scan.
+Threat model and intended controls: [security.md](../reference/security/security.md), [user_level_security.md](../reference/security/user_level_security.md). Accepted product behaviour: [security-decisions.md](security-decisions.md). Package layout: [AGENTS.md](../../AGENTS.md). If the threat-model docs and the code disagree, the code is what you scan. Do not rewrite this file during the scan.
 
 ## Operating rules
 
@@ -156,7 +156,7 @@ Issue fields: severity (`critical` / `high` / `medium` / `low`), section, path, 
 
 These belong in Notes unless a code default is already unsafe:
 
-- Run the binary behind TLS or a reverse proxy; do not expose the RSA signing key or API credentials on a workstation against production PrivX ([security.md](../manual/reference/security/security.md)).
+- Run the binary behind TLS or a reverse proxy; do not expose the RSA signing key or API credentials on a workstation against production PrivX ([security.md](../reference/security/security.md)).
 - Protect signing keys and PrivX API client secrets on disk.
 - Demo compose passwords and local IdP defaults are for demonstration only.
 - Unauthenticated load and bind address are a proxy or host problem; in-process rate limits apply only after a valid identity on `tools/call`.

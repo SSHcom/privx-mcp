@@ -10,7 +10,7 @@ Create one confidential OAuth client per environment with authorization code flo
 
 ## 2) Register redirect URIs
 
-Add a redirect URI for each MCP client you use. Take the exact values from [Redirect URIs](reference/clients/CLIENTS.md#redirect-uris) and keep hostnames exact, since `localhost` and `127.0.0.1` are different entries.
+Add a redirect URI for each MCP client you use. Take the exact values from [Redirect URIs](../reference/clients/CLIENTS.md#redirect-uris) and keep hostnames exact, since `localhost` and `127.0.0.1` are different entries.
 
 ## 3) Match audience and identity claim
 
@@ -30,17 +30,17 @@ Start the server, connect one MCP client, complete the browser login, and run on
 
 ## Provider References
 
-- [OIDC Configuration overview](reference/oidc/OIDC.md)
-- [Keycloak](reference/oidc/keycloak.md)
-- [Microsoft Entra ID](reference/oidc/entra-id/ENTRA-ID.md)
-- [Okta](reference/oidc/okta.md) - includes federating to Microsoft Entra ID
+- [OIDC Configuration overview](../reference/oidc/OIDC.md)
+- [Keycloak](../reference/oidc/keycloak.md)
+- [Microsoft Entra ID](../reference/oidc/entra-id/ENTRA-ID.md)
+- [Okta](../reference/oidc/okta.md) - includes federating to Microsoft Entra ID
 
 ## Navigation
 
 **Previous**: [Configure the server](03-configure.md)
 
-**Next**: [Security and user operations](06-security-and-usage.md)
+**Next**: [Security and user operations](05-security-and-usage.md)
 
 ---
 
-**Overview**: [Manual](README.md) | [Documents Hub](../README.md)
+**Overview**: [Documents Hub](../README.md)

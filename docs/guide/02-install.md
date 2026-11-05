@@ -17,4 +17,4 @@ Whichever route you take, fill in the required settings as described in [Configu
 
 ---
 
-**Overview**: [Manual](README.md) | [Documents Hub](../README.md)
+**Overview**: [Documents Hub](../README.md)
