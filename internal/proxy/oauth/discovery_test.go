@@ -334,6 +334,92 @@ func TestDiscoverUsesRFC8414WhenOIDCIncomplete(t *testing.T) {
 	}
 }
 
+func TestDiscoverRejectsFileResourceMetadata(t *testing.T) {
+	t.Parallel()
+
+	f := &discoveryFixture{
+		challenge: `Bearer resource_metadata="file://localhost/etc/passwd"`,
+	}
+	srv := startDiscoveryServer(t, f)
+
+	_, err := discover(t, srv.URL+"/mcp", nil)
+	if err == nil || !strings.Contains(err.Error(), "http or https") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDiscoverRejectsFileAuthorizationServer(t *testing.T) {
+	t.Parallel()
+
+	f := &discoveryFixture{}
+	srv := startDiscoveryServer(t, f)
+	f.prm = func(base string) map[string]any {
+		return map[string]any{
+			"resource":              base + "/mcp",
+			"authorization_servers": []string{"file://localhost/etc/passwd"},
+		}
+	}
+
+	_, err := discover(t, srv.URL+"/mcp", nil)
+	if err == nil || !strings.Contains(err.Error(), "http or https") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDiscoverRejectsFileAuthorizationEndpoint(t *testing.T) {
+	t.Parallel()
+
+	f := &discoveryFixture{
+		oidc: map[string]any{
+			"issuer":                 "https://idp.example",
+			"authorization_endpoint": "file://localhost/etc/passwd",
+			"token_endpoint":         "https://idp.example/token",
+		},
+		oauthAS: map[string]any{
+			"issuer":                 "https://idp.example",
+			"authorization_endpoint": "file://localhost/etc/passwd",
+			"token_endpoint":         "https://idp.example/token",
+		},
+	}
+	srv := startDiscoveryServer(t, f)
+
+	_, err := discover(t, srv.URL+"/mcp", nil)
+	if err == nil || !strings.Contains(err.Error(), "authorization_endpoint") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDiscoverRejectsPlainHTTPTokenEndpoint(t *testing.T) {
+	t.Parallel()
+
+	plain := map[string]any{
+		"issuer":                 "https://idp.example",
+		"authorization_endpoint": "https://idp.example/authorize",
+		"token_endpoint":         "http://idp.example/token",
+	}
+	f := &discoveryFixture{oidc: plain, oauthAS: plain}
+	srv := startDiscoveryServer(t, f)
+
+	_, err := discover(t, srv.URL+"/mcp", nil)
+	if err == nil || !strings.Contains(err.Error(), "allow_http is false") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDiscoverRejectsPlainHTTPResourceMetadata(t *testing.T) {
+	t.Parallel()
+
+	f := &discoveryFixture{
+		challenge: `Bearer resource_metadata="http://idp.example/.well-known/oauth-protected-resource"`,
+	}
+	srv := startDiscoveryServer(t, f)
+
+	_, err := discover(t, srv.URL+"/mcp", nil)
+	if err == nil || !strings.Contains(err.Error(), "allow_http is false") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestDiscoverNilClient(t *testing.T) {
 	t.Parallel()
 

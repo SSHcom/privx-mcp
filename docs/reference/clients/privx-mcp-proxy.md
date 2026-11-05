@@ -78,7 +78,7 @@ scopes = ["openid", "profile", "email", "offline_access"]
 token_endpoint_auth_method = "client_secret_post"
 ```
 
-`allow_http` applies only to `mcp_url`, not to the OAuth callback. Leave it `false` when the MCP server uses HTTPS or runs locally on `localhost` or `127.0.0.1`. Set it to `true` only when the proxy must reach an MCP server over unencrypted HTTP on another host.
+`allow_http` applies to every outbound proxy request: the MCP URL, OAuth metadata, and token requests. It does not apply to the local OAuth callback listener. Leave it `false` when those URLs use HTTPS, or plain HTTP on `localhost` or `127.0.0.1`. Set it to `true` only when the proxy must use unencrypted HTTP to another host.
 
 The `[callback]` fields configure the local OAuth redirect listener used during browser login. Together they form the redirect URI `http://{host}:{port}{path}`. Register that URI with the IdP and pin `port` to the registered value.
 

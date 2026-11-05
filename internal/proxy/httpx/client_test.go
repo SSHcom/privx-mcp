@@ -119,6 +119,64 @@ func TestWithBearerOmitsEmptyToken(t *testing.T) {
 	}
 }
 
+func TestRequireHTTPURLRejectsFile(t *testing.T) {
+	t.Parallel()
+
+	for _, raw := range []string{
+		"file:///etc/passwd",
+		"file://localhost/etc/passwd",
+		"vscode://file/etc/passwd",
+	} {
+		if _, err := RequireHTTPURL(raw, true); err == nil {
+			t.Fatalf("RequireHTTPURL(%q) error = nil", raw)
+		}
+	}
+
+	u, err := RequireHTTPURL("https://idp.example/authorize", false)
+	if err != nil {
+		t.Fatalf("https: %v", err)
+	}
+
+	if u.Host != "idp.example" {
+		t.Fatalf("host = %q", u.Host)
+	}
+}
+
+func TestNewClientRejectsPlainHTTPRequest(t *testing.T) {
+	t.Parallel()
+
+	resp, err := NewClient(false).Get("http://203.0.113.10/token")
+	if err == nil {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		t.Fatal("error = nil")
+	}
+
+	if !strings.Contains(err.Error(), "allow_http is false") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestNewClientRejectsFileRedirect(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "file://localhost/etc/passwd", http.StatusFound)
+	}))
+	t.Cleanup(srv.Close)
+
+	resp, err := NewClient(true).Get(srv.URL)
+	if err == nil {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		t.Fatal("error = nil")
+	}
+
+	if !strings.Contains(err.Error(), "http or https") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestNewClientRejectsInsecureRedirect(t *testing.T) {
 	t.Parallel()
 

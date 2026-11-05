@@ -299,6 +299,37 @@ func TestObtain_Interactive(t *testing.T) {
 	}
 }
 
+func TestObtainRejectsFileAuthorizationEndpoint(t *testing.T) {
+	t.Parallel()
+
+	opened := false
+	_, err := Obtain(context.Background(), ObtainParams{
+		HTTP:   NewHTTPClient(false),
+		Config: testClientConfig(),
+		Discovered: Result{
+			AuthorizationEndpoint: "file://localhost/etc/passwd",
+			TokenEndpoint:         "https://idp.example/token",
+		},
+		AuthDir: t.TempDir(),
+		OpenBrowser: func(string) error {
+			opened = true
+
+			return nil
+		},
+	})
+	if err == nil {
+		t.Fatal("error = nil")
+	}
+
+	if opened {
+		t.Fatal("browser opened for file authorization endpoint")
+	}
+
+	if !strings.Contains(err.Error(), "http or https") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func testClientConfig() *config.Config {
 	return &config.Config{
 		MCPURL: "https://mcp.example/mcp",

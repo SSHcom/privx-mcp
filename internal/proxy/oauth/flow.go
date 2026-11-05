@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/pmsshintegration/privx-mcp/internal/proxy/config"
+	"github.com/pmsshintegration/privx-mcp/internal/proxy/httpx"
 	"github.com/pmsshintegration/privx-mcp/internal/proxy/store"
 )
 
@@ -214,8 +215,8 @@ func authorizeURL(p authorizeParams) (string, error) {
 		return "", fmt.Errorf("authorization_endpoint is not a valid absolute URL: %w", err)
 	}
 
-	if u.Scheme == "" || u.Host == "" {
-		return "", fmt.Errorf("authorization_endpoint is not a valid absolute URL")
+	if !httpx.AbsoluteHTTP(u) {
+		return "", fmt.Errorf("authorization_endpoint must be an absolute http or https URL")
 	}
 
 	q := u.Query()
