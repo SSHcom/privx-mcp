@@ -17,7 +17,7 @@ The server configuration decides which tools exist at all, for every user, befor
 - **Rate limiting** caps how many tool calls one identity can make in a time window, with an optional extra cooldown after a maxed-out window. This stops a looping model or a misbehaving client from hammering PrivX and the server.
 - **Response filter** (optional) replaces chosen words with `[redacted]` in tool responses, to mitigate injected instructions in PrivX data.
   - `whitelist-*` and sensitive tools are not filtered, so be especially careful about who is granted access to them.
-  - Create and update tools reject any value that contains `[redacted]`, including tools that skip the filter.
+  - Create and update tools, and `request-set-decision`, reject any value that contains `[redacted]`, including tools that skip the filter.
 
 Read more: [Which tools are registered](../reference/security/user_level_security.md#which-tools-are-registered), [Loop and DDoS protection](../reference/security/security.md#loop-and-ddos-protection), [Prompt injection hardening](../reference/security/security.md#prompt-injection-hardening)
 
@@ -25,8 +25,8 @@ Read more: [Which tools are registered](../reference/security/user_level_securit
 
 Text stored in PrivX, such as host comments and role descriptions, reaches the language model as-is, so it could carry injected instructions. The server treats all PrivX data and all client input as untrusted:
 
-- Invisible and control characters are stripped from every string. A few secret fields are left unchanged: vault secret `data`, the bind password and Entra client secret written by target-domain create and update, and the managed-account checkout result.
-- Every successful response from a tool that is not trusted is wrapped in an envelope that tells the model the content is data, not instructions.
+- Invisible and control characters are stripped from every string, including error messages. A few secret fields are left unchanged: vault secret `data`, the bind password and Entra client secret written by target-domain create and update, and the managed-account checkout result.
+- Every successful response from a tool that is not trusted is wrapped in an envelope that tells the model the content is data, not instructions. Error messages are returned as plain text. They still pass through the response word filter, except for trusted, sensitive, and `whitelist-*` tools.
 
 This raises the cost of an attack but cannot block it fully, so the the real boundary is to only grant trusted user access.
 

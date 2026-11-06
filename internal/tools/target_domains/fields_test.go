@@ -122,6 +122,142 @@ func TestApplyTargetDomainFields(t *testing.T) {
 		}
 	})
 
+	t.Run("omitted bind password keeps the stored secret", func(t *testing.T) {
+		domain := sampleDomain()
+		domain.EndPoints[0].EntraClientSecret = "entra-old"
+		err := ApplyTargetDomainFields(&domain, map[string]any{
+			"endpoints": []any{
+				map[string]any{
+					"type":               "AD",
+					"scan_priority":      float64(1),
+					"rotation_priority":  float64(1),
+					"ldap_address":       "dc-new.example",
+					"ldap_bind_password": "",
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		ep := domain.EndPoints[0]
+		if ep.LdapAddress != "dc-new.example" ||
+			ep.LdapBindPassword != "stored-secret" ||
+			ep.EntraClientSecret != "entra-old" {
+			t.Fatalf("endpoint = %+v", ep)
+		}
+	})
+
+	t.Run("changed scan priority on the only endpoint keeps secrets", func(t *testing.T) {
+		domain := sampleDomain()
+		domain.EndPoints[0].EntraClientSecret = "entra-old"
+		err := ApplyTargetDomainFields(&domain, map[string]any{
+			"endpoints": []any{
+				map[string]any{
+					"type":              "AD",
+					"scan_priority":     float64(4),
+					"rotation_priority": float64(0),
+					"ldap_address":      "other.example",
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		ep := domain.EndPoints[0]
+		if ep.ScanPriority != 4 ||
+			ep.LdapBindPassword != "stored-secret" ||
+			ep.EntraClientSecret != "entra-old" {
+			t.Fatalf("endpoint = %+v", ep)
+		}
+	})
+
+	t.Run("secrets follow scan priority when several endpoints change", func(t *testing.T) {
+		domain := sampleDomain()
+		domain.EndPoints = []secretsmanager.TargetDomainEndpoint{
+			{Type: "AD", ScanPriority: 1, LdapBindPassword: "secret-1", LdapAddress: "dc1.example"},
+			{Type: "AD", ScanPriority: 2, LdapBindPassword: "secret-2", LdapAddress: "dc2.example"},
+		}
+		err := ApplyTargetDomainFields(&domain, map[string]any{
+			"endpoints": []any{
+				map[string]any{
+					"type":              "AD",
+					"scan_priority":     float64(2),
+					"rotation_priority": float64(1),
+					"ldap_address":      "dc2-new.example",
+				},
+				map[string]any{
+					"type":              "AD",
+					"scan_priority":     float64(1),
+					"rotation_priority": float64(0),
+					"ldap_address":      "dc1-new.example",
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if domain.EndPoints[0].LdapBindPassword != "secret-2" || domain.EndPoints[1].LdapBindPassword != "secret-1" {
+			t.Fatalf("endpoints = %+v", domain.EndPoints)
+		}
+	})
+
+	t.Run("address match keeps a secret when scan priority changes", func(t *testing.T) {
+		domain := sampleDomain()
+		domain.EndPoints = []secretsmanager.TargetDomainEndpoint{
+			{Type: "AD", ScanPriority: 1, LdapPort: 389, LdapAddress: "dc1.example", LdapBindPassword: "secret-1"},
+			{Type: "AD", ScanPriority: 2, LdapPort: 389, LdapAddress: "dc2.example", LdapBindPassword: "secret-2"},
+		}
+		err := ApplyTargetDomainFields(&domain, map[string]any{
+			"endpoints": []any{
+				map[string]any{
+					"type":              "AD",
+					"scan_priority":     float64(8),
+					"rotation_priority": float64(1),
+					"ldap_address":      "dc2.example",
+					"ldap_port":         float64(389),
+				},
+				map[string]any{
+					"type":              "AD",
+					"scan_priority":     float64(9),
+					"rotation_priority": float64(0),
+					"ldap_address":      "dc1.example",
+					"ldap_port":         float64(389),
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if domain.EndPoints[0].LdapBindPassword != "secret-2" || domain.EndPoints[1].LdapBindPassword != "secret-1" {
+			t.Fatalf("endpoints = %+v", domain.EndPoints)
+		}
+	})
+
+	t.Run("a new endpoint does not inherit another endpoint secret", func(t *testing.T) {
+		domain := sampleDomain()
+		err := ApplyTargetDomainFields(&domain, map[string]any{
+			"endpoints": []any{
+				map[string]any{
+					"type":              "AD",
+					"scan_priority":     float64(1),
+					"rotation_priority": float64(1),
+				},
+				map[string]any{
+					"type":              "AD",
+					"scan_priority":     float64(2),
+					"rotation_priority": float64(0),
+					"ldap_address":      "added.example",
+				},
+			},
+		})
+		if err != nil {
+			t.Fatalf("err: %v", err)
+		}
+		if domain.EndPoints[0].LdapBindPassword != "stored-secret" || domain.EndPoints[1].LdapBindPassword != "" {
+			t.Fatalf("endpoints = %+v", domain.EndPoints)
+		}
+	})
+
 	t.Run("duplicate scan_priority is rejected", func(t *testing.T) {
 		domain := sampleDomain()
 		err := ApplyTargetDomainFields(&domain, map[string]any{

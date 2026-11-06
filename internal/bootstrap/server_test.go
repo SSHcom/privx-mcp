@@ -349,6 +349,7 @@ func TestResolveVerifierEndpoints_ConfiguredURI(t *testing.T) {
 	issuer, jwks, err := resolveVerifierEndpoints(
 		"https://issuer.example.com",
 		"https://issuer.example.com/jwks",
+		false,
 	)
 	if err != nil {
 		t.Fatalf("resolveVerifierEndpoints: %v", err)
@@ -362,41 +363,72 @@ func TestResolveVerifierEndpoints_ConfiguredURI(t *testing.T) {
 }
 
 func TestDiscoverJWKSURI_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/.well-known/openid-configuration" {
 			http.NotFound(w, r)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{
-			"issuer":"https://issuer.example.com",
+		_, _ = fmt.Fprintf(w, `{
+			"issuer":%q,
 			"jwks_uri":"https://issuer.example.com/keys"
-		}`))
+		}`, server.URL+"/")
 	}))
 	defer server.Close()
 
-	issuer, jwks, err := discoverJWKSURI(server.URL)
+	jwks, err := discoverJWKSURI(server.URL+"/", false)
 	if err != nil {
 		t.Fatalf("discoverJWKSURI: %v", err)
-	}
-	if issuer != "https://issuer.example.com" {
-		t.Fatalf("issuer = %q", issuer)
 	}
 	if jwks != "https://issuer.example.com/keys" {
 		t.Fatalf("jwks = %q", jwks)
 	}
 
-	resolvedIssuer, resolvedJWKS, err := resolveVerifierEndpoints(server.URL, "")
+	configured := server.URL + "/"
+	resolvedIssuer, resolvedJWKS, err := resolveVerifierEndpoints(configured, "", false)
 	if err != nil {
 		t.Fatalf("resolveVerifierEndpoints: %v", err)
 	}
-	if resolvedIssuer != issuer || resolvedJWKS != jwks {
+	if resolvedIssuer != configured || resolvedJWKS != jwks {
 		t.Fatalf("resolved = %q %q", resolvedIssuer, resolvedJWKS)
 	}
 }
 
+func TestDiscoverJWKSURI_RejectsIssuerMismatch(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"issuer":"https://other.example",
+			"jwks_uri":"https://other.example/keys"
+		}`))
+	}))
+	defer server.Close()
+
+	_, err := discoverJWKSURI(server.URL, false)
+	if err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestResolveVerifierEndpoints_RejectsNonLoopbackHTTP(t *testing.T) {
+	_, _, err := resolveVerifierEndpoints("http://idp.example/realms/mcp", "", false)
+	if err == nil || !strings.Contains(err.Error(), "allow_http is false") {
+		t.Fatalf("issuer error = %v", err)
+	}
+
+	_, _, err = resolveVerifierEndpoints(
+		"https://idp.example/realms/mcp",
+		"http://idp.example/jwks",
+		false,
+	)
+	if err == nil || !strings.Contains(err.Error(), "oauth.jwks_uri") {
+		t.Fatalf("jwks error = %v", err)
+	}
+}
+
 func TestDiscoverJWKSURI_MalformedIssuer(t *testing.T) {
-	_, _, err := discoverJWKSURI("")
+	_, err := discoverJWKSURI("", false)
 	if err == nil {
 		t.Fatal("expected error for empty issuer")
 	}
@@ -404,7 +436,7 @@ func TestDiscoverJWKSURI_MalformedIssuer(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 
-	_, _, err = resolveVerifierEndpoints("", "")
+	_, _, err = resolveVerifierEndpoints("", "", false)
 	if err == nil {
 		t.Fatal("expected error when issuer and jwks are both empty")
 	}
@@ -416,7 +448,7 @@ func TestDiscoverJWKSURI_DiscoveryFailure(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, _, err := discoverJWKSURI(server.URL)
+	_, err := discoverJWKSURI(server.URL, false)
 	if err == nil {
 		t.Fatal("expected discovery failure")
 	}
@@ -440,7 +472,7 @@ func TestNewServer_DCRMetadataRewritesIssuerAndOmitsProtectedResourceScopes(t *t
 		case "/.well-known/openid-configuration":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{
-				"issuer":"https://sts.windows.net/test-tenant/",
+				"issuer":"` + upstream.URL + `",
 				"authorization_endpoint":"https://login.microsoftonline.com/test-tenant/oauth2/v2.0/authorize",
 				"token_endpoint":"https://login.microsoftonline.com/test-tenant/oauth2/v2.0/token",
 				"jwks_uri":"` + upstream.URL + `/jwks",

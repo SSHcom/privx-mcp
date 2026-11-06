@@ -1,15 +1,18 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // applyEnvOverrides overrides config fields with environment variable values.
 // Env vars take precedence over TOML values. Names follow TOML sections
 // (SERVER_, PRIVX_, OAUTH_, PERMISSIONS_).
-func applyEnvOverrides(cfg *Config) {
+func applyEnvOverrides(cfg *Config) error {
 	if v := os.Getenv("SERVER_NAME"); v != "" {
 		cfg.Server.Name = v
 	}
@@ -42,12 +45,12 @@ func applyEnvOverrides(cfg *Config) {
 		cfg.Server.TLSKeyFile = v
 	}
 
-	if v := os.Getenv("SERVER_DISABLE_LOCALHOST_PROTECTION"); v != "" {
-		cfg.Server.DisableLocalhostProtection = strings.EqualFold(v, "true") || v == "1"
+	if err := setBoolFromEnv("SERVER_DISABLE_LOCALHOST_PROTECTION", &cfg.Server.DisableLocalhostProtection); err != nil {
+		return err
 	}
 
-	if v := os.Getenv("SERVER_STATELESS"); v != "" {
-		cfg.Server.Stateless = strings.EqualFold(v, "true") || v == "1"
+	if err := setBoolFromEnv("SERVER_STATELESS", &cfg.Server.Stateless); err != nil {
+		return err
 	}
 
 	if v := os.Getenv("SERVER_AUTH_MODE"); v != "" {
@@ -118,8 +121,8 @@ func applyEnvOverrides(cfg *Config) {
 		cfg.PrivXAuth.CACert = v
 	}
 
-	if v := os.Getenv("PERMISSIONS_DEFAULT_READ_ONLY"); v != "" {
-		cfg.Permissions.DefaultReadOnly = strings.EqualFold(v, "true") || v == "1"
+	if err := setBoolFromEnv("PERMISSIONS_DEFAULT_READ_ONLY", &cfg.Permissions.DefaultReadOnly); err != nil {
+		return err
 	}
 
 	if v := os.Getenv("PERMISSIONS_SOURCE_TYPE"); v != "" {
@@ -165,17 +168,21 @@ func applyEnvOverrides(cfg *Config) {
 		}
 	}
 
-	if v := os.Getenv("PERMISSIONS_ENABLE_SENSITIVE_DATA_TOOLS"); v != "" {
-		cfg.Permissions.EnableSensitiveDataTools = strings.EqualFold(v, "true") || v == "1"
+	if err := setBoolFromEnv("PERMISSIONS_ENABLE_SENSITIVE_DATA_TOOLS", &cfg.Permissions.EnableSensitiveDataTools); err != nil {
+		return err
 	}
 
-	if v := os.Getenv("PERMISSIONS_SENSITIVE_DATA_TOOLS_ALLOW_NON_ADMIN"); v != "" {
-		cfg.Permissions.SensitiveDataToolsAllowNonAdmin = strings.EqualFold(v, "true") || v == "1"
+	if err := setBoolFromEnv("PERMISSIONS_SENSITIVE_DATA_TOOLS_ALLOW_NON_ADMIN", &cfg.Permissions.SensitiveDataToolsAllowNonAdmin); err != nil {
+		return err
 	}
 
 	// OIDC provider
 	if v := os.Getenv("OAUTH_ISSUER_URL"); v != "" {
 		cfg.OAuth.IssuerURL = v
+	}
+
+	if err := setBoolFromEnv("OAUTH_ALLOW_HTTP", &cfg.OAuth.AllowHTTP); err != nil {
+		return err
 	}
 
 	if v := os.Getenv("OAUTH_SCOPES"); v != "" {
@@ -207,6 +214,26 @@ func applyEnvOverrides(cfg *Config) {
 	}
 
 	parseDurationIfSet(os.Getenv("OAUTH_JWKS_CACHE_TTL"), &cfg.OAuth.JWKSCacheTTL)
+
+	return nil
+}
+
+// setBoolFromEnv applies name when it is set. An empty value leaves dest
+// unchanged. An unrecognized value is an error and also leaves dest unchanged.
+func setBoolFromEnv(name string, dest *bool) error {
+	v := os.Getenv(name)
+	if v == "" {
+		return nil
+	}
+
+	b, err := utils.AsBoolExtended(v)
+	if err != nil {
+		return fmt.Errorf("%s: %w (got %q)", name, err, v)
+	}
+
+	*dest = b
+
+	return nil
 }
 
 // splitCommaList splits a comma-separated env value into trimmed non-empty parts.

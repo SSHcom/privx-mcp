@@ -83,7 +83,7 @@ Other `target_credential` fields, including certificate template and subject fie
 | `endpoints[].entra_client_secret` | Entra client secret                             |
 | `checkouts[].secrets`             | Checkout password versions on a managed account |
 
-`target-domain-create` and `target-domain-update` still accept a bind password and an Entra client secret as write-only input. `target-domain-managed-account-checkout` is the tool that returns a password.
+`target-domain-create` and `target-domain-update` still accept a bind password and an Entra client secret as write-only input. On update, omitting either secret keeps the stored value for the matching endpoint. `target-domain-managed-account-checkout` is the tool that returns a password.
 
 ## Connections
 

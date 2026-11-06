@@ -27,7 +27,7 @@ The server creates this client at startup from the four `api_*` credentials:
 
 The client is authenticated with API credentials, but anonymous with respect to the end user. PrivX can tell which configured client ID was used and see the originating host, but requests made through this connection are not attributed to a PrivX user.
 
-The server uses it to find the PrivX user matching the verified OAuth identity and to resolve that user's roles and permissions, which determine the tools the user may see and call. Results are cached for `permissions.session_cache_ttl`, and a tool-call deny from that cache can trigger a throttled role refresh (`permissions.refresh_cooldown`). See [User-level security](../security/user_level_security.md#caching).
+The server uses it to find the PrivX user matching the verified OAuth identity and to resolve that user's roles and permissions, which determine the tools the user may see and call. A match and a lookup that finds no user are both cached for `permissions.session_cache_ttl`. A tool-call deny from a cached match can trigger a throttled role refresh (`permissions.refresh_cooldown`). See [User-level security](../security/user_level_security.md#caching).
 
 The API client is backed by a specific PrivX role and limited to that role's permissions. If user or permission resolution fails, check that the role holds the required permissions.
 

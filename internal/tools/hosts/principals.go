@@ -54,3 +54,53 @@ func ResolvePrincipals(raw []any, connector restapi.Connector) ([]hoststore.Host
 
 	return principals, nil
 }
+
+// preserveStoredPrincipalFields copies account settings that host-update does
+// not accept from stored principals onto replacements with the same principal
+// name. Roles and the name come from the replacement. Each stored principal
+// is used at most once, in order, so duplicate names stay paired with the
+// account they already belonged to. A name that is not already on the host
+// starts without those settings.
+func preserveStoredPrincipalFields(stored, next []hoststore.HostPrincipals) {
+	if len(stored) == 0 || len(next) == 0 {
+		return
+	}
+
+	used := make(map[int]struct{}, len(stored))
+	for i := range next {
+		src := matchStoredPrincipal(stored, used, next[i].Principal)
+		if src < 0 {
+			continue
+		}
+
+		used[src] = struct{}{}
+		copyStoredPrincipalFields(&next[i], stored[src])
+	}
+}
+
+func matchStoredPrincipal(stored []hoststore.HostPrincipals, used map[int]struct{}, name string) int {
+	for i := range stored {
+		if _, ok := used[i]; ok {
+			continue
+		}
+
+		if stored[i].Principal == name {
+			return i
+		}
+	}
+
+	return -1
+}
+
+func copyStoredPrincipalFields(dst *hoststore.HostPrincipals, src hoststore.HostPrincipals) {
+	dst.TargetDomain = src.TargetDomain
+	dst.Passphrase = src.Passphrase
+	dst.Rotate = src.Rotate
+	dst.UseForPasswordRotation = src.UseForPasswordRotation
+	dst.UsernameAttribute = src.UsernameAttribute
+	dst.UseUserAccount = src.UseUserAccount
+	dst.Source = src.Source
+	dst.Applications = src.Applications
+	dst.ServiceOptions = src.ServiceOptions
+	dst.CommandRestrictions = src.CommandRestrictions
+}

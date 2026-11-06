@@ -34,12 +34,14 @@ type Tool struct {
 	RequiredPermissions []string
 	// Trusted marks a tool whose parameters are enumerated server-side and
 	// whose payload the server itself produces (documentation, examples, usage
-	// guidance) rather than reading from PrivX. The runtime exempts such tools
-	// from boundary hardening: no sanitizing, no response word filter, and no
-	// security envelope, because that text may legitimately read as guidance.
-	// PrivX-sourced strings embedded in a trusted payload must be checked by
-	// the tool itself (see security.PrepareStrings). Checkout is the exception:
-	// its password and the other checkout fields are returned as PrivX sent them.
+	// guidance) rather than reading from PrivX. The runtime exempts a successful
+	// result from boundary hardening: no sanitizing, no response word filter,
+	// and no security envelope, because that text may legitimately read as
+	// guidance. Error text is still sanitized. The word filter and envelope
+	// stay off for that text. PrivX-sourced strings embedded in a trusted
+	// payload must be checked by the tool itself (see security.PrepareStrings).
+	// Checkout is the exception: its password and the other checkout fields are
+	// returned as PrivX sent them.
 	Trusted bool
 	// Sensitive marks a tool that can surface secrets, credentials, or raw
 	// keystroke/session content captured from PrivX (for example reconstructed

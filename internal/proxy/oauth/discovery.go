@@ -114,6 +114,15 @@ func Discover(ctx context.Context, client *http.Client, mcpURL string, cfgScopes
 		return Result{}, fmt.Errorf("protected resource metadata is missing resource")
 	}
 
+	// RFC 9728 §3.3: resource must be the protected-resource identifier the client requested.
+	if prm.Resource != mcpURL {
+		return Result{}, fmt.Errorf(
+			"protected resource metadata resource %q does not match MCP URL %q",
+			prm.Resource,
+			mcpURL,
+		)
+	}
+
 	if len(prm.AuthorizationServers) == 0 {
 		return Result{}, fmt.Errorf("protected resource metadata is missing authorization_servers")
 	}
@@ -235,8 +244,11 @@ func fetchASMetadata(ctx context.Context, client *http.Client, issuer string, al
 			continue
 		}
 
-		if strings.TrimSpace(as.Issuer) == "" {
-			as.Issuer = issuer
+		// RFC 8414 §3.3: issuer must be the identifier used to build this well-known URL.
+		if err := validateIssuer(as.Issuer, issuer); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", raw, err))
+
+			continue
 		}
 
 		return as, nil
@@ -247,6 +259,23 @@ func fetchASMetadata(ctx context.Context, client *http.Client, issuer string, al
 	}
 
 	return asMetadata{}, fmt.Errorf("authorization server metadata not found for %s", issuer)
+}
+
+func validateIssuer(got, want string) error {
+	if strings.TrimSpace(got) == "" {
+		return fmt.Errorf("missing issuer")
+	}
+
+	if !issuersEqual(got, want) {
+		return fmt.Errorf("issuer %q does not match authorization server %q", strings.TrimSpace(got), want)
+	}
+
+	return nil
+}
+
+// issuersEqual compares issuer identifiers, ignoring one trailing slash.
+func issuersEqual(a, b string) bool {
+	return strings.TrimSuffix(strings.TrimSpace(a), "/") == strings.TrimSuffix(strings.TrimSpace(b), "/")
 }
 
 func validateASEndpoints(as asMetadata, allowHTTP bool) error {

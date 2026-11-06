@@ -67,6 +67,7 @@ type tomlConfig struct {
 
 	OAuth struct {
 		IssuerURL    string   `toml:"issuer_url"`
+		AllowHTTP    bool     `toml:"allow_http"`
 		Scopes       []string `toml:"scopes"`
 		JWKSURI      string   `toml:"jwks_uri"`
 		Audience     string   `toml:"audience"`
@@ -107,7 +108,10 @@ func LoadConfig(path string) (*Config, error) {
 
 	cfg := tomlToConfig(&tc)
 	applyDefaults(cfg, meta)
-	applyEnvOverrides(cfg)
+
+	if err := applyEnvOverrides(cfg); err != nil {
+		return nil, err
+	}
 
 	if err := validate(cfg); err != nil {
 		return nil, err
@@ -178,6 +182,7 @@ func tomlToConfig(tc *tomlConfig) *Config {
 		},
 		OAuth: OAuthConfig{
 			IssuerURL:           tc.OAuth.IssuerURL,
+			AllowHTTP:           tc.OAuth.AllowHTTP,
 			Scopes:              tc.OAuth.Scopes,
 			JWKSURI:             tc.OAuth.JWKSURI,
 			ExpectedAudience:    tc.OAuth.Audience,

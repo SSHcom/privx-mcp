@@ -117,14 +117,14 @@ Much of what PrivX stores is text somebody typed: host comments, role descriptio
 
 The server treats everything from PrivX, and everything a client sends in, as untrusted text:
 
-- Invisible characters are stripped on the way in and on the way out, except the secret values named in [Invisible characters](#invisible-characters).
-- In a successful tool response, words from the [response word filter](#response-word-filter) are overwritten with `[redacted]`.
+- Invisible characters are stripped on the way in and on the way out, including error messages, except the secret values named in [Invisible characters](#invisible-characters).
+- In a successful tool response, and in an error message from a tool that does not skip the filter, words from the [response word filter](#response-word-filter) are overwritten with `[redacted]`.
 - Tool inputs are sanitized and then passed through.
-- Create and update tools reject the call when any value contains the string `[redacted]`, including tools that skip word replacement. This keeps a filtered response from being written back into PrivX by accident.
+- Create and update tools, and `request-set-decision`, reject the call when any value contains the string `[redacted]`, including tools that skip word replacement. This keeps a filtered response from being written back into PrivX by accident.
 
 ### Response word filter
 
-`[permissions].response_filter` is a list of words. When one of those words appears in a successful tool response, that word is replaced with `[redacted]`.
+`[permissions].response_filter` is a list of words. When one of those words appears in a successful tool response or in an error message, that word is replaced with `[redacted]`. Tools that skip word replacement on a successful response also skip it on an error.
 
 - Empty or omitted means the response text is left unchanged. There is no built-in list.
 - The example configuration lists shell and network commands: `sudo`, `chmod`, `chown`, `curl`, `wget`, `ping`, `nslookup`, `sh`, `cmd`, `exec`, `eval`. An operator can add any other word.
@@ -155,14 +155,16 @@ Every successful response is wrapped so the model is told, in the response itsel
 }
 ```
 
-The payload keeps its fields and pagination and only moves under `data`. Non-JSON responses become a plain `data` string. Error messages are sent as-is, without the envelope.
+The payload keeps its fields and pagination and only moves under `data`. Non-JSON responses become a plain `data` string. Error messages are not wrapped. They are stripped of invisible characters, and tools that use the word filter have those words replaced in the error text too.
 
 ### Trusted tools
 
-Two tools are trusted, which means they skip invisible-character stripping, the word filter, and the envelope:
+Two tools are trusted, which means a successful response skips invisible-character stripping, the word filter, and the envelope:
 
 - `mcp-info`, because its documentation and example JSON are server-generated. It still sanitizes PrivX-sourced names (the caller and role names) and replaces words from the response filter in those names.
 - `target-domain-managed-account-checkout`, because the password must pass through unchanged: replacing characters would return the wrong password. It returns the password and the other checkout fields as PrivX sent them.
+
+Error text from a trusted tool is still stripped of invisible characters. The word filter stays off for those errors, and the message is not wrapped. The checkout password is returned only on success, which remains unchanged.
 
 ### Sensitive data tools
 
@@ -226,12 +228,13 @@ Every string in tool parameters and responses is stripped of invisible character
 - right-to-left overrides
 - control characters
 - exotic whitespace
+- invisible combining marks, such as the combining grapheme joiner and variation selectors
 
 These characters therefore cannot split a configured word: a zero-width space inside `sudo` still matches `sudo` when that word is in the response filter. Line breaks, tabs, and ordinary international text (`käyttäjä`) stay. Homoglyphs, such as Cyrillic `а` against Latin `a`, are a known gap.
 
 Secret values that must round-trip unchanged are left as they are. On `user-secret-create` and `user-secret-update`, the `data` object is stored as given, and on `user-secret-get` and `user-secret-list` it is returned as PrivX sent it, including every nested string (`items[].data` on a list page). On `target-domain-create` and `target-domain-update`, `ldap_bind_password` and `entra_client_secret` are stored as given. Those two fields are removed from target-domain reads, so they are not returned. Other strings on those tools are still stripped. `target-domain-managed-account-checkout` skips this strip for its whole result, because it is a trusted tool.
 
-The response word filter runs after this strip, and only on successful tool responses, see [Prompt injection hardening](#prompt-injection-hardening). Create and update tools reject any parameter value that contains `[redacted]` after the same strip. A verbatim secret value is checked as given, without that strip.
+The response word filter runs after this strip, on successful tool responses and on error messages, see [Prompt injection hardening](#prompt-injection-hardening). Tools that skip the filter on success also skip it on errors. Create and update tools, and `request-set-decision`, reject any parameter value that contains `[redacted]` after the same strip. A verbatim secret value is checked as given, without that strip.
 
 ## SQL injection
 

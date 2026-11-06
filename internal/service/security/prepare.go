@@ -25,6 +25,13 @@ func ContainsRedacted(v any) bool {
 	return false
 }
 
+// PrepareString strips hidden characters from s, then replaces whole words
+// from filter. An empty filter only sanitizes. The filter runs second so a
+// removed mark cannot split a word.
+func PrepareString(filter Filter, s string) string {
+	return prepareString(filter, s)
+}
+
 // PrepareStrings sanitizes the given strings in place and replaces whole words
 // from filter. It exists for trusted payloads (see registry.Tool.Trusted) that
 // still embed individual PrivX-sourced strings, which the runtime no longer
@@ -35,7 +42,7 @@ func PrepareStrings(filter Filter, values ...*string) {
 			continue
 		}
 
-		*value = filter.Redact(Sanitize(*value))
+		*value = PrepareString(filter, *value)
 	}
 }
 
@@ -72,6 +79,12 @@ func PrepareResponseExcept(v any, filter Filter, paths []string) any {
 	return walk(v, filter, splitPaths(paths))
 }
 
+// prepareString strips hidden characters, then applies the word filter.
+// The filter has to run second so a removed mark cannot split a word.
+func prepareString(filter Filter, s string) string {
+	return filter.Redact(Sanitize(s))
+}
+
 func walk(v any, filter Filter, keep [][]string) any {
 	if kept(keep) {
 		return v
@@ -79,7 +92,7 @@ func walk(v any, filter Filter, keep [][]string) any {
 
 	switch value := v.(type) {
 	case string:
-		return filter.Redact(Sanitize(value))
+		return prepareString(filter, value)
 	case map[string]any:
 		for key, element := range value {
 			next := narrow(keep, key)

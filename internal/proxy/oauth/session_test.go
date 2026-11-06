@@ -187,6 +187,86 @@ func TestMCPHTTP_InvalidGrantDeletesTokens(t *testing.T) {
 	}
 }
 
+func TestMCPHTTP_SecondSessionKeepsRefreshedTokens(t *testing.T) {
+	t.Parallel()
+
+	env := newRefreshEnv(t, refreshOpts{
+		initialAccess:      "old-at",
+		expiresIn:          time.Hour,
+		accept:             "new-at",
+		rejectStaleRefresh: true,
+	})
+
+	cfg := testClientConfig()
+	cfg.MCPURL = env.mcp.URL
+	tok := store.Tokens{
+		AccessToken:  env.initialAccess,
+		RefreshToken: "old-rt",
+		ExpiresAt:    time.Now().Add(env.expiresIn),
+	}
+	other, err := NewSession(SessionParams{
+		HTTP:   env.http,
+		Config: cfg,
+		Discovered: Result{
+			Resource:      env.mcp.URL,
+			TokenEndpoint: env.tokenURL,
+		},
+		Tokens:  tok,
+		AuthDir: env.dir,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+
+	errs := make(chan error, 2)
+
+	for _, sess := range []*Session{env.sess, other} {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			res, err := remote.Connect(context.Background(), remote.Params{
+				HTTP:   MCPHTTP(env.http, sess),
+				MCPURL: env.mcp.URL,
+			})
+			if err != nil {
+				errs <- err
+
+				return
+			}
+
+			if len(res.ToolNames) != 1 || res.ToolNames[0] != "echo" {
+				errs <- fmt.Errorf("tools = %#v", res.ToolNames)
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if env.tokenPosts.Load() != 1 {
+		t.Fatalf("token posts = %d", env.tokenPosts.Load())
+	}
+
+	stored, err := store.Load(env.dir, env.key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stored.AccessToken != "new-at" || stored.RefreshToken != "new-rt" {
+		t.Fatalf("stored = %+v", stored)
+	}
+}
+
 func TestMCPHTTP_EphemeralLeavesTokenFile(t *testing.T) {
 	t.Parallel()
 
@@ -266,14 +346,15 @@ func TestMCPHTTP_RefreshPostOmitsMCPBearer(t *testing.T) {
 }
 
 type refreshOpts struct {
-	initialAccess string
-	expiresIn     time.Duration
-	accept        string
-	invalidGrant  bool
-	always401     bool
-	ephemeral     bool
-	delay401      time.Duration
-	delayToken    time.Duration
+	initialAccess      string
+	expiresIn          time.Duration
+	accept             string
+	invalidGrant       bool
+	rejectStaleRefresh bool
+	always401          bool
+	ephemeral          bool
+	delay401           time.Duration
+	delayToken         time.Duration
 }
 
 type refreshEnv struct {
@@ -283,9 +364,11 @@ type refreshEnv struct {
 	mcp               *httptest.Server
 	dir               string
 	key               string
+	tokenURL          string
 	tokenPosts        atomic.Int32
 	sawOldBearer      atomic.Bool
 	tokenSawMCPBearer atomic.Bool
+	seenRefresh       sync.Map
 }
 
 func newRefreshEnv(t *testing.T, cfg refreshOpts) *refreshEnv {
@@ -314,7 +397,7 @@ func newRefreshEnv(t *testing.T, cfg refreshOpts) *refreshEnv {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		if env.invalidGrant {
+		if env.invalidGrant || env.reuseRejected(form.Get("refresh_token")) {
 			w.WriteHeader(http.StatusBadRequest)
 			_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid_grant"})
 
@@ -328,6 +411,8 @@ func newRefreshEnv(t *testing.T, cfg refreshOpts) *refreshEnv {
 		})
 	}))
 	t.Cleanup(tokenSrv.Close)
+
+	env.tokenURL = tokenSrv.URL
 
 	fake := &refreshMCP{
 		env: env,
@@ -371,6 +456,16 @@ func newRefreshEnv(t *testing.T, cfg refreshOpts) *refreshEnv {
 	env.key = key
 
 	return env
+}
+
+func (e *refreshEnv) reuseRejected(refreshToken string) bool {
+	if !e.rejectStaleRefresh || refreshToken == "" {
+		return false
+	}
+
+	_, loaded := e.seenRefresh.LoadOrStore(refreshToken, struct{}{})
+
+	return loaded
 }
 
 type refreshMCP struct {

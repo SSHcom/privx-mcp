@@ -162,6 +162,10 @@ func validate(cfg *Config) error {
 		if err := m2mJWTMustBeEmpty(cfg); err != nil {
 			return err
 		}
+
+		if err := validateOAuthHTTPURLs(cfg); err != nil {
+			return err
+		}
 	case "m2m":
 		if len(cfg.Server.M2MIdentityMapper) == 0 {
 			return fmt.Errorf("server.m2m_identity_mapper is required when server.auth_mode is m2m")
@@ -207,6 +211,25 @@ func validate(cfg *Config) error {
 func PublicURLIsHTTPS(raw string) bool {
 	u, err := url.Parse(raw)
 	return err == nil && strings.EqualFold(u.Scheme, "https") && u.Hostname() != ""
+}
+
+func validateOAuthHTTPURLs(cfg *Config) error {
+	cfg.OAuth.IssuerURL = strings.TrimSpace(cfg.OAuth.IssuerURL)
+	cfg.OAuth.JWKSURI = strings.TrimSpace(cfg.OAuth.JWKSURI)
+
+	if _, err := utils.RequireHTTPURL(cfg.OAuth.IssuerURL, cfg.OAuth.AllowHTTP); err != nil {
+		return fmt.Errorf("oauth.issuer_url: %w", err)
+	}
+
+	if cfg.OAuth.JWKSURI == "" {
+		return nil
+	}
+
+	if _, err := utils.RequireHTTPURL(cfg.OAuth.JWKSURI, cfg.OAuth.AllowHTTP); err != nil {
+		return fmt.Errorf("oauth.jwks_uri: %w", err)
+	}
+
+	return nil
 }
 
 func oauthFieldsSetInM2M(cfg *Config) error {

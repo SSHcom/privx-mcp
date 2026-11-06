@@ -26,7 +26,7 @@ func (c *Core) createToolHandler(tool registry.Tool) mcp.ToolHandler {
 			security.PrepareExcept(params, tool.Verbatim)
 		}
 
-		if isCreateOrUpdate(tool.Name) && security.ContainsRedacted(params) {
+		if rejectsRedactedMarker(tool.Name) && security.ContainsRedacted(params) {
 			return errorCallResult(`invalid tool arguments: "[redacted]" is not allowed in a value`), nil
 		}
 
@@ -138,7 +138,10 @@ func toolTitle(name string) string {
 // word-filtered, and wrapped in the security envelope. Sensitive tools and
 // tools named whitelist-* are sanitized and wrapped, but not word-filtered.
 // Paths listed on registry.Tool.Verbatim are left unchanged in either
-// direction. Error results are always delivered as plain text.
+// direction. Error results stay plain text. They are sanitized, and
+// word-filtered under the same rules as a successful payload. A trusted tool
+// still skips the word filter on an error; the error text is sanitized anyway,
+// because it is not the checkout secret or the server-written documentation.
 func toCallToolResult(result *registry.ToolResult, tool registry.Tool, filter security.Filter) *mcp.CallToolResult {
 	if result == nil {
 		return textCallResult("")
@@ -150,7 +153,7 @@ func toCallToolResult(result *registry.ToolResult, tool registry.Tool, filter se
 			msg = result.Content[0].Text
 		}
 
-		return errorCallResult(msg)
+		return errorCallResult(prepareErrorText(msg, tool, filter))
 	}
 
 	if len(result.Content) == 0 {
@@ -193,6 +196,18 @@ func errorCallResult(text string) *mcp.CallToolResult {
 	}
 }
 
+// prepareErrorText applies the outbound string filters to an error message.
+// Every error is sanitized. The word filter runs only for tools whose
+// successful payloads are word-filtered. Trusted, sensitive, and whitelist-*
+// tools keep the words and lose only the hidden characters.
+func prepareErrorText(text string, tool registry.Tool, filter security.Filter) string {
+	if tool.Trusted || skipResponseFilter(tool) {
+		return security.Sanitize(text)
+	}
+
+	return security.PrepareString(filter, text)
+}
+
 // secureText sanitizes a successful tool payload and wraps it in the security
 // envelope. Whole words from filter are replaced unless the tool is sensitive
 // or named whitelist-*. Paths listed on tool.Verbatim are not sanitized and
@@ -225,10 +240,13 @@ func skipResponseFilter(tool registry.Tool) bool {
 	return tool.Sensitive || strings.HasPrefix(tool.Name, "whitelist-")
 }
 
-// isCreateOrUpdate matches tools that write caller text into PrivX.
+// rejectsRedactedMarker matches tools that write caller text into PrivX.
 // user-create-local and user-update-local contain the same substrings.
-func isCreateOrUpdate(name string) bool {
-	return strings.Contains(name, "-create") || strings.Contains(name, "-update")
+// request-set-decision stores a free-text comment but has neither substring.
+func rejectsRedactedMarker(name string) bool {
+	return strings.Contains(name, "-create") ||
+		strings.Contains(name, "-update") ||
+		name == "request-set-decision"
 }
 
 // RecoverMiddleware turns a panicking handler into a generic error result so a

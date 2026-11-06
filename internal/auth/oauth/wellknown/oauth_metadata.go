@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // OAuthMetadataURL is the RFC 8414 endpoint for authorization server metadata.
@@ -25,6 +27,10 @@ type OAuthMetadataConfig struct {
 	// non-empty scope in their authorization request. Entra ID v2 rejects
 	// authorize/token requests that omit the scope parameter (AADSTS900144).
 	Scopes []string
+
+	// AllowHTTP permits a non-loopback http upstream issuer. When false, plain
+	// HTTP is limited to localhost and loopback addresses.
+	AllowHTTP bool
 }
 
 // RegisterOAuthMetadata mounts a /.well-known/oauth-authorization-server
@@ -49,7 +55,7 @@ func RegisterOAuthMetadata(mux *http.ServeMux, cfg OAuthMetadataConfig) error {
 			return
 		}
 
-		metadata, err := fetchUpstreamMetadata(r.Context(), cfg.UpstreamIssuerURL)
+		metadata, err := fetchUpstreamMetadata(r.Context(), cfg.UpstreamIssuerURL, cfg.AllowHTTP)
 		if err != nil {
 			http.Error(w, "failed to fetch upstream metadata", http.StatusBadGateway)
 			return
@@ -99,7 +105,7 @@ func RegisterOAuthMetadata(mux *http.ServeMux, cfg OAuthMetadataConfig) error {
 	return nil
 }
 
-func fetchUpstreamMetadata(ctx context.Context, issuerURL string) (map[string]any, error) {
+func fetchUpstreamMetadata(ctx context.Context, issuerURL string, allowHTTP bool) (map[string]any, error) {
 	// Build discovery URL candidates. For Azure v1 issuers
 	// (sts.windows.net/{tenant}) we also try the v2 discovery endpoint
 	// (login.microsoftonline.com/{tenant}/v2.0) because MCP clients like
@@ -109,13 +115,19 @@ func fetchUpstreamMetadata(ctx context.Context, issuerURL string) (map[string]an
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
+	client := utils.NewHTTPClient(allowHTTP)
+
 	for _, url := range urls {
+		if _, err := utils.RequireHTTPURL(url, allowHTTP); err != nil {
+			continue
+		}
+
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 		if err != nil {
 			continue
 		}
 
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := client.Do(req)
 		if err != nil {
 			continue
 		}

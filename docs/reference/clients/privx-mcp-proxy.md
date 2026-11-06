@@ -174,7 +174,7 @@ Logs go to **stderr** by default, or to `log_file` when that TOML field is set. 
 
 - The first connection may open a browser. Later starts reuse the stored tokens.
 - The access token is refreshed whenever a refresh token is available. A running proxy does not reopen the browser.
-- If the IdP rejects a refresh token with `invalid_grant`, the proxy deletes the token file. Restart the proxy from the client to log in again.
+- If the IdP rejects a refresh token with `invalid_grant`, the proxy deletes the token file when it still holds that refresh token. A file another proxy has already replaced is left alone. Restart the proxy from the client to log in again.
 - If a remote `/mcp` session returns 404, the proxy reconnects and retries that `tools/call` once.
 - A changed remote tool list is not pushed to the client. Restart the proxy from the client to fetch a new `tools/list`.
 

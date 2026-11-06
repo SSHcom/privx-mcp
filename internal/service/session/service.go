@@ -20,12 +20,15 @@ var ErrIssuerSubjectRequired = errors.New("issuer and subject are required")
 var ErrIssuerSubjectChanged = errors.New("issuer or subject changed")
 
 // CachedUserContext is the resolved PrivX user context stored per identity.
+// NotFound is a completed lookup that matched no PrivX user. It uses the same
+// TTL as a successful entry so a later request does not read the directory again.
 type CachedUserContext struct {
 	UserID          string
 	ResolvedRoles   *rolestore.User
 	ConnectorUserID string
 	Issuer          string
 	Subject         string
+	NotFound        bool
 }
 
 type issuerSubjectBinding struct {
@@ -261,6 +264,7 @@ func cloneCachedUserContext(value CachedUserContext) CachedUserContext {
 		ConnectorUserID: strings.TrimSpace(value.ConnectorUserID),
 		Issuer:          strings.TrimSpace(value.Issuer),
 		Subject:         strings.TrimSpace(value.Subject),
+		NotFound:        value.NotFound,
 	}
 }
 

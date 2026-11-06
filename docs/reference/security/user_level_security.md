@@ -72,7 +72,7 @@ In practice, choose the directory that the PrivX external connection is configur
 
 ### Caching
 
-Resolved user and permission context is cached for `permissions.session_cache_ttl`, default 30 seconds, which avoids looking up PrivX for every tool in a list request or every rapid tool call. Set the TTL to `0` to disable caching.
+Resolved user and permission context is cached for `permissions.session_cache_ttl`, default 30 seconds, which avoids looking up PrivX for every tool in a list request or every rapid tool call. A lookup that matches no PrivX user is cached for the same TTL, so `tools/list` and `tools/call` skip the directory read until it expires. A PrivX error is not cached. Set the TTL to `0` to disable caching.
 
 When a tool call is denied because the **cached** roles lack a required scope, the server drops that entry, re-fetches roles from PrivX, and retries. Refresh is throttled by `permissions.refresh_cooldown`, default 1 minute, and `0` disables it. A deny that already came from a fresh PrivX lookup is not fetched again.
 

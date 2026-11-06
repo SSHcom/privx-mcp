@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
@@ -20,6 +21,7 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/service/security"
 	"github.com/pmsshintegration/privx-mcp/internal/service/session"
 	"github.com/pmsshintegration/privx-mcp/internal/tools"
+	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 var connectWithAPICredentials = privx.ConnectWithAPICredentials
@@ -109,6 +111,7 @@ func NewServerFromConfig(cfg *config.Config) (*http.Server, func(), error) {
 					PublicURL:         cfg.Server.PublicURL,
 					UpstreamIssuerURL: cfg.OAuth.IssuerURL,
 					Scopes:            cfg.OAuth.Scopes,
+					AllowHTTP:         cfg.OAuth.AllowHTTP,
 				})
 			},
 		)
@@ -197,7 +200,7 @@ func buildIdentityVerifier(cfg *config.Config) (identityVerifier, error) {
 
 	provider := cfg.OAuth
 
-	issuerURL, jwksURI, err := resolveVerifierEndpoints(provider.IssuerURL, provider.JWKSURI)
+	issuerURL, jwksURI, err := resolveVerifierEndpoints(provider.IssuerURL, provider.JWKSURI, provider.AllowHTTP)
 	if err != nil {
 		return nil, err
 	}
@@ -207,21 +210,30 @@ func buildIdentityVerifier(cfg *config.Config) (identityVerifier, error) {
 		ExpectedIssuer:   issuerURL,
 		ExpectedAudience: provider.ExpectedAudience,
 		CacheTTL:         provider.JWKSCacheTTL,
+		AllowHTTP:        provider.AllowHTTP,
 	})
 }
 
-func resolveVerifierEndpoints(issuerURL, jwksURI string) (string, string, error) {
+func resolveVerifierEndpoints(issuerURL, jwksURI string, allowHTTP bool) (string, string, error) {
+	if strings.TrimSpace(issuerURL) == "" {
+		return "", "", fmt.Errorf("oauth.issuer_url is required")
+	}
+
+	if _, err := utils.RequireHTTPURL(issuerURL, allowHTTP); err != nil {
+		return "", "", fmt.Errorf("oauth.issuer_url: %w", err)
+	}
+
 	if jwksURI != "" {
+		if _, err := utils.RequireHTTPURL(jwksURI, allowHTTP); err != nil {
+			return "", "", fmt.Errorf("oauth.jwks_uri: %w", err)
+		}
+
 		return issuerURL, jwksURI, nil
 	}
 
-	discoveredIssuer, discoveredJWKS, err := discoverJWKSURI(issuerURL)
+	discoveredJWKS, err := discoverJWKSURI(issuerURL, allowHTTP)
 	if err != nil {
 		return "", "", err
-	}
-
-	if discoveredIssuer != "" {
-		issuerURL = discoveredIssuer
 	}
 
 	return issuerURL, discoveredJWKS, nil
@@ -273,18 +285,18 @@ func logSensitiveDataTools(cfg *config.Config) {
 	)
 }
 
-func discoverJWKSURI(issuerURL string) (string, string, error) {
-	if issuerURL == "" {
-		return "", "", fmt.Errorf("oauth.issuer_url is required")
+func discoverJWKSURI(issuerURL string, allowHTTP bool) (string, error) {
+	if strings.TrimSpace(issuerURL) == "" {
+		return "", fmt.Errorf("oauth.issuer_url is required")
 	}
 
 	discoveryCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	discoveryDoc, err := oauth.NewHTTPDiscoveryClient(nil).Fetch(discoveryCtx, issuerURL)
+	discoveryDoc, err := oauth.NewHTTPDiscoveryClient(nil, allowHTTP).Fetch(discoveryCtx, issuerURL)
 	if err != nil {
-		return "", "", fmt.Errorf("fetch provider discovery document: %w", err)
+		return "", fmt.Errorf("fetch provider discovery document: %w", err)
 	}
 
-	return discoveryDoc.Issuer, discoveryDoc.JWKSURI, nil
+	return discoveryDoc.JWKSURI, nil
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/pmsshintegration/privx-mcp/internal/service/jwtcheck"
 	"github.com/pmsshintegration/privx-mcp/internal/service/logging"
+	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // IdentityTokenVerifier verifies external OIDC identity tokens.
@@ -43,6 +44,24 @@ type JWKSTokenVerifierConfig struct {
 	ExpectedIssuer   string
 	ExpectedAudience string
 	CacheTTL         time.Duration
+	// AllowHTTP permits a non-loopback http JWKS URL. When false, plain HTTP
+	// is limited to localhost and loopback addresses.
+	AllowHTTP bool
+}
+
+// allowedSigningAlgorithms are the asymmetric JWS algorithms OIDC providers sign with.
+// HMAC and none are excluded: the token header chooses the method, and those do not use the provider's public key.
+var allowedSigningAlgorithms = []string{
+	jwt.SigningMethodRS256.Alg(),
+	jwt.SigningMethodRS384.Alg(),
+	jwt.SigningMethodRS512.Alg(),
+	jwt.SigningMethodPS256.Alg(),
+	jwt.SigningMethodPS384.Alg(),
+	jwt.SigningMethodPS512.Alg(),
+	jwt.SigningMethodES256.Alg(),
+	jwt.SigningMethodES384.Alg(),
+	jwt.SigningMethodES512.Alg(),
+	jwt.SigningMethodEdDSA.Alg(),
 }
 
 // JWKSTokenVerifier verifies identity tokens using keys from a JWKS endpoint.
@@ -66,12 +85,17 @@ func NewJWKSTokenVerifier(cfg JWKSTokenVerifierConfig) (*JWKSTokenVerifier, erro
 		return nil, fmt.Errorf("expected audience is required")
 	}
 
+	if _, err := utils.RequireHTTPURL(cfg.JWKSURI, cfg.AllowHTTP); err != nil {
+		return nil, fmt.Errorf("JWKS URI: %w", err)
+	}
+
 	refreshInterval := cfg.CacheTTL
 	if refreshInterval == 0 {
 		refreshInterval = 1 * time.Hour
 	}
 
 	options := keyfunc.Options{
+		Client:          utils.NewHTTPClient(cfg.AllowHTTP),
 		RefreshInterval: refreshInterval,
 		RefreshErrorHandler: func(err error) {
 			logging.Warn(
@@ -96,7 +120,12 @@ func NewJWKSTokenVerifier(cfg JWKSTokenVerifierConfig) (*JWKSTokenVerifier, erro
 
 // Verify checks the JWT signature, then expiry, issuer, audience, and claims.
 func (v *JWKSTokenVerifier) Verify(_ context.Context, rawToken string) (*IdentityClaims, error) {
-	token, err := jwt.Parse(rawToken, v.jwks.Keyfunc, jwt.WithoutClaimsValidation())
+	token, err := jwt.Parse(
+		rawToken,
+		v.jwks.Keyfunc,
+		jwt.WithoutClaimsValidation(),
+		jwt.WithValidMethods(allowedSigningAlgorithms),
+	)
 	if err != nil {
 		authErr := v.classifyError(err)
 		v.logTokenTiming(rawToken, authErr)

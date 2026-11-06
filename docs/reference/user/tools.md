@@ -163,7 +163,7 @@ Compact fields: `id`, `type`, `mode`, `status`, `user`, `target_host`, `target_h
 | `target-domain-managed-account-rotate`   | Start a password rotation. The new password is absent from the result.                                           | Write | `target-domains-manage` |
 | `target-domain-managed-account-checkout` | Check out the latest password of one managed account under the given target domain.                              | Write | `target-domains-manage` |
 
-List and get omit bind passwords, Entra client secrets, and checkout password versions, including when `raw` is set or the caller names those fields. `target-domain-account-search` returns id, username, full_name, email, state, and ignored unless `fields` or `raw` is set. On create and update, `ldap_bind_password` and `entra_client_secret` are stored as given; invisible-character stripping does not apply to those two fields.
+List and get omit bind passwords, Entra client secrets, and checkout password versions, including when `raw` is set or the caller names those fields. `target-domain-account-search` returns id, username, full_name, email, state, and ignored unless `fields` or `raw` is set. On create and update, `ldap_bind_password` and `entra_client_secret` are stored as given; invisible-character stripping does not apply to those two fields. On update, an endpoints array replaces the endpoint list, and an omitted or empty bind password or Entra client secret keeps the stored secret for the matching endpoint.
 
 `target-domain-managed-account-checkout` is Trusted because it returns the password, which must pass through unchanged. The handler still checks every other string in that result. See [Trusted tools](../security/security.md#trusted-tools).
 
