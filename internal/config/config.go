@@ -109,7 +109,7 @@ type PermissionsConfig struct {
 	// ResponseFilter lists whole words replaced with [redacted] in successful
 	// tool responses. Matching is case-insensitive. Empty means no replacement.
 	// Tools named whitelist-* and tools marked Sensitive are not filtered.
-	// Create and update tools reject any value containing [redacted].
+	// Create and update tools, and request-set-decision, reject any value containing [redacted].
 	ResponseFilter  []string
 	SessionCacheTTL time.Duration
 	// RefreshCooldown is the minimum interval between on-deny PrivX role
@@ -153,6 +153,9 @@ type PermissionsConfig struct {
 // (formerly the [dcr] section) are merged into this section.
 type OAuthConfig struct {
 	IssuerURL string // OIDC discovery base URL; also the expected iss claim in tokens
+	// AllowHTTP permits non-loopback http for issuer_url and jwks_uri.
+	// When false, plain HTTP is limited to localhost and loopback addresses.
+	AllowHTTP bool
 	// ExpectedAudience is the expected audience (aud claim) of bearer JWTs sent
 	// to /mcp.
 	Scopes           []string      // optional compatibility hint for client scopes; not used for token verification

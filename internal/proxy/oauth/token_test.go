@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 )
@@ -162,6 +163,26 @@ func TestRefreshTokens_SuccessAndInvalidGrant(t *testing.T) {
 	_, err = refreshTokens(context.Background(), srv.Client(), srv.URL, auth, "bad", "http://mcp/mcp")
 	if !errors.Is(err, ErrInvalidGrant) {
 		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestTokenRequestRejectsPlainHTTP(t *testing.T) {
+	t.Parallel()
+
+	_, err := tokenRequest(
+		context.Background(),
+		NewHTTPClient(false),
+		"http://203.0.113.10/token",
+		clientAuth{
+			ClientID:                "proxy",
+			ClientSecret:            "s3cret",
+			TokenEndpointAuthMethod: "client_secret_post",
+		},
+		url.Values{"grant_type": []string{"authorization_code"}},
+		time.Now(),
+	)
+	if err == nil || !strings.Contains(err.Error(), "allow_http is false") {
+		t.Fatalf("error = %v", err)
 	}
 }
 

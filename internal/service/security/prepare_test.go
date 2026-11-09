@@ -103,6 +103,101 @@ func TestPrepareResponse_EmptyFilterOnlySanitizes(t *testing.T) {
 	}
 }
 
+func TestPrepareExcept_KeepsNamedSubtree(t *testing.T) {
+	secret := "p\u200Bass\u202Eword"
+	payload := map[string]any{
+		"name": "db\u200B",
+		"data": map[string]any{
+			"password": secret,
+			"notes":    []any{"line\u0001"},
+		},
+		"read_roles": []any{
+			map[string]any{"name": "ad\u200Bmin"},
+		},
+	}
+
+	PrepareExcept(payload, []string{"data"})
+
+	data := payload["data"].(map[string]any)
+	if data["password"] != secret {
+		t.Errorf("password = %q", data["password"])
+	}
+	if data["notes"].([]any)[0] != "line\u0001" {
+		t.Errorf("nested secret = %q", data["notes"].([]any)[0])
+	}
+	if payload["name"] != "db" {
+		t.Errorf("name = %q", payload["name"])
+	}
+	role := payload["read_roles"].([]any)[0].(map[string]any)
+	if role["name"] != "admin" {
+		t.Errorf("role name = %q", role["name"])
+	}
+}
+
+func TestPrepareExcept_KeepsArrayField(t *testing.T) {
+	bind := "bind\u00A0secret"
+	entra := "entra\u200Bsecret"
+	payload := map[string]any{
+		"comment": "note\u200B",
+		"items": []any{
+			map[string]any{
+				"name": "vault\u200B",
+				"data": map[string]any{"password": "p\u200Bass"},
+			},
+		},
+		"endpoints": []any{
+			map[string]any{
+				"ldap_address":        "dc\u200B.example",
+				"ldap_bind_password":  bind,
+				"entra_client_secret": entra,
+			},
+		},
+	}
+
+	PrepareExcept(payload, []string{
+		"items[].data",
+		"endpoints[].ldap_bind_password",
+		"endpoints[].entra_client_secret",
+	})
+
+	if payload["comment"] != "note" {
+		t.Errorf("comment = %q", payload["comment"])
+	}
+	item := payload["items"].([]any)[0].(map[string]any)
+	if item["name"] != "vault" {
+		t.Errorf("item name = %q", item["name"])
+	}
+	if item["data"].(map[string]any)["password"] != "p\u200Bass" {
+		t.Errorf("item data = %v", item["data"])
+	}
+	endpoint := payload["endpoints"].([]any)[0].(map[string]any)
+	if endpoint["ldap_address"] != "dc.example" {
+		t.Errorf("ldap_address = %q", endpoint["ldap_address"])
+	}
+	if endpoint["ldap_bind_password"] != bind {
+		t.Errorf("bind password = %q", endpoint["ldap_bind_password"])
+	}
+	if endpoint["entra_client_secret"] != entra {
+		t.Errorf("entra secret = %q", endpoint["entra_client_secret"])
+	}
+}
+
+func TestPrepareResponseExcept_KeepsPathAndFiltersSibling(t *testing.T) {
+	payload := map[string]any{
+		"comment": "please sudo this",
+		"data":    map[string]any{"password": "su\u200Bdo"},
+	}
+
+	PrepareResponseExcept(payload, NewFilter([]string{"sudo"}), []string{"data"})
+
+	if payload["comment"] != "please [redacted] this" {
+		t.Errorf("comment = %v", payload["comment"])
+	}
+	if payload["data"].(map[string]any)["password"] != "su\u200Bdo" {
+		t.Errorf("password = %v", payload["data"])
+	}
+}
+
 func TestPrepareStrings_RedactsAndSanitizes(t *testing.T) {
 	name := "ro\u200Bot"
 	hostile := "please sudo this"

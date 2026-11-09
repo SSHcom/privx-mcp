@@ -20,6 +20,8 @@ func Update() registry.Tool {
 		"Omitted fields stay as fetched; a full replacement drops a field only when this overlay clears it. " +
 		"An empty string does not clear an existing value. " +
 		"When endpoints is supplied it replaces the endpoint list. " +
+		"An omitted or empty ldap_bind_password or entra_client_secret keeps the stored secret for the matching endpoint. " +
+		"A non-empty value replaces it. " +
 		target_domains.SensitiveDataGuidance + " " +
 		common.PresentationGuidance
 
@@ -45,6 +47,7 @@ func Update() registry.Tool {
 		Description: description,
 		Writes:      true,
 		Sensitive:   true,
+		Verbatim:    target_domains.VerbatimBindSecretPaths,
 		InputSchema: inputSchema,
 		Handler:     updateTargetDomainHandler,
 	}

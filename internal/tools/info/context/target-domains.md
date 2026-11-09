@@ -10,7 +10,7 @@ A managed account has rotation on or off, a password policy, and optional explic
 
 `target-domain-managed-account-checkout` returns the latest password for the account under the named domain only. Pass the domain id and either the account id or a username containing `@`. It works only when explicit checkout is on and the account is already added to a host with a role. With a rotate-on-release policy, releasing the last checkout rotates the password again. Call it only from a client allowed to see secrets, and keep the password out of logs, tickets, and chat.
 
-Password-free login is configured on the host with `host-create` or `host-update` (`hosts-manage`): the host account's `target_domain` names the domain. Those tools accept only `principal` and `roles` per principal, and sending `principals` rebuilds every account, so a stored `target_domain` is dropped. Leave such host accounts unchanged until the hosts tools accept `target_domain`.
+Password-free login is configured on the host with `host-create` or `host-update` (`hosts-manage`): the host account's `target_domain` names the domain. Those tools accept only `principal` and `roles` per principal. `host-update` keeps a stored `target_domain` and other account settings the tool does not accept when the principal name is unchanged. A new principal name starts without those settings, and `host-create` cannot set `target_domain`.
 
 Keep accounts that people use to sign in to PrivX itself outside the scanned subtree, so rotation cannot change their passwords.
 

@@ -334,12 +334,170 @@ func TestDiscoverUsesRFC8414WhenOIDCIncomplete(t *testing.T) {
 	}
 }
 
+func TestDiscoverRejectsFileResourceMetadata(t *testing.T) {
+	t.Parallel()
+
+	f := &discoveryFixture{
+		challenge: `Bearer resource_metadata="file://localhost/etc/passwd"`,
+	}
+	srv := startDiscoveryServer(t, f)
+
+	_, err := discover(t, srv.URL+"/mcp", nil)
+	if err == nil || !strings.Contains(err.Error(), "http or https") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDiscoverRejectsFileAuthorizationServer(t *testing.T) {
+	t.Parallel()
+
+	f := &discoveryFixture{}
+	srv := startDiscoveryServer(t, f)
+	f.prm = func(base string) map[string]any {
+		return map[string]any{
+			"resource":              base + "/mcp",
+			"authorization_servers": []string{"file://localhost/etc/passwd"},
+		}
+	}
+
+	_, err := discover(t, srv.URL+"/mcp", nil)
+	if err == nil || !strings.Contains(err.Error(), "http or https") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDiscoverRejectsFileAuthorizationEndpoint(t *testing.T) {
+	t.Parallel()
+
+	f := &discoveryFixture{
+		oidc: map[string]any{
+			"issuer":                 "https://idp.example",
+			"authorization_endpoint": "file://localhost/etc/passwd",
+			"token_endpoint":         "https://idp.example/token",
+		},
+		oauthAS: map[string]any{
+			"issuer":                 "https://idp.example",
+			"authorization_endpoint": "file://localhost/etc/passwd",
+			"token_endpoint":         "https://idp.example/token",
+		},
+	}
+	srv := startDiscoveryServer(t, f)
+
+	_, err := discover(t, srv.URL+"/mcp", nil)
+	if err == nil || !strings.Contains(err.Error(), "authorization_endpoint") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDiscoverRejectsPlainHTTPTokenEndpoint(t *testing.T) {
+	t.Parallel()
+
+	plain := map[string]any{
+		"issuer":                 "https://idp.example",
+		"authorization_endpoint": "https://idp.example/authorize",
+		"token_endpoint":         "http://idp.example/token",
+	}
+	f := &discoveryFixture{oidc: plain, oauthAS: plain}
+	srv := startDiscoveryServer(t, f)
+
+	_, err := discover(t, srv.URL+"/mcp", nil)
+	if err == nil || !strings.Contains(err.Error(), "allow_http is false") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDiscoverRejectsPlainHTTPResourceMetadata(t *testing.T) {
+	t.Parallel()
+
+	f := &discoveryFixture{
+		challenge: `Bearer resource_metadata="http://idp.example/.well-known/oauth-protected-resource"`,
+	}
+	srv := startDiscoveryServer(t, f)
+
+	_, err := discover(t, srv.URL+"/mcp", nil)
+	if err == nil || !strings.Contains(err.Error(), "allow_http is false") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestDiscoverNilClient(t *testing.T) {
 	t.Parallel()
 
 	_, err := Discover(context.Background(), nil, "https://example.example/mcp", nil, false)
 	if err == nil {
 		t.Fatal("error = nil")
+	}
+}
+
+func TestDiscoverRejectsResourceMismatch(t *testing.T) {
+	t.Parallel()
+
+	f := &discoveryFixture{}
+	srv := startDiscoveryServer(t, f)
+	f.prm = func(base string) map[string]any {
+		return map[string]any{
+			"resource":              "https://evil.example/mcp",
+			"authorization_servers": []string{base},
+		}
+	}
+
+	_, err := discover(t, srv.URL+"/mcp", nil)
+	if err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDiscoverRejectsIssuerMismatch(t *testing.T) {
+	t.Parallel()
+
+	mismatched := map[string]any{
+		"issuer":                 "https://idp.example",
+		"authorization_endpoint": "https://idp.example/authorize",
+		"token_endpoint":         "https://idp.example/token",
+	}
+	f := &discoveryFixture{oidc: mismatched, oauthAS: mismatched}
+	srv := startDiscoveryServer(t, f)
+
+	_, err := discover(t, srv.URL+"/mcp", nil)
+	if err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDiscoverRejectsMissingIssuer(t *testing.T) {
+	t.Parallel()
+
+	doc := map[string]any{
+		"authorization_endpoint": "https://idp.example/authorize",
+		"token_endpoint":         "https://idp.example/token",
+	}
+	f := &discoveryFixture{oidc: doc, oauthAS: doc}
+	srv := startDiscoveryServer(t, f)
+
+	_, err := discover(t, srv.URL+"/mcp", nil)
+	if err == nil || !strings.Contains(err.Error(), "missing issuer") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestDiscoverAcceptsIssuerTrailingSlash(t *testing.T) {
+	t.Parallel()
+
+	f := &discoveryFixture{}
+	srv := startDiscoveryServer(t, f)
+	f.oidc = map[string]any{
+		"issuer":                 srv.URL + "/",
+		"authorization_endpoint": srv.URL + "/authorize",
+		"token_endpoint":         srv.URL + "/token",
+	}
+
+	got, err := discover(t, srv.URL+"/mcp", nil)
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+
+	if got.AuthorizationServer != srv.URL {
+		t.Fatalf("authorization_server = %q", got.AuthorizationServer)
 	}
 }
 

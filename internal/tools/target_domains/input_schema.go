@@ -96,6 +96,7 @@ func endpointItemSchema() *registry.OrderedMap {
 			"type": "string",
 			"description": "LDAP bind password. Required when creating an AD/LDAP endpoint; " +
 				"PrivX rejects the create when it is missing. " +
+				"On update, omit it or send an empty string to keep the stored password. " +
 				"The value is stored and will not be returned by " +
 				"target-domain-list or target-domain-get.",
 		}).
@@ -125,7 +126,8 @@ func endpointItemSchema() *registry.OrderedMap {
 		}).
 		Set("entra_client_secret", map[string]any{
 			"type": "string",
-			"description": "Entra client secret. The value is stored and will not be returned by " +
+			"description": "Entra client secret. On update, omit it or send an empty string to keep the stored secret. " +
+				"The value is stored and will not be returned by " +
 				"target-domain-list or target-domain-get.",
 		}).
 		Set("entra_batch_size", map[string]any{

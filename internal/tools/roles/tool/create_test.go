@@ -95,6 +95,55 @@ func TestCreateRoleHandler_BadTags(t *testing.T) {
 	}
 }
 
+func TestCreateRoleHandler_ContextApplied(t *testing.T) {
+	conn := testconn.New(t)
+	conn.Handle("POST", "/role-store/api/v1/roles", func(body any) (any, error) {
+		raw, _ := json.Marshal(body)
+		var role rolestore.Role
+		if err := json.Unmarshal(raw, &role); err != nil {
+			t.Fatalf("unmarshal role: %v", err)
+		}
+		if !role.Context.Enabled || role.Context.TimeZone != "UTC" {
+			t.Errorf("context = %+v", role.Context)
+		}
+		if len(role.Context.IPMasks) != 1 || role.Context.IPMasks[0] != "10.0.0.0/8" {
+			t.Errorf("ip_masks = %v", role.Context.IPMasks)
+		}
+		return response.Identifier{ID: "new-role-id"}, nil
+	})
+
+	res, err := createRoleHandler(testconn.CtxWithAuth(conn), map[string]any{
+		"name": "ops",
+		"context": map[string]any{
+			"enabled":  true,
+			"timezone": "UTC",
+			"ip_masks": []any{"10.0.0.0/8"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("unexpected error: %s", res.Content[0].Text)
+	}
+}
+
+func TestCreateRoleHandler_BadContext(t *testing.T) {
+	conn := testconn.New(t)
+	res, err := createRoleHandler(testconn.CtxWithAuth(conn), map[string]any{
+		"name": "ops",
+		"context": map[string]any{
+			"ip_masks": "10.0.0.0/8",
+		},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !res.IsError || !strings.Contains(res.Content[0].Text, "context.ip_masks") {
+		t.Errorf("got %q", res.Content[0].Text)
+	}
+}
+
 func TestCreateRoleHandler_CreateFails(t *testing.T) {
 	conn := testconn.New(t)
 	conn.Handle("POST", "/role-store/api/v1/roles", func(body any) (any, error) {

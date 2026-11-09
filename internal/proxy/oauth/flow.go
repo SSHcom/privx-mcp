@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/pmsshintegration/privx-mcp/internal/proxy/config"
+	"github.com/pmsshintegration/privx-mcp/internal/proxy/httpx"
 	"github.com/pmsshintegration/privx-mcp/internal/proxy/store"
 )
 
@@ -80,34 +81,95 @@ func Obtain(ctx context.Context, p ObtainParams) (store.Tokens, error) {
 	}
 
 	if err == nil && tok.RefreshToken != "" {
-		refreshed, rerr := refreshTokens(
-			ctx,
-			p.HTTP,
-			p.Discovered.TokenEndpoint,
-			auth,
-			tok.RefreshToken,
-			p.Discovered.Resource,
-		)
+		refreshed, reused, rerr := refreshStored(ctx, refreshStoredParams{
+			HTTP:     p.HTTP,
+			TokenURL: p.Discovered.TokenEndpoint,
+			Auth:     auth,
+			Resource: p.Discovered.Resource,
+			Dir:      dir,
+			Key:      key,
+			Now:      now,
+		})
 		if rerr == nil {
-			if err := store.Save(dir, key, refreshed); err != nil {
-				return store.Tokens{}, err
+			if reused {
+				slog.Info("using stored oauth tokens", "expires_at", refreshed.ExpiresAt.Format(time.RFC3339))
+			} else {
+				slog.Info("oauth token refresh complete", "expires_at", refreshed.ExpiresAt.Format(time.RFC3339))
 			}
-
-			slog.Info("oauth token refresh complete", "expires_at", refreshed.ExpiresAt.Format(time.RFC3339))
 
 			return refreshed, nil
-		}
-
-		if errors.Is(rerr, ErrInvalidGrant) {
-			if delErr := store.Delete(dir, key); delErr != nil {
-				slog.Warn("failed to delete invalid stored tokens", "err", delErr)
-			}
 		}
 
 		slog.Warn("oauth token refresh failed; starting browser flow", "err", rerr)
 	}
 
 	return interactive(ctx, p, dir, key, auth)
+}
+
+type refreshStoredParams struct {
+	HTTP     *http.Client
+	TokenURL string
+	Auth     clientAuth
+	Resource string
+	Dir      string
+	Key      string
+	Now      func() time.Time
+}
+
+// refreshStored reloads the token file under the shared lock, refreshes when
+// it is still stale, and deletes it only when the rejected refresh token is
+// still the one stored.
+func refreshStored(ctx context.Context, p refreshStoredParams) (store.Tokens, bool, error) {
+	var (
+		out    store.Tokens
+		reused bool
+	)
+
+	err := store.WithLock(p.Dir, p.Key, func() error {
+		tok, err := store.Load(p.Dir, p.Key)
+		if err != nil {
+			return err
+		}
+
+		if tok.Usable(p.Now()) {
+			out = tok
+			reused = true
+
+			return nil
+		}
+
+		if tok.RefreshToken == "" {
+			return fmt.Errorf("stored oauth tokens have no refresh token")
+		}
+
+		refreshed, rerr := refreshTokens(
+			ctx,
+			p.HTTP,
+			p.TokenURL,
+			p.Auth,
+			tok.RefreshToken,
+			p.Resource,
+		)
+		if rerr != nil {
+			if errors.Is(rerr, ErrInvalidGrant) {
+				if delErr := store.DeleteIfRefreshToken(p.Dir, p.Key, tok.RefreshToken); delErr != nil {
+					slog.Warn("failed to delete invalid stored tokens", "err", delErr)
+				}
+			}
+
+			return rerr
+		}
+
+		if err := store.Save(p.Dir, p.Key, refreshed); err != nil {
+			return err
+		}
+
+		out = refreshed
+
+		return nil
+	})
+
+	return out, reused, err
 }
 
 func interactive(
@@ -190,7 +252,9 @@ func interactive(
 		return tok, nil
 	}
 
-	if err := store.Save(dir, key, tok); err != nil {
+	if err := store.WithLock(dir, key, func() error {
+		return store.Save(dir, key, tok)
+	}); err != nil {
 		return store.Tokens{}, err
 	}
 
@@ -214,8 +278,8 @@ func authorizeURL(p authorizeParams) (string, error) {
 		return "", fmt.Errorf("authorization_endpoint is not a valid absolute URL: %w", err)
 	}
 
-	if u.Scheme == "" || u.Host == "" {
-		return "", fmt.Errorf("authorization_endpoint is not a valid absolute URL")
+	if !httpx.AbsoluteHTTP(u) {
+		return "", fmt.Errorf("authorization_endpoint must be an absolute http or https URL")
 	}
 
 	q := u.Query()

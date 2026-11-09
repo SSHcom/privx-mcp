@@ -48,7 +48,7 @@ Which tools a caller actually sees depends on their current PrivX roles. When th
 | Type              | Parameters                                | Description                                    |
 | ----------------- | ----------------------------------------- | ---------------------------------------------- |
 | `PERMANENT`       | (none)                                    | Role is always active                          |
-| `FLOATING`        | `floating_length` (seconds)               | Role activates on use, expires after N seconds |
+| `FLOATING`        | `floating_length` (hours, 1 to 8760)      | Role activates on use, expires after N hours   |
 | `TIME_RESTRICTED` | `valid_from`, `valid_until` (RFC3339 UTC) | Role active only within time window            |
 
 Time format examples: `"2025-01-15T09:00:00Z"`, `"2025-06-30T17:00:00+02:00"`.
@@ -163,7 +163,7 @@ Compact fields: `id`, `type`, `mode`, `status`, `user`, `target_host`, `target_h
 | `target-domain-managed-account-rotate`   | Start a password rotation. The new password is absent from the result.                                           | Write | `target-domains-manage` |
 | `target-domain-managed-account-checkout` | Check out the latest password of one managed account under the given target domain.                              | Write | `target-domains-manage` |
 
-List and get omit bind passwords, Entra client secrets, and checkout password versions, including when `raw` is set or the caller names those fields. `target-domain-account-search` returns id, username, full_name, email, state, and ignored unless `fields` or `raw` is set.
+List and get omit bind passwords, Entra client secrets, and checkout password versions, including when `raw` is set or the caller names those fields. `target-domain-account-search` returns id, username, full_name, email, state, and ignored unless `fields` or `raw` is set. On create and update, `ldap_bind_password` and `entra_client_secret` are stored as given; invisible-character stripping does not apply to those two fields. On update, an endpoints array replaces the endpoint list, and an omitted or empty bind password or Entra client secret keeps the stored secret for the matching endpoint.
 
 `target-domain-managed-account-checkout` is Trusted because it returns the password, which must pass through unchanged. The handler still checks every other string in that result. See [Trusted tools](../security/security.md#trusted-tools).
 
@@ -179,7 +179,7 @@ Every tool in this topic is sensitive. Each one is registered only when `[permis
 | `user-secret-update` | Full replacement after overlay. Fetch the current secret, then replace `data`, `read_roles`, and `write_roles` when those arguments are set. | Write | `vault-manage` |
 | `user-secret-delete` | Delete a secret by name. Omit `user_id` for a global secret. | Write | `vault-manage` |
 
-Omit `user_id` to call the global vault API. With `user_id` the call is personal and `owner_id` is that user. Create and update accept `name`, `data`, `read_roles`, and `write_roles`. Role objects keep `id` and an optional `name`. Update fetches the current secret and replaces only the fields that were sent.
+Omit `user_id` to call the global vault API. With `user_id` the call is personal and `owner_id` is that user. Create and update accept `name`, `data`, `read_roles`, and `write_roles`. Role objects keep `id` and an optional `name`. Update fetches the current secret and replaces only the fields that were sent. `data`, including every nested string, is stored and returned unchanged; invisible-character stripping does not apply to it.
 
 Every tool in this topic is sensitive. Each one is registered only when `[permissions].enable_sensitive_data_tools` is set, and by default only a privx-admin can call it. See [Sensitive data tools](../security/security.md#sensitive-data-tools).
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strings"
 	"testing"
 	"time"
 )
@@ -15,19 +16,25 @@ func TestApplyOAuthEnvOverrides(t *testing.T) {
 	t.Setenv("OAUTH_ID_CLAIM_FIELD", "email")
 	t.Setenv("OAUTH_ID_MAPPING_RULE", "as-is")
 	t.Setenv("OAUTH_ISSUER_URL", "https://login.example.com")
+	t.Setenv("OAUTH_ALLOW_HTTP", "true")
 	t.Setenv("OAUTH_SCOPES", "openid,profile,email")
 	t.Setenv("OAUTH_AUDIENCE", "api://mcp-audience")
 	t.Setenv("OAUTH_DCR_STUB_CLIENT_ID", "dcr-client-id")
 	t.Setenv("OAUTH_DCR_STUB_CLIENT_SECRET", "dcr-client-secret")
 
 	cfg := &Config{}
-	applyEnvOverrides(cfg)
+	if err := applyEnvOverrides(cfg); err != nil {
+		t.Fatal(err)
+	}
 
 	if cfg.Server.PublicURL != "https://mcp.example.com" {
 		t.Fatalf("public_url mismatch: %q", cfg.Server.PublicURL)
 	}
 	if cfg.OAuth.IssuerURL != "https://login.example.com" {
 		t.Fatalf("issuer mismatch: %q", cfg.OAuth.IssuerURL)
+	}
+	if !cfg.OAuth.AllowHTTP {
+		t.Fatal("AllowHTTP = false, want true")
 	}
 	if cfg.OAuth.IdentityClaimField != "email" {
 		t.Fatalf("claim_field mismatch: %q", cfg.OAuth.IdentityClaimField)
@@ -90,6 +97,23 @@ func TestValidateOAuth_RequiresProviderFields(t *testing.T) {
 	if err := validate(cfg); err != nil {
 		t.Fatalf("unexpected validation error: %v", err)
 	}
+
+	cfg.OAuth.IssuerURL = "http://idp.example/realms/mcp"
+	if err := validate(cfg); err == nil || !strings.Contains(err.Error(), "allow_http is false") {
+		t.Fatalf("non-loopback issuer error = %v", err)
+	}
+
+	cfg.OAuth.AllowHTTP = true
+	if err := validate(cfg); err != nil {
+		t.Fatalf("allow_http issuer error = %v", err)
+	}
+
+	cfg.OAuth.AllowHTTP = false
+	cfg.OAuth.IssuerURL = "http://127.0.0.1:8080/realms/mcp"
+	cfg.OAuth.JWKSURI = "http://localhost:8080/jwks"
+	if err := validate(cfg); err != nil {
+		t.Fatalf("loopback http error = %v", err)
+	}
 }
 
 func TestApplyTLSAndRSAFileEnvOverrides(t *testing.T) {
@@ -101,7 +125,9 @@ func TestApplyTLSAndRSAFileEnvOverrides(t *testing.T) {
 	t.Setenv("PRIVX_RSA_PUBLIC_KEY_FILE", "/path/to/public-key.pem")
 
 	cfg := &Config{}
-	applyEnvOverrides(cfg)
+	if err := applyEnvOverrides(cfg); err != nil {
+		t.Fatal(err)
+	}
 
 	if cfg.Server.TLSCertFile != "/path/to/mcp-tls-cert.pem" {
 		t.Fatalf("tls_cert_file mismatch: %q", cfg.Server.TLSCertFile)
@@ -127,7 +153,9 @@ func TestApplyPermissionsSourceTypeEnvOverrides(t *testing.T) {
 	t.Setenv("PERMISSIONS_SOURCE_TYPE", "MICROSOFTGRAPH")
 
 	cfg := &Config{}
-	applyEnvOverrides(cfg)
+	if err := applyEnvOverrides(cfg); err != nil {
+		t.Fatal(err)
+	}
 
 	if cfg.Permissions.SourceType != "MICROSOFTGRAPH" {
 		t.Fatalf("expected source_type override, got %q", cfg.Permissions.SourceType)
@@ -138,7 +166,9 @@ func TestApplyPermissionsWhitelistEnvOverrides(t *testing.T) {
 	t.Setenv("PERMISSIONS_WHITELIST", "host-, user-,test-")
 
 	cfg := &Config{}
-	applyEnvOverrides(cfg)
+	if err := applyEnvOverrides(cfg); err != nil {
+		t.Fatal(err)
+	}
 
 	if len(cfg.Permissions.Whitelist) != 3 {
 		t.Fatalf("expected 3 prefixes, got %d", len(cfg.Permissions.Whitelist))
@@ -152,7 +182,9 @@ func TestApplyPermissionsBlacklistEnvOverrides(t *testing.T) {
 	t.Setenv("PERMISSIONS_BLACKLIST", "host-delete, user-delete-")
 
 	cfg := &Config{}
-	applyEnvOverrides(cfg)
+	if err := applyEnvOverrides(cfg); err != nil {
+		t.Fatal(err)
+	}
 
 	if len(cfg.Permissions.Blacklist) != 2 {
 		t.Fatalf("expected 2 prefixes, got %d", len(cfg.Permissions.Blacklist))
@@ -166,7 +198,9 @@ func TestApplyPermissionsResponseFilterEnvOverrides(t *testing.T) {
 	t.Setenv("PERMISSIONS_RESPONSE_FILTER", "sudo, sh ,chmod")
 
 	cfg := &Config{}
-	applyEnvOverrides(cfg)
+	if err := applyEnvOverrides(cfg); err != nil {
+		t.Fatal(err)
+	}
 
 	if len(cfg.Permissions.ResponseFilter) != 3 {
 		t.Fatalf("expected 3 terms, got %d", len(cfg.Permissions.ResponseFilter))
@@ -180,7 +214,9 @@ func TestApplyPermissionsSessionCacheTTLEnvOverrides(t *testing.T) {
 	t.Setenv("PERMISSIONS_SESSION_CACHE_TTL", "2m")
 
 	cfg := &Config{}
-	applyEnvOverrides(cfg)
+	if err := applyEnvOverrides(cfg); err != nil {
+		t.Fatal(err)
+	}
 
 	if cfg.Permissions.SessionCacheTTL != 2*time.Minute {
 		t.Fatalf("expected session cache ttl override, got %v", cfg.Permissions.SessionCacheTTL)
@@ -191,7 +227,9 @@ func TestApplyPermissionsRefreshCooldownEnvOverrides(t *testing.T) {
 	t.Setenv("PERMISSIONS_REFRESH_COOLDOWN", "45s")
 
 	cfg := &Config{}
-	applyEnvOverrides(cfg)
+	if err := applyEnvOverrides(cfg); err != nil {
+		t.Fatal(err)
+	}
 
 	if cfg.Permissions.RefreshCooldown != 45*time.Second {
 		t.Fatalf("expected refresh cooldown override, got %v", cfg.Permissions.RefreshCooldown)
@@ -204,7 +242,9 @@ func TestApplyPermissionsRateLimitEnvOverrides(t *testing.T) {
 	t.Setenv("PERMISSIONS_MAXED_WINDOW_WAIT_SECONDS", "12")
 
 	cfg := &Config{}
-	applyEnvOverrides(cfg)
+	if err := applyEnvOverrides(cfg); err != nil {
+		t.Fatal(err)
+	}
 
 	if cfg.Permissions.RequestWindowSeconds != 90 {
 		t.Fatalf("expected request window seconds override, got %d", cfg.Permissions.RequestWindowSeconds)
@@ -215,4 +255,49 @@ func TestApplyPermissionsRateLimitEnvOverrides(t *testing.T) {
 	if cfg.Permissions.MaxedWindowWaitSeconds != 12 {
 		t.Fatalf("expected maxed window wait seconds override, got %d", cfg.Permissions.MaxedWindowWaitSeconds)
 	}
+}
+
+func TestApplyPermissionsDefaultReadOnlyEnv(t *testing.T) {
+	// Same answers as permissions.default_read_only = true in the config file.
+	for _, value := range []string{"true", "TRUE", " yes ", "Yes", "on", "1"} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv("PERMISSIONS_DEFAULT_READ_ONLY", value)
+
+			cfg := &Config{}
+			if err := applyEnvOverrides(cfg); err != nil {
+				t.Fatal(err)
+			}
+			if !cfg.Permissions.DefaultReadOnly {
+				t.Fatalf("%q left read-only off", value)
+			}
+		})
+	}
+
+	// Same answers as permissions.default_read_only = false.
+	for _, value := range []string{"false", "no", "off", "0"} {
+		t.Run(value, func(t *testing.T) {
+			t.Setenv("PERMISSIONS_DEFAULT_READ_ONLY", value)
+
+			cfg := &Config{Permissions: PermissionsConfig{DefaultReadOnly: true}}
+			if err := applyEnvOverrides(cfg); err != nil {
+				t.Fatal(err)
+			}
+			if cfg.Permissions.DefaultReadOnly {
+				t.Fatalf("%q left read-only on", value)
+			}
+		})
+	}
+
+	t.Run("invalid", func(t *testing.T) {
+		t.Setenv("PERMISSIONS_DEFAULT_READ_ONLY", "maybe")
+
+		cfg := &Config{Permissions: PermissionsConfig{DefaultReadOnly: true}}
+		err := applyEnvOverrides(cfg)
+		if err == nil {
+			t.Fatal("expected error")
+		}
+		if !cfg.Permissions.DefaultReadOnly {
+			t.Fatal("invalid value turned read-only off")
+		}
+	})
 }

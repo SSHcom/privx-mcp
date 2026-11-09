@@ -7,6 +7,7 @@ import (
 
 	"github.com/SSHcom/privx-sdk-go/v2/api/hoststore"
 	"github.com/SSHcom/privx-sdk-go/v2/api/response"
+	"github.com/SSHcom/privx-sdk-go/v2/api/secretsmanager"
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
 	"github.com/pmsshintegration/privx-mcp/internal/testutil/testconn"
 )
@@ -248,6 +249,138 @@ func TestPatchHost_PrincipalsWithRoleResolution(t *testing.T) {
 	}
 	if len(h.Principals[0].Roles) != 1 || h.Principals[0].Roles[0].ID != "r1" {
 		t.Errorf("roles = %+v", h.Principals[0].Roles)
+	}
+}
+
+func TestPatchHost_PrincipalsKeepStoredSettings(t *testing.T) {
+	conn := testconn.New(t)
+	conn.Handle("POST", "/role-store/api/v1/roles/resolve", func(body any) (any, error) {
+		return response.ResultSet[testconn.RolestoreRole]{Items: []testconn.RolestoreRole{{ID: "r2", Name: "ops"}}}, nil
+	})
+
+	root := hoststore.HostPrincipals{
+		Principal:              "root",
+		Roles:                  []hoststore.HostRole{{ID: "r1", Name: "admin"}},
+		Passphrase:             "secret",
+		Rotate:                 true,
+		UseForPasswordRotation: true,
+		UsernameAttribute:      "sAMAccountName",
+		UseUserAccount:         true,
+		Source:                 "UI",
+		Applications:           []hoststore.HostPrincipalApplications{{Name: "app", Application: "notepad"}},
+		ServiceOptions: &hoststore.HostServiceOptions{
+			SSHServiceOptions: &hoststore.SSHServiceOptions{Shell: true, FileTransfer: true},
+		},
+		TargetDomain: &secretsmanager.TargetDomainHandle{ID: "td-1", Name: "corp"},
+		CommandRestrictions: hoststore.HostCommandRestrictions{
+			Enabled:          true,
+			DefaultWhiteList: hoststore.WhiteListHandle{ID: "wl-1", Name: "default"},
+			WhiteLists: []hoststore.WhiteListGrant{{
+				WhiteList: hoststore.WhiteListHandle{ID: "wl-2", Name: "ops"},
+				Roles:     []hoststore.HostRole{{ID: "r1", Name: "admin"}},
+			}},
+		},
+	}
+	ubuntu := hoststore.HostPrincipals{
+		Principal: "ubuntu",
+		CommandRestrictions: hoststore.HostCommandRestrictions{
+			Enabled:          true,
+			DefaultWhiteList: hoststore.WhiteListHandle{ID: "wl-ubuntu"},
+		},
+	}
+	h := &hoststore.Host{Principals: []hoststore.HostPrincipals{root, ubuntu}}
+
+	err := PatchHost(h, map[string]any{
+		"principals": []any{
+			map[string]any{"principal": "ubuntu", "roles": []any{"ops"}},
+			map[string]any{"principal": "root", "roles": []any{"ops"}},
+			map[string]any{"principal": "newbie", "roles": []any{"ops"}},
+		},
+	}, &auth.AuthContext{Connector: conn})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if len(h.Principals) != 3 {
+		t.Fatalf("principals = %+v", h.Principals)
+	}
+
+	gotUbuntu := h.Principals[0]
+	if gotUbuntu.Principal != "ubuntu" || gotUbuntu.CommandRestrictions.DefaultWhiteList.ID != "wl-ubuntu" {
+		t.Errorf("ubuntu restrictions = %+v", gotUbuntu.CommandRestrictions)
+	}
+	if len(gotUbuntu.Roles) != 1 || gotUbuntu.Roles[0].ID != "r2" || gotUbuntu.Roles[0].Name != "ops" {
+		t.Errorf("ubuntu roles = %+v", gotUbuntu.Roles)
+	}
+
+	gotRoot := h.Principals[1]
+	if gotRoot.Principal != "root" {
+		t.Fatalf("principal[1] = %q", gotRoot.Principal)
+	}
+	if len(gotRoot.Roles) != 1 || gotRoot.Roles[0].ID != "r2" {
+		t.Errorf("root roles = %+v, want replaced", gotRoot.Roles)
+	}
+	if gotRoot.Passphrase != "secret" || !gotRoot.Rotate || !gotRoot.UseForPasswordRotation {
+		t.Errorf("root secrets/rotation = %+v", gotRoot)
+	}
+	if gotRoot.UsernameAttribute != "sAMAccountName" || !gotRoot.UseUserAccount || gotRoot.Source != "UI" {
+		t.Errorf("root identity settings = %+v", gotRoot)
+	}
+	if gotRoot.TargetDomain == nil || gotRoot.TargetDomain.ID != "td-1" {
+		t.Errorf("target domain = %+v", gotRoot.TargetDomain)
+	}
+	if gotRoot.ServiceOptions == nil || gotRoot.ServiceOptions.SSHServiceOptions == nil || !gotRoot.ServiceOptions.SSHServiceOptions.Shell {
+		t.Errorf("service options = %+v", gotRoot.ServiceOptions)
+	}
+	if len(gotRoot.Applications) != 1 || gotRoot.Applications[0].Application != "notepad" {
+		t.Errorf("applications = %+v", gotRoot.Applications)
+	}
+	if !gotRoot.CommandRestrictions.Enabled || gotRoot.CommandRestrictions.DefaultWhiteList.ID != "wl-1" {
+		t.Errorf("default whitelist = %+v", gotRoot.CommandRestrictions)
+	}
+	if len(gotRoot.CommandRestrictions.WhiteLists) != 1 || gotRoot.CommandRestrictions.WhiteLists[0].WhiteList.ID != "wl-2" {
+		t.Errorf("whitelists = %+v", gotRoot.CommandRestrictions.WhiteLists)
+	}
+
+	gotNew := h.Principals[2]
+	if gotNew.Principal != "newbie" || gotNew.CommandRestrictions.Enabled || gotNew.Passphrase != "" || gotNew.TargetDomain != nil {
+		t.Errorf("new principal inherited stored settings: %+v", gotNew)
+	}
+}
+
+func TestPatchHost_PrincipalsDuplicateNamesKeepOrder(t *testing.T) {
+	conn := testconn.New(t)
+	conn.Handle("POST", "/role-store/api/v1/roles/resolve", func(body any) (any, error) {
+		return response.ResultSet[testconn.RolestoreRole]{Items: []testconn.RolestoreRole{{ID: "r1", Name: "admin"}}}, nil
+	})
+
+	h := &hoststore.Host{Principals: []hoststore.HostPrincipals{
+		{
+			Principal: "root",
+			CommandRestrictions: hoststore.HostCommandRestrictions{
+				DefaultWhiteList: hoststore.WhiteListHandle{ID: "wl-a"},
+			},
+		},
+		{
+			Principal: "root",
+			CommandRestrictions: hoststore.HostCommandRestrictions{
+				DefaultWhiteList: hoststore.WhiteListHandle{ID: "wl-b"},
+			},
+		},
+	}}
+	err := PatchHost(h, map[string]any{
+		"principals": []any{
+			map[string]any{"principal": "root", "roles": []any{"admin"}},
+			map[string]any{"principal": "root", "roles": []any{"admin"}},
+		},
+	}, &auth.AuthContext{Connector: conn})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if h.Principals[0].CommandRestrictions.DefaultWhiteList.ID != "wl-a" {
+		t.Errorf("first root whitelist = %q", h.Principals[0].CommandRestrictions.DefaultWhiteList.ID)
+	}
+	if h.Principals[1].CommandRestrictions.DefaultWhiteList.ID != "wl-b" {
+		t.Errorf("second root whitelist = %q", h.Principals[1].CommandRestrictions.DefaultWhiteList.ID)
 	}
 }
 

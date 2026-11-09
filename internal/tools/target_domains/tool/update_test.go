@@ -112,6 +112,62 @@ func TestUpdateTargetDomainHandler_ReplacesBindPassword(t *testing.T) {
 	}
 }
 
+func TestUpdateTargetDomainHandler_KeepsOmittedBindPassword(t *testing.T) {
+	conn := testconn.New(t)
+	conn.Handle("GET", "/secrets-manager/api/v1/targetdomains/:id", func(body any) (any, error) {
+		return secretsmanager.TargetDomain{
+			ID:         "td1",
+			Name:       "labssh",
+			DomainName: "labssh.com",
+			EndPoints: []secretsmanager.TargetDomainEndpoint{{
+				Type:              "AD",
+				ScanPriority:      1,
+				LdapAddress:       "dc.example",
+				LdapBindPassword:  "stored-secret",
+				EntraClientSecret: "entra-stored",
+			}},
+		}, nil
+	})
+	conn.Handle("PUT", "/secrets-manager/api/v1/targetdomains/:id", func(body any) (any, error) {
+		raw, _ := json.Marshal(body)
+		var domain secretsmanager.TargetDomain
+		if err := json.Unmarshal(raw, &domain); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		if len(domain.EndPoints) != 1 {
+			t.Fatalf("endpoints = %+v", domain.EndPoints)
+		}
+		ep := domain.EndPoints[0]
+		if ep.LdapAddress != "dc-new.example" ||
+			ep.LdapBindPassword != "stored-secret" ||
+			ep.EntraClientSecret != "entra-stored" {
+			t.Errorf("endpoint = %+v", ep)
+		}
+		return nil, nil
+	})
+
+	res, err := updateTargetDomainHandler(testconn.CtxWithAuth(conn), map[string]any{
+		"id": "td1",
+		"endpoints": []any{
+			map[string]any{
+				"type":              "AD",
+				"scan_priority":     float64(1),
+				"rotation_priority": float64(1),
+				"ldap_address":      "dc-new.example",
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("unexpected error: %s", res.Content[0].Text)
+	}
+	if strings.Contains(res.Content[0].Text, "stored-secret") || strings.Contains(res.Content[0].Text, "entra-stored") {
+		t.Fatalf("result echoed a secret: %s", res.Content[0].Text)
+	}
+}
+
 func TestUpdateTargetDomainHandler_MissingID(t *testing.T) {
 	conn := testconn.New(t)
 	res, err := updateTargetDomainHandler(testconn.CtxWithAuth(conn), map[string]any{})

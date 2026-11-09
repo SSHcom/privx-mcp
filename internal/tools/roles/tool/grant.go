@@ -11,10 +11,15 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
+// maxFloatingLengthHours is one year. PrivX interprets floating_length as hours
+// after the first connection; longer access is a permanent grant.
+const maxFloatingLengthHours = 24 * 365
+
 // Grant returns the grant-role tool definition.
 func Grant() registry.Tool {
 	description := "Grant a PrivX role to a user. Supports permanent grants (no dates), " +
-		"floating grants (floating_length in seconds), and restricted grants (valid_from/valid_until in RFC3339). " +
+		fmt.Sprintf("floating grants (floating_length in hours, 1 to %d), ", maxFloatingLengthHours) +
+		"and restricted grants (valid_from/valid_until in RFC3339). " +
 		"Time format examples: \"2025-01-15T09:00:00Z\", \"2025-06-30T17:00:00+02:00\". " +
 		common.PresentationGuidance
 
@@ -45,7 +50,8 @@ func Grant() registry.Tool {
 		Set("floating_length", map[string]any{
 			"type":        "integer",
 			"minimum":     1,
-			"description": "Duration in hours for floating grants.",
+			"maximum":     maxFloatingLengthHours,
+			"description": fmt.Sprintf("Duration in hours for floating grants (1 to %d).", maxFloatingLengthHours),
 		})
 
 	inputSchema := registry.NewOrderedMap().
@@ -110,8 +116,11 @@ func grantRoleHandler(ctx context.Context, params map[string]any) (*registry.Too
 			return registry.ErrorResult(fmt.Sprintf("validation error: %v", err)), nil
 		}
 
-		if floatingLength < 1 {
-			return registry.ErrorResult("validation error: floating_length is required and must be >= 1 for floating grants (value is in hours)"), nil
+		if floatingLength < 1 || floatingLength > maxFloatingLengthHours {
+			return registry.ErrorResult(fmt.Sprintf(
+				"validation error: floating_length is required and must be from 1 to %d hours for floating grants",
+				maxFloatingLengthHours,
+			)), nil
 		}
 
 		newRole.FloatingLength = int64(floatingLength)

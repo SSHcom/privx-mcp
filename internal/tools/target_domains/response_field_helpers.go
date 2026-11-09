@@ -69,6 +69,13 @@ var (
 		"endpoints[].entra_client_secret",
 		"checkouts[].secrets",
 	}
+
+	// VerbatimBindSecretPaths are directory credentials accepted on create and
+	// update. The runtime leaves these values unsanitized. Reads delete them.
+	VerbatimBindSecretPaths = []string{
+		"endpoints[].ldap_bind_password",
+		"endpoints[].entra_client_secret",
+	}
 )
 
 // Projection is the target-domain and endpoint field sets for list.

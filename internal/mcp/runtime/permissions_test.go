@@ -188,6 +188,79 @@ func TestIsAllowed_CachesMissForSubsequentHit(t *testing.T) {
 	}
 }
 
+func TestResolveUserContext_CachesUserNotFound(t *testing.T) {
+	now := testTimeUTC(t, "2026-07-09T10:00:00Z")
+	cache := session.NewServiceWithClock(30*time.Second, func() time.Time { return now })
+	identity := &oauth.IdentityClaims{
+		Issuer:  "https://issuer.example.com",
+		Subject: "subject-missing",
+		Email:   "missing@example.com",
+	}
+	api := &stubPermissionUserAPI{
+		searchUsersResult: []rolestore.User{
+			{
+				ID:         "user-1",
+				Email:      "alice@example.com",
+				Principal:  "alice",
+				SourceType: "AD",
+			},
+		},
+	}
+	pe := &PermissionEngine{
+		userAPI:        api,
+		sessionService: cache,
+		sessionBaseURL: "https://privx.example.com",
+		sourceType:     "AD",
+	}
+
+	first, err := pe.ResolveUserContext(context.Background(), identity)
+	if err == nil || first != nil {
+		t.Fatalf("expected user not found, got user=%#v err=%v", first, err)
+	}
+
+	second, err := pe.ResolveUserContext(context.Background(), identity)
+	if err == nil || second != nil {
+		t.Fatalf("expected cached user not found, got user=%#v err=%v", second, err)
+	}
+	if api.searchCalls != 1 {
+		t.Fatalf("expected one directory search for a cached miss, got %d", api.searchCalls)
+	}
+
+	now = now.Add(31 * time.Second)
+	if _, err := pe.ResolveUserContext(context.Background(), identity); err == nil {
+		t.Fatal("expected user not found after the cached miss expired")
+	}
+	if api.searchCalls != 2 {
+		t.Fatalf("expected a new directory search after ttl, got %d", api.searchCalls)
+	}
+}
+
+func TestResolveUserContext_DoesNotCacheDirectoryError(t *testing.T) {
+	cache := session.NewService(30 * time.Second)
+	identity := &oauth.IdentityClaims{
+		Issuer:  "https://issuer.example.com",
+		Subject: "subject-1",
+		Email:   "alice@example.com",
+	}
+	api := &stubPermissionUserAPI{searchUsersErr: fmt.Errorf("role store unavailable")}
+	pe := &PermissionEngine{
+		userAPI:        api,
+		sessionService: cache,
+		sessionBaseURL: "https://privx.example.com",
+		sourceType:     "AD",
+	}
+
+	if _, err := pe.ResolveUserContext(context.Background(), identity); err == nil {
+		t.Fatal("expected directory error")
+	}
+	if _, err := pe.ResolveUserContext(context.Background(), identity); err == nil {
+		t.Fatal("expected directory error on retry")
+	}
+	if api.searchCalls != 2 {
+		t.Fatalf("expected each directory error to hit PrivX, got %d", api.searchCalls)
+	}
+}
+
 func TestIsAllowed_CacheMissAfterExpiry(t *testing.T) {
 	now := testTimeUTC(t, "2026-07-09T10:00:00Z")
 	cache := session.NewServiceWithClock(5*time.Second, func() time.Time { return now })
@@ -788,7 +861,7 @@ func TestHasPrivxAdminRole(t *testing.T) {
 	user := &rolestore.User{
 		Roles: []rolestore.Role{
 			{Name: "other-role"},
-			{Name: " PrivX-Admin "},
+			{Name: "privx-admin"},
 		},
 	}
 
@@ -798,14 +871,20 @@ func TestHasPrivxAdminRole(t *testing.T) {
 }
 
 func TestHasPrivxAdminRole_False(t *testing.T) {
-	user := &rolestore.User{
-		Roles: []rolestore.Role{
-			{Name: "privx-user"},
-		},
+	cases := []string{
+		"privx-user",
+		"PrivX-Admin",
+		"PRIVX-ADMIN",
+		" privx-admin ",
 	}
 
-	if hasPrivxAdminRole(user) {
-		t.Fatal("expected non-admin roles to not trigger bypass")
+	for _, name := range cases {
+		user := &rolestore.User{
+			Roles: []rolestore.Role{{Name: name}},
+		}
+		if hasPrivxAdminRole(user) {
+			t.Fatalf("role %q must not trigger the admin bypass", name)
+		}
 	}
 }
 

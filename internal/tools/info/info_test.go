@@ -197,7 +197,7 @@ func TestInfoHandler_ContextAndResources(t *testing.T) {
 	if !strings.Contains(targetDomains, "# Target domains") {
 		t.Fatalf("unexpected target-domains content: %q", targetDomains)
 	}
-	if !strings.Contains(targetDomains, "host-update") || !strings.Contains(targetDomains, "target_domain") || !strings.Contains(targetDomains, "dropped") {
+	if !strings.Contains(targetDomains, "host-update") || !strings.Contains(targetDomains, "target_domain") || !strings.Contains(targetDomains, "keeps a stored") {
 		t.Fatalf("target-domains context missing host-update note: %q", targetDomains)
 	}
 	userSecrets := contextMap["user-secrets"].(string)

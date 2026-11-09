@@ -20,7 +20,7 @@ Any standards-compliant OIDC provider works. The guides above differ only in how
 
 | Requirement          | Config                                                  | Notes                                                                                              |
 | -------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Issuer               | `[oauth].issuer_url`                                    | The discovery document must be reachable from the server, and JWKS is fetched from it.             |
+| Issuer               | `[oauth].issuer_url`                                    | Discovery must return this same issuer. It is the expected `iss` claim. Plain `http://` is limited to loopback unless `[oauth].allow_http` is true. |
 | Audience             | `[oauth].audience`                                      | Must equal the `aud` claim of the access token. Some providers only add it via an explicit mapper. |
 | Identity claim       | `[oauth].identity_claim_field`, `identity_mapping_rule` | Resolves the token to a PrivX principal, for example `email` with `as-is`.                         |
 | Client registrations | at the IdP                                              | One confidential OIDC client per deployment is usually enough for all MCP clients.                 |

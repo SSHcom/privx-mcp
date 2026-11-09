@@ -50,16 +50,13 @@ lives in `internal/auth/oauth/wellknown/protected_resource.go`.
 ### `HTTPDiscoveryClient`
 
 Fetches `{issuer}/.well-known/openid-configuration`. The bootstrap path uses
-it only to read `jwks_uri` (required) and `issuer` (optional normalization).
+it only to read `jwks_uri` (required). The document's `issuer` must match the configured issuer URL, which stays the expected `iss`.
 Used by `buildIdentityVerifier` to auto-resolve the JWKS URI when
 `oauth.jwks_uri` is not set.
 
 ### `IdentityTokenVerifier`
 
-Validates an RS256/ES256 JWT against the provider JWKS. Checks issuer,
-audience, and expiry. Returns `IdentityClaims` containing `sub`, `email`,
-`upn`, `iss`, and `aud`. JWKS keys are refreshed on a configurable interval
-(default 1 h).
+Validates a JWT against the provider JWKS using the public-key algorithms OIDC providers sign with: RS256, RS384, RS512, PS256, PS384, PS512, ES256, ES384, ES512, and EdDSA. HMAC and `none` are rejected. Checks issuer, audience, and expiry. Returns `IdentityClaims` containing `sub`, `email`, `upn`, `iss`, and `aud`. JWKS keys are refreshed on a configurable interval (default 1 h).
 
 ### `IdentityMapper`
 
@@ -83,7 +80,8 @@ Settings live under `[oauth]` and `[identity]` in the TOML config.
 
 | Field                  | Purpose                                                                        |
 | ---------------------- | ------------------------------------------------------------------------------ |
-| `oauth.issuer_url`     | OIDC issuer URL (used for discovery and as expected `iss`)                     |
+| `oauth.issuer_url`     | OIDC issuer URL (used for discovery and as expected `iss`; discovery cannot replace it) |
+| `oauth.allow_http`     | When false, `issuer_url` and `jwks_uri` may use `http://` only on loopback     |
 | `identity.claim_field` | Claim path used for identity mapping (supports dot notation and array indexes) |
 | `oauth.scopes`         | Scopes to advertise (informational; MCP clients choose their own)              |
 | `oauth.audience`       | Expected `aud` claim on bearer JWTs sent to `/mcp`                             |

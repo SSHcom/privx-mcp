@@ -3,6 +3,7 @@ package runtime
 import (
 	"context"
 	"encoding/json"
+	"sort"
 	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -22,14 +23,18 @@ func (c *Core) createToolHandler(tool registry.Tool) mcp.ToolHandler {
 		}
 
 		if !tool.Trusted {
-			security.Prepare(params)
+			security.PrepareExcept(params, tool.Verbatim)
 		}
 
-		if isCreateOrUpdate(tool.Name) && security.ContainsRedacted(params) {
+		if rejectsRedactedMarker(tool.Name) && security.ContainsRedacted(params) {
 			return errorCallResult(`invalid tool arguments: "[redacted]" is not allowed in a value`), nil
 		}
 
-		logging.Debug("tool call input params", "tool", tool.Name, "params", params)
+		if tool.Sensitive {
+			logging.Debug("tool call input params", "tool", tool.Name, "keys", paramKeys(params))
+		} else {
+			logging.Debug("tool call input params", "tool", tool.Name, "params", params)
+		}
 
 		ctx = security.ContextWithFilter(ctx, c.responseFilter)
 
@@ -41,6 +46,17 @@ func (c *Core) createToolHandler(tool registry.Tool) mcp.ToolHandler {
 
 		return toCallToolResult(result, tool, c.responseFilter), nil
 	}
+}
+
+func paramKeys(params map[string]any) []string {
+	keys := make([]string, 0, len(params))
+	for key := range params {
+		keys = append(keys, key)
+	}
+
+	sort.Strings(keys)
+
+	return keys
 }
 
 func argumentsMap(request *mcp.CallToolRequest) (map[string]any, error) {
@@ -121,7 +137,11 @@ func toolTitle(name string) string {
 // is trusted (registry.Tool.Trusted), successful payloads are sanitized,
 // word-filtered, and wrapped in the security envelope. Sensitive tools and
 // tools named whitelist-* are sanitized and wrapped, but not word-filtered.
-// Error results are always delivered as plain text.
+// Paths listed on registry.Tool.Verbatim are left unchanged in either
+// direction. Error results stay plain text. They are sanitized, and
+// word-filtered under the same rules as a successful payload. A trusted tool
+// still skips the word filter on an error; the error text is sanitized anyway,
+// because it is not the checkout secret or the server-written documentation.
 func toCallToolResult(result *registry.ToolResult, tool registry.Tool, filter security.Filter) *mcp.CallToolResult {
 	if result == nil {
 		return textCallResult("")
@@ -133,7 +153,7 @@ func toCallToolResult(result *registry.ToolResult, tool registry.Tool, filter se
 			msg = result.Content[0].Text
 		}
 
-		return errorCallResult(msg)
+		return errorCallResult(prepareErrorText(msg, tool, filter))
 	}
 
 	if len(result.Content) == 0 {
@@ -176,11 +196,24 @@ func errorCallResult(text string) *mcp.CallToolResult {
 	}
 }
 
+// prepareErrorText applies the outbound string filters to an error message.
+// Every error is sanitized. The word filter runs only for tools whose
+// successful payloads are word-filtered. Trusted, sensitive, and whitelist-*
+// tools keep the words and lose only the hidden characters.
+func prepareErrorText(text string, tool registry.Tool, filter security.Filter) string {
+	if tool.Trusted || skipResponseFilter(tool) {
+		return security.Sanitize(text)
+	}
+
+	return security.PrepareString(filter, text)
+}
+
 // secureText sanitizes a successful tool payload and wraps it in the security
 // envelope. Whole words from filter are replaced unless the tool is sensitive
-// or named whitelist-*. A payload that is not valid JSON becomes the
-// envelope's data string. A non-empty rejection means the envelope could not
-// be built and that message is returned to the client instead.
+// or named whitelist-*. Paths listed on tool.Verbatim are not sanitized and
+// not word-filtered. A payload that is not valid JSON becomes the envelope's
+// data string. A non-empty rejection means the envelope could not be built
+// and that message is returned to the client instead.
 func secureText(text string, tool registry.Tool, filter security.Filter) (payload, rejection string) {
 	var decoded any
 	if err := json.Unmarshal([]byte(text), &decoded); err != nil {
@@ -189,9 +222,9 @@ func secureText(text string, tool registry.Tool, filter security.Filter) (payloa
 
 	var cleaned any
 	if skipResponseFilter(tool) {
-		cleaned = security.Prepare(decoded)
+		cleaned = security.PrepareExcept(decoded, tool.Verbatim)
 	} else {
-		cleaned = security.PrepareResponse(decoded, filter)
+		cleaned = security.PrepareResponseExcept(decoded, filter, tool.Verbatim)
 	}
 
 	wrapped, err := security.Wrap(cleaned)
@@ -207,10 +240,13 @@ func skipResponseFilter(tool registry.Tool) bool {
 	return tool.Sensitive || strings.HasPrefix(tool.Name, "whitelist-")
 }
 
-// isCreateOrUpdate matches tools that write caller text into PrivX.
+// rejectsRedactedMarker matches tools that write caller text into PrivX.
 // user-create-local and user-update-local contain the same substrings.
-func isCreateOrUpdate(name string) bool {
-	return strings.Contains(name, "-create") || strings.Contains(name, "-update")
+// request-set-decision stores a free-text comment but has neither substring.
+func rejectsRedactedMarker(name string) bool {
+	return strings.Contains(name, "-create") ||
+		strings.Contains(name, "-update") ||
+		name == "request-set-decision"
 }
 
 // RecoverMiddleware turns a panicking handler into a generic error result so a

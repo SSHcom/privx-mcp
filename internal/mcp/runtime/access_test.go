@@ -181,11 +181,28 @@ func TestAuthMiddleware_RateLimitExceeded(t *testing.T) {
 
 	limiter := session.NewRateLimiter(60, 1, 0)
 	authCalls := 0
+	api := &stubPermissionUserAPI{
+		searchUsersResult: []rolestore.User{
+			{
+				ID:         "user-1",
+				Email:      "alice@example.com",
+				Principal:  "alice",
+				SourceType: "AD",
+			},
+		},
+		resolveByID: map[string]*rolestore.User{
+			"user-1": {Permissions: []string{"hosts-view"}},
+		},
+	}
+	pe := &PermissionEngine{
+		userAPI:    api,
+		sourceType: "AD",
+	}
 	core := NewCore(
 		config.ServerConfig{Name: "test", Version: "test"},
 		stubAuth{authCtx: &auth.AuthContext{Username: "alice"}, calls: &authCalls},
 		reg,
-		NewPermissionEngine(),
+		pe,
 		stubClaimsSource{claims: identity},
 		WithRateLimiter(limiter, "https://privx.example.com"),
 	)
@@ -248,7 +265,23 @@ func TestAuthMiddleware_RejectsChangedIssuerSubject(t *testing.T) {
 		},
 	})
 
-	pe := NewPermissionEngine()
+	api := &stubPermissionUserAPI{
+		searchUsersResult: []rolestore.User{
+			{
+				ID:         "user-1",
+				Email:      "alice@example.com",
+				Principal:  "alice",
+				SourceType: "AD",
+			},
+		},
+		resolveByID: map[string]*rolestore.User{
+			"user-1": {Permissions: []string{"hosts-view"}},
+		},
+	}
+	pe := &PermissionEngine{
+		userAPI:    api,
+		sourceType: "AD",
+	}
 	pe.sessionService = session.NewService(time.Minute)
 	pe.sessionBaseURL = "https://privx.example.com"
 
@@ -363,7 +396,7 @@ func TestAuthMiddleware_PopulatesActiveRolesOnAuthContext(t *testing.T) {
 	}
 }
 
-func TestAuthMiddleware_AuthenticatedToolAllowsWithEmptyRolesWhenResolveFails(t *testing.T) {
+func TestAuthMiddleware_AuthenticatedToolDeniesWhenResolveFails(t *testing.T) {
 	identity := &oauth.IdentityClaims{
 		Issuer:  "https://issuer.example.com",
 		Subject: "user",
@@ -400,17 +433,14 @@ func TestAuthMiddleware_AuthenticatedToolAllowsWithEmptyRolesWhenResolveFails(t 
 	if err != nil {
 		t.Fatalf("expected no middleware error, got: %v", err)
 	}
-	if result == nil || result.IsError {
-		t.Fatalf("expected authenticated tool to be allowed, got %#v", result)
+	if result == nil || !result.IsError {
+		t.Fatalf("expected authenticated tool to be denied, got %#v", result)
 	}
-	if got == nil {
-		t.Fatal("expected AuthContext in handler")
+	if callToolText(t, result) != "authentication failed: unable to resolve authorized user" {
+		t.Fatalf("unexpected denial message: %q", callToolText(t, result))
 	}
-	if len(got.Roles) != 0 {
-		t.Fatalf("expected empty Roles when resolve fails, got %v", got.Roles)
-	}
-	if got.UserID != "" {
-		t.Fatalf("expected empty UserID when resolve fails, got %q", got.UserID)
+	if got != nil {
+		t.Fatal("expected handler not to run when resolve fails")
 	}
 }
 

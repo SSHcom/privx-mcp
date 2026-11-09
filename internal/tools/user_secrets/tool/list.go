@@ -46,6 +46,7 @@ func List() registry.Tool {
 		Description: description,
 		Writes:      false,
 		Sensitive:   true,
+		Verbatim:    verbatimSecretData,
 		InputSchema: inputSchema,
 		Handler:     listHandler,
 	}

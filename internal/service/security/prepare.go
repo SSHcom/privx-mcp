@@ -25,6 +25,13 @@ func ContainsRedacted(v any) bool {
 	return false
 }
 
+// PrepareString strips hidden characters from s, then replaces whole words
+// from filter. An empty filter only sanitizes. The filter runs second so a
+// removed mark cannot split a word.
+func PrepareString(filter Filter, s string) string {
+	return prepareString(filter, s)
+}
+
 // PrepareStrings sanitizes the given strings in place and replaces whole words
 // from filter. It exists for trusted payloads (see registry.Tool.Trusted) that
 // still embed individual PrivX-sourced strings, which the runtime no longer
@@ -35,7 +42,7 @@ func PrepareStrings(filter Filter, values ...*string) {
 			continue
 		}
 
-		*value = filter.Redact(Sanitize(*value))
+		*value = PrepareString(filter, *value)
 	}
 }
 
@@ -47,30 +54,60 @@ func PrepareStrings(filter Filter, values ...*string) {
 // only when sanitizing actually changed it. The returned value differs from v
 // only when v is a string itself.
 func Prepare(v any) any {
-	return walk(v, Filter{})
+	return walk(v, Filter{}, nil)
+}
+
+// PrepareExcept sanitizes like Prepare, leaving every string under paths
+// unchanged. A path is dot-separated. A segment ending in [] walks each object
+// in that array. The named value and everything under it are kept. Other
+// strings are still sanitized. An empty path list is Prepare.
+func PrepareExcept(v any, paths []string) any {
+	return walk(v, Filter{}, splitPaths(paths))
 }
 
 // PrepareResponse sanitizes every string value reachable from v, then replaces
 // whole words from filter. An empty filter only sanitizes. The walk rules match
 // Prepare.
 func PrepareResponse(v any, filter Filter) any {
-	return walk(v, filter)
+	return walk(v, filter, nil)
 }
 
-func walk(v any, filter Filter) any {
+// PrepareResponseExcept sanitizes and word-filters like PrepareResponse, leaving
+// every string under paths unchanged. Path rules match PrepareExcept. An empty
+// path list is PrepareResponse.
+func PrepareResponseExcept(v any, filter Filter, paths []string) any {
+	return walk(v, filter, splitPaths(paths))
+}
+
+// prepareString strips hidden characters, then applies the word filter.
+// The filter has to run second so a removed mark cannot split a word.
+func prepareString(filter Filter, s string) string {
+	return filter.Redact(Sanitize(s))
+}
+
+func walk(v any, filter Filter, keep [][]string) any {
+	if kept(keep) {
+		return v
+	}
+
 	switch value := v.(type) {
 	case string:
-		return filter.Redact(Sanitize(value))
+		return prepareString(filter, value)
 	case map[string]any:
 		for key, element := range value {
-			clean := walk(element, filter)
+			next := narrow(keep, key)
+			if kept(next) {
+				continue
+			}
+
+			clean := walk(element, filter, next)
 			if _, isString := element.(string); isString && clean != element {
 				value[key] = clean
 			}
 		}
 	case []any:
 		for i, element := range value {
-			clean := walk(element, filter)
+			clean := walk(element, filter, keep)
 			if _, isString := element.(string); isString && clean != element {
 				value[i] = clean
 			}
@@ -78,4 +115,60 @@ func walk(v any, filter Filter) any {
 	}
 
 	return v
+}
+
+func splitPaths(paths []string) [][]string {
+	if len(paths) == 0 {
+		return nil
+	}
+
+	out := make([][]string, 0, len(paths))
+	for _, path := range paths {
+		if path == "" {
+			continue
+		}
+
+		out = append(out, strings.Split(path, "."))
+	}
+
+	if len(out) == 0 {
+		return nil
+	}
+
+	return out
+}
+
+func kept(keep [][]string) bool {
+	for _, path := range keep {
+		if len(path) == 0 {
+			return true
+		}
+	}
+
+	return false
+}
+
+func narrow(keep [][]string, key string) [][]string {
+	if len(keep) == 0 {
+		return nil
+	}
+
+	var next [][]string
+	for _, path := range keep {
+		if len(path) == 0 {
+			return [][]string{nil}
+		}
+
+		if strings.TrimSuffix(path[0], "[]") != key {
+			continue
+		}
+
+		if next == nil {
+			next = make([][]string, 0, 1)
+		}
+
+		next = append(next, path[1:])
+	}
+
+	return next
 }

@@ -1,8 +1,10 @@
 package store
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 )
@@ -87,6 +89,118 @@ func TestTokens_UsableSkew(t *testing.T) {
 	tok.ExpiresAt = now.Add(time.Hour)
 	if tok.Usable(now) {
 		t.Fatal("empty access token must not be usable")
+	}
+}
+
+func TestDeleteIfRefreshToken_KeepsReplacement(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	key := "session"
+	saved := Tokens{
+		AccessToken:  "at-new",
+		RefreshToken: "rt-new",
+		ExpiresAt:    time.Now().Add(time.Hour),
+	}
+
+	if err := Save(dir, key, saved); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := DeleteIfRefreshToken(dir, key, "rt-old"); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := Load(dir, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if got.RefreshToken != "rt-new" {
+		t.Fatalf("refresh = %q", got.RefreshToken)
+	}
+
+	if err := DeleteIfRefreshToken(dir, key, "rt-new"); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = Load(dir, key)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("load = %v", err)
+	}
+
+	if err := DeleteIfRefreshToken(dir, key, "rt-new"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWithLock_Serializes(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	key := "session"
+	started := make(chan struct{})
+	release := make(chan struct{})
+
+	var order []string
+
+	var mu sync.Mutex
+
+	firstDone := make(chan error, 1)
+
+	go func() {
+		firstDone <- WithLock(dir, key, func() error {
+			close(started)
+			<-release
+
+			mu.Lock()
+			order = append(order, "first")
+			mu.Unlock()
+
+			return nil
+		})
+	}()
+
+	<-started
+
+	entering := make(chan struct{})
+	secondDone := make(chan error, 1)
+
+	go func() {
+		close(entering)
+
+		secondDone <- WithLock(dir, key, func() error {
+			mu.Lock()
+			order = append(order, "second")
+			mu.Unlock()
+
+			return nil
+		})
+	}()
+
+	<-entering
+
+	select {
+	case err := <-secondDone:
+		t.Fatalf("second lock returned while first was held: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	close(release)
+
+	if err := <-firstDone; err != nil {
+		t.Fatal(err)
+	}
+
+	if err := <-secondDone; err != nil {
+		t.Fatal(err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	if len(order) != 2 || order[0] != "first" || order[1] != "second" {
+		t.Fatalf("order = %v", order)
 	}
 }
 

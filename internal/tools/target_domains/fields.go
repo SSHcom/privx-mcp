@@ -81,7 +81,8 @@ var endpointIntFields = []endpointIntField{
 // ApplyTargetDomainFields overlays present params onto domain. Absent keys
 // are left unchanged. Empty strings are ignored so fetched update values
 // stay when the caller omits those fields. A present endpoints array
-// replaces EndPoints.
+// replaces EndPoints. A replacement endpoint keeps the stored bind password
+// and Entra client secret when those fields are omitted or empty.
 func ApplyTargetDomainFields(domain *secretsmanager.TargetDomain, params map[string]any) error {
 	for _, field := range targetDomainStringFields {
 		v, ok, err := utils.OverlayString(params, field.key)
@@ -129,6 +130,7 @@ func ApplyTargetDomainFields(domain *secretsmanager.TargetDomain, params map[str
 			return err
 		}
 
+		preserveEndpointSecrets(domain.EndPoints, endpoints)
 		domain.EndPoints = endpoints
 	}
 
@@ -176,6 +178,128 @@ func ApplyManagedAccountFields(account *secretsmanager.ManagedAccount, params ma
 	}
 
 	return nil
+}
+
+// preserveEndpointSecrets copies stored directory secrets onto replacement
+// endpoints that did not supply a new value. Endpoints match by scan priority,
+// then by directory address or Entra application. A domain with one endpoint
+// keeps that endpoint's secrets when the replacement still has one entry.
+func preserveEndpointSecrets(stored, next []secretsmanager.TargetDomainEndpoint) {
+	if len(stored) == 0 || len(next) == 0 {
+		return
+	}
+
+	matched := matchStoredEndpoints(stored, next)
+	for i := range next {
+		src := matched[i]
+		if src < 0 {
+			continue
+		}
+
+		if next[i].LdapBindPassword == "" {
+			next[i].LdapBindPassword = stored[src].LdapBindPassword
+		}
+
+		if next[i].EntraClientSecret == "" {
+			next[i].EntraClientSecret = stored[src].EntraClientSecret
+		}
+	}
+}
+
+func matchStoredEndpoints(stored, next []secretsmanager.TargetDomainEndpoint) []int {
+	matched := make([]int, len(next))
+	for i := range matched {
+		matched[i] = -1
+	}
+
+	used := make(map[int]struct{}, len(stored))
+	assignEndpointMatches(
+		stored,
+		next,
+		matched,
+		used,
+		func(storedEP, nextEP secretsmanager.TargetDomainEndpoint) bool {
+			return storedEP.ScanPriority == nextEP.ScanPriority
+		},
+	)
+	assignEndpointMatches(
+		stored,
+		next,
+		matched,
+		used,
+		sameEndpointIdentity,
+	)
+
+	if len(stored) == 1 && len(next) == 1 && matched[0] < 0 {
+		matched[0] = 0
+	}
+
+	return matched
+}
+
+func assignEndpointMatches(
+	stored []secretsmanager.TargetDomainEndpoint,
+	next []secretsmanager.TargetDomainEndpoint,
+	matched []int,
+	used map[int]struct{},
+	same func(storedEP, nextEP secretsmanager.TargetDomainEndpoint) bool,
+) {
+	for i := range next {
+		if matched[i] >= 0 {
+			continue
+		}
+
+		src := uniqueStoredEndpoint(stored, next[i], used, same)
+		if src < 0 {
+			continue
+		}
+
+		matched[i] = src
+		used[src] = struct{}{}
+	}
+}
+
+func uniqueStoredEndpoint(
+	stored []secretsmanager.TargetDomainEndpoint,
+	nextEP secretsmanager.TargetDomainEndpoint,
+	used map[int]struct{},
+	same func(storedEP, nextEP secretsmanager.TargetDomainEndpoint) bool,
+) int {
+	found := -1
+	for i := range stored {
+		if _, taken := used[i]; taken || !same(stored[i], nextEP) {
+			continue
+		}
+
+		if found >= 0 {
+			return -1
+		}
+
+		found = i
+	}
+
+	return found
+}
+
+func sameEndpointIdentity(storedEP, nextEP secretsmanager.TargetDomainEndpoint) bool {
+	if storedEP.Type == "" || storedEP.Type != nextEP.Type {
+		return false
+	}
+
+	if storedEP.LdapAddress != "" &&
+		storedEP.LdapAddress == nextEP.LdapAddress &&
+		storedEP.LdapPort == nextEP.LdapPort {
+		return true
+	}
+
+	if storedEP.EntraTenantID != "" &&
+		storedEP.EntraTenantID == nextEP.EntraTenantID &&
+		storedEP.EntraClientID != "" &&
+		storedEP.EntraClientID == nextEP.EntraClientID {
+		return true
+	}
+
+	return false
 }
 
 func endpointsFromParam(raw any) ([]secretsmanager.TargetDomainEndpoint, error) {

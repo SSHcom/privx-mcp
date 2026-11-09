@@ -102,7 +102,7 @@ func RegisterRoutes(mux *http.ServeMux, core *runtime.Core, cfg StreamConfig) er
 		}
 	}
 
-	handler = withRequestLogging(handler)
+	handler = withRequestLogging(handler, core.LogToolBody)
 	mux.Handle("/mcp", handler)
 
 	return nil

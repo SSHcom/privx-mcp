@@ -108,7 +108,7 @@ identity_claim_field = "email"
 identity_mapping_rule = "as-is"
 ```
 
-`issuer_url` must be your Keycloak realm issuer in this exact form: `http://<host>:<port>/realms/<realm-name>`, or `https://` when TLS is enabled.
+`issuer_url` must be your Keycloak realm issuer in this exact form: `https://<host>:<port>/realms/<realm-name>`. Plain `http://` is accepted for `localhost` and `127.0.0.1`. Any other host needs `https://`, or `[oauth].allow_http = true`.
 
 ## Keycloak redirect URIs
 

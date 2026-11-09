@@ -153,6 +153,26 @@ func Delete(dir, key string) error {
 	return nil
 }
 
+// DeleteIfRefreshToken removes the token file when it still stores refreshToken.
+// A different refresh token was written by another proxy and is left in place.
+// Call it while holding WithLock.
+func DeleteIfRefreshToken(dir, key, refreshToken string) error {
+	tok, err := Load(dir, key)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+
+		return err
+	}
+
+	if tok.RefreshToken != refreshToken {
+		return nil
+	}
+
+	return Delete(dir, key)
+}
+
 func tokenPath(dir, key string) string {
 	return filepath.Join(dir, key+"_tokens.json")
 }

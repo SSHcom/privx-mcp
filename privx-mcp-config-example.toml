@@ -147,9 +147,15 @@ api_client_secret = "replace-with-api-client-secret"
 
 # OIDC discovery URL of the upstream IdP (Keycloak realm, Auth0 tenant, etc.).
 # Advertised via /.well-known/oauth-protected-resource and enforced as the
-# expected `iss` claim on incoming bearer JWTs.
+# expected `iss` claim on incoming bearer JWTs. The discovery document's
+# issuer must match this value.
 #
 issuer_url = "https://idp.example.com"
+
+# When false (default), issuer_url and jwks_uri may use http:// only for
+# localhost and 127.0.0.1. Set true to allow plain HTTP to other IdP hosts.
+#
+# allow_http = false
 
 # Optional compatibility hint for MCP clients. Not used for token verification.
 # Clients may still choose their own scopes; this is only a fallback hint.
@@ -259,18 +265,19 @@ whitelist = ["-list", "-get", "-search", "echo", "mcp-info"]
 #          user-get and user-search remain but user-list is dropped.
 blacklist = ["-delete"]
 
-# Replace "dangerous" words with "[redacted]" in successful tool responses.
-# Leave empty or commented out to not use this feature.
-# Only full words are replaced: "sh" does not hit "ssh" and "delete" does not hit "deleted", etc
+# Replace these whole words with "[redacted]" in successful tool responses
+# and in error messages. This list is the only word list; there is no
+# built-in list. Leave empty or commented out to replace nothing.
+# Only full words are replaced: "sh" does not hit "ssh" and "delete" does not hit "deleted".
 #
-# Responses from the following tools are exempt from replacement:
+# Responses and error messages from the following tools are exempt from replacement:
 #   - whitelist-            SSH command whitelist tools. The payload is the command list.
 #   - target-domain-        every target-domain tool, including checkout.
 #   - connection-trail-get  recorded session commands.
 #   - user-secret-          vault secrets, including secret data.
 #
-# Create and update tools reject a value that contains "[redacted]", including
-# the tools above. Other tools do not.
+# Create and update tools, and request-set-decision, reject a value that
+# contains "[redacted]", including the tools above. Other tools do not.
 response_filter = ["sudo", "chmod", "chown", "curl", "wget", "ping", "nslookup", "sh", "bash", "zsh", "cmd", "exec", "eval"]
 
 # PrivX user directory used when resolving the authenticated identity to a

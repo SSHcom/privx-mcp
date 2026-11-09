@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/SSHcom/privx-sdk-go/v2/api/hoststore"
+	"github.com/SSHcom/privx-sdk-go/v2/api/response"
 	"github.com/pmsshintegration/privx-mcp/internal/testutil/testconn"
 )
 
@@ -55,6 +56,69 @@ func TestUpdateHostHandler_Happy(t *testing.T) {
 	}
 	if m["updated"] != true {
 		t.Errorf("updated = %v, want true", m["updated"])
+	}
+}
+
+func TestUpdateHostHandler_PrincipalsKeepCommandRestrictions(t *testing.T) {
+	conn := testconn.New(t)
+	conn.Handle("GET", "/host-store/api/v1/hosts/:id", func(body any) (any, error) {
+		return hoststore.Host{
+			ID: "h1",
+			Principals: []hoststore.HostPrincipals{{
+				Principal: "root",
+				Roles:     []hoststore.HostRole{{ID: "r1", Name: "admin"}},
+				CommandRestrictions: hoststore.HostCommandRestrictions{
+					Enabled:          true,
+					RShellVariant:    "bash",
+					DefaultWhiteList: hoststore.WhiteListHandle{ID: "wl-1", Name: "default"},
+					WhiteLists: []hoststore.WhiteListGrant{{
+						WhiteList: hoststore.WhiteListHandle{ID: "wl-2", Name: "ops"},
+					}},
+					AllowNoMatch: true,
+					Banner:       "restricted",
+				},
+			}},
+		}, nil
+	})
+	conn.Handle("POST", "/role-store/api/v1/roles/resolve", func(body any) (any, error) {
+		return response.ResultSet[testconn.RolestoreRole]{
+			Items: []testconn.RolestoreRole{{ID: "r2", Name: "ops"}},
+		}, nil
+	})
+	conn.Handle("PUT", "/host-store/api/v1/hosts/:id", func(body any) (any, error) {
+		raw, _ := json.Marshal(body)
+		var h hoststore.Host
+		if err := json.Unmarshal(raw, &h); err != nil {
+			t.Fatalf("unmarshal: %v", err)
+		}
+		if len(h.Principals) != 1 {
+			t.Fatalf("principals = %+v", h.Principals)
+		}
+		p := h.Principals[0]
+		if len(p.Roles) != 1 || p.Roles[0].Name != "ops" {
+			t.Errorf("roles = %+v, want replaced", p.Roles)
+		}
+		cr := p.CommandRestrictions
+		if !cr.Enabled || cr.RShellVariant != "bash" || cr.DefaultWhiteList.ID != "wl-1" || !cr.AllowNoMatch || cr.Banner != "restricted" {
+			t.Errorf("command restrictions = %+v", cr)
+		}
+		if len(cr.WhiteLists) != 1 || cr.WhiteLists[0].WhiteList.ID != "wl-2" {
+			t.Errorf("whitelists = %+v", cr.WhiteLists)
+		}
+		return nil, nil
+	})
+
+	res, err := updateHostHandler(testconn.CtxWithAuth(conn), map[string]any{
+		"id": "h1",
+		"principals": []any{
+			map[string]any{"principal": "root", "roles": []any{"ops"}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("unexpected error: %s", res.Content[0].Text)
 	}
 }
 

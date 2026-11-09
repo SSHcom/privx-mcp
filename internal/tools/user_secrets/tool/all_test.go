@@ -1,6 +1,9 @@
 package tool
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 func TestUserSecretTools_Registration(t *testing.T) {
 	tools := All()
@@ -60,6 +63,15 @@ func TestUserSecretTools_Flags(t *testing.T) {
 		}
 		if tl.Trusted {
 			t.Errorf("tool %q: Trusted = true, want false", tl.Name)
+		}
+		if tl.Name == "user-secret-delete" {
+			if len(tl.Verbatim) != 0 {
+				t.Errorf("tool %q: Verbatim = %v, want none", tl.Name, tl.Verbatim)
+			}
+			continue
+		}
+		if !slices.Equal(tl.Verbatim, verbatimSecretData) {
+			t.Errorf("tool %q: Verbatim = %v, want %v", tl.Name, tl.Verbatim, verbatimSecretData)
 		}
 	}
 }
