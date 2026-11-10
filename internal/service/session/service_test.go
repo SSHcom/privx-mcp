@@ -72,6 +72,84 @@ func TestServiceGetSetHitAndExpiry(t *testing.T) {
 	}
 }
 
+func TestSetConnectorUserIDKeepsExistingExpiry(t *testing.T) {
+	now := testTimeUTC(t, "2026-07-09T10:00:00Z")
+	svc := NewServiceWithClock(30*time.Second, func() time.Time { return now })
+	identity := &oauth.IdentityClaims{
+		Issuer:  "https://issuer.example.com",
+		Subject: "user-1",
+	}
+	baseURL := "https://privx.example.com"
+
+	svc.Set(baseURL, identity, CachedUserContext{
+		UserID: "u-123",
+		ResolvedRoles: &rolestore.User{
+			Permissions: []string{"hosts-view"},
+		},
+	})
+
+	now = now.Add(20 * time.Second)
+	svc.SetConnectorUserID(baseURL, identity, "u-123", "connector-1")
+
+	got, ok := svc.Get(baseURL, identity)
+	if !ok {
+		t.Fatal("expected cache hit after storing the connector user id")
+	}
+	if got.ConnectorUserID != "connector-1" {
+		t.Fatalf("unexpected connector user id %q", got.ConnectorUserID)
+	}
+	if got.UserID != "u-123" {
+		t.Fatalf("unexpected user id %q", got.UserID)
+	}
+	if got.ResolvedRoles == nil || len(got.ResolvedRoles.Permissions) != 1 || got.ResolvedRoles.Permissions[0] != "hosts-view" {
+		t.Fatalf("unexpected cached permissions: %#v", got.ResolvedRoles)
+	}
+
+	now = now.Add(11 * time.Second)
+	if _, ok := svc.Get(baseURL, identity); ok {
+		t.Fatal("expected the original ttl to expire without restarting")
+	}
+}
+
+func TestSetConnectorUserIDDoesNotCreateOrReviveAnEntry(t *testing.T) {
+	now := testTimeUTC(t, "2026-07-09T10:00:00Z")
+	svc := NewServiceWithClock(30*time.Second, func() time.Time { return now })
+	identity := &oauth.IdentityClaims{
+		Issuer:  "https://issuer.example.com",
+		Subject: "user-1",
+	}
+	baseURL := "https://privx.example.com"
+
+	svc.SetConnectorUserID(baseURL, identity, "u-123", "connector-1")
+	if _, ok := svc.Get(baseURL, identity); ok {
+		t.Fatal("expected a missing entry to stay missing")
+	}
+
+	svc.Set(baseURL, identity, CachedUserContext{UserID: "u-123"})
+	now = now.Add(31 * time.Second)
+	svc.SetConnectorUserID(baseURL, identity, "u-123", "connector-1")
+	if _, ok := svc.Get(baseURL, identity); ok {
+		t.Fatal("expected an expired entry to stay expired")
+	}
+
+	now = testTimeUTC(t, "2026-07-09T10:00:00Z")
+	svc.Set(baseURL, identity, CachedUserContext{UserID: "u-123"})
+	svc.SetConnectorUserID(baseURL, identity, "other-user", "connector-1")
+	got, ok := svc.Get(baseURL, identity)
+	if !ok {
+		t.Fatal("expected the original entry to remain")
+	}
+	if got.ConnectorUserID != "" {
+		t.Fatalf("expected a different user id to leave the connector id empty, got %q", got.ConnectorUserID)
+	}
+
+	disabled := NewService(0)
+	disabled.SetConnectorUserID(baseURL, identity, "u-123", "connector-1")
+	if _, ok := disabled.Get(baseURL, identity); ok {
+		t.Fatal("expected a disabled cache to stay empty")
+	}
+}
+
 func TestServiceDisabledWhenTTLIsZero(t *testing.T) {
 	svc := NewService(0)
 	identity := &oauth.IdentityClaims{

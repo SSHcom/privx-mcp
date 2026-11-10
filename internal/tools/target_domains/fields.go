@@ -266,6 +266,7 @@ func uniqueStoredEndpoint(
 	same func(storedEP, nextEP secretsmanager.TargetDomainEndpoint) bool,
 ) int {
 	found := -1
+
 	for i := range stored {
 		if _, taken := used[i]; taken || !same(stored[i], nextEP) {
 			continue

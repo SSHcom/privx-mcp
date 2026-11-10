@@ -8,7 +8,6 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // Terminate returns the connection-terminate tool definition.
@@ -46,9 +45,9 @@ func terminateConnectionHandler(ctx context.Context, params map[string]any) (*re
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	connID := utils.StringFromMap(params, "id")
-	if connID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	connID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := connectionmanager.New(authCtx.Connector)

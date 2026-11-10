@@ -9,7 +9,6 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // List returns the user-secret-list tool definition.
@@ -64,7 +63,12 @@ func listHandler(ctx context.Context, params map[string]any) (*registry.ToolResu
 	}
 
 	client := vault.New(authCtx.Connector)
-	userID := utils.StringFromMap(params, "user_id")
+
+	userID, errResult := common.OptionalPathID(params, "user_id")
+	if errResult != nil {
+		return errResult, nil
+	}
+
 	opts := paging.FilterOptions()
 
 	var (

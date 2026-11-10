@@ -261,12 +261,12 @@ func (v *JWKSTokenVerifier) classifyError(err error) *VerificationError {
 	case errors.Is(err, jwt.ErrTokenInvalidAudience):
 		return &VerificationError{
 			Reason:  "wrong_audience",
-			Message: fmt.Sprintf("token audience does not match expected audience %q", v.expectedAudience),
+			Message: "token audience does not match expected audience",
 		}
 	case errors.Is(err, jwt.ErrTokenInvalidIssuer):
 		return &VerificationError{
 			Reason:  "wrong_issuer",
-			Message: fmt.Sprintf("token issuer does not match expected issuer %q", v.expectedIssuer),
+			Message: "token issuer does not match expected issuer",
 		}
 	}
 

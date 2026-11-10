@@ -9,7 +9,6 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/target_domains"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // Get returns the target-domain-get tool definition.
@@ -46,9 +45,9 @@ func getTargetDomainHandler(ctx context.Context, params map[string]any) (*regist
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	domainID := utils.StringFromMap(params, "id")
-	if domainID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	domainID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := secretsmanager.New(authCtx.Connector)

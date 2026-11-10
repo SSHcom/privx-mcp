@@ -9,7 +9,6 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/hosts"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // Update returns the host-update tool definition.
@@ -64,9 +63,9 @@ func updateHostHandler(ctx context.Context, params map[string]any) (*registry.To
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	hostID := utils.StringFromMap(params, "id")
-	if hostID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	hostID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := hoststore.New(authCtx.Connector)

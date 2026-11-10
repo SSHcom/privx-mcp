@@ -165,7 +165,7 @@ Compact fields: `id`, `type`, `mode`, `status`, `user`, `target_host`, `target_h
 
 List and get omit bind passwords, Entra client secrets, and checkout password versions, including when `raw` is set or the caller names those fields. `target-domain-account-search` returns id, username, full_name, email, state, and ignored unless `fields` or `raw` is set. On create and update, `ldap_bind_password` and `entra_client_secret` are stored as given; invisible-character stripping does not apply to those two fields. On update, an endpoints array replaces the endpoint list, and an omitted or empty bind password or Entra client secret keeps the stored secret for the matching endpoint.
 
-`target-domain-managed-account-checkout` is Trusted because it returns the password, which must pass through unchanged. The handler still checks every other string in that result. See [Trusted tools](../security/security.md#trusted-tools).
+`target-domain-managed-account-checkout` is Trusted because it returns the password, which must pass through unchanged. It returns the password and the other checkout fields as PrivX sent them. See [Trusted tools](../security/security.md#trusted-tools).
 
 Every tool in this topic is sensitive. Each one is registered only when `[permissions].enable_sensitive_data_tools` is set, and by default only a privx-admin can call it. See [Sensitive data tools](../security/security.md#sensitive-data-tools).
 

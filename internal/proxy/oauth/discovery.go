@@ -115,7 +115,7 @@ func Discover(ctx context.Context, client *http.Client, mcpURL string, cfgScopes
 	}
 
 	// RFC 9728 §3.3: resource must be the protected-resource identifier the client requested.
-	if prm.Resource != mcpURL {
+	if !sameResource(prm.Resource, mcpURL) {
 		return Result{}, fmt.Errorf(
 			"protected resource metadata resource %q does not match MCP URL %q",
 			prm.Resource,
@@ -296,6 +296,10 @@ func validateASEndpoints(as asMetadata, allowHTTP bool) error {
 	}
 
 	return nil
+}
+
+func sameResource(resource, mcpURL string) bool {
+	return strings.TrimRight(resource, "/") == strings.TrimRight(mcpURL, "/")
 }
 
 func resolveScopes(cfg []string, challengeScope string, prm, as []string) []string {

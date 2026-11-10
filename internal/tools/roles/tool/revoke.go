@@ -8,12 +8,13 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // Revoke returns the revoke-role tool definition.
 func Revoke() registry.Tool {
-	description := "Revoke a PrivX role from a user. " + common.PresentationGuidance
+	description := "Revoke a directly granted PrivX role from a user. " +
+		"A role the user has only through role rules cannot be revoked this way. " +
+		common.PresentationGuidance
 
 	properties := registry.NewOrderedMap().
 		Set("user_id", map[string]any{
@@ -48,14 +49,14 @@ func revokeRoleHandler(ctx context.Context, params map[string]any) (*registry.To
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	userID := utils.StringFromMap(params, "user_id")
-	if userID == "" {
-		return registry.ErrorResult("validation error: missing required field: user_id"), nil
+	userID, errResult := common.RequiredPathID(params, "user_id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
-	roleID := utils.StringFromMap(params, "role_id")
-	if roleID == "" {
-		return registry.ErrorResult("validation error: missing required field: role_id"), nil
+	roleID, errResult := common.RequiredPathID(params, "role_id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := rolestore.New(authCtx.Connector)
@@ -72,6 +73,14 @@ func revokeRoleHandler(ctx context.Context, params map[string]any) (*registry.To
 	for _, r := range currentRoles.Items {
 		if r.ID == roleID {
 			found = true
+
+			if !r.Explicit {
+				return registry.ErrorResult(fmt.Sprintf(
+					"role %s is assigned to user %s by role rules and cannot be revoked directly",
+					roleID, userID,
+				)), nil
+			}
+
 			continue
 		}
 

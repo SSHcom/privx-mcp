@@ -49,6 +49,7 @@ func RegisterDCRStub(mux *http.ServeMux, cfg DCRStubConfig) error {
 			}
 
 			http.Error(w, "failed to read request body", http.StatusBadRequest)
+
 			return
 		}
 

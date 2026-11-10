@@ -9,7 +9,6 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/target_domains"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // ManagedAccountUpdate returns the target-domain-managed-account-update tool definition.
@@ -80,14 +79,14 @@ func updateManagedAccountHandler(ctx context.Context, params map[string]any) (*r
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	domainID := utils.StringFromMap(params, "id")
-	if domainID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	domainID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
-	accountID := utils.StringFromMap(params, "account_id")
-	if accountID == "" {
-		return registry.ErrorResult("validation error: missing required field: account_id"), nil
+	accountID, errResult := common.RequiredPathID(params, "account_id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := secretsmanager.New(authCtx.Connector)

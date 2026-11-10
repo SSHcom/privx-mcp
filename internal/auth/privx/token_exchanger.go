@@ -68,13 +68,22 @@ func NewPrivXTokenExchanger(cfg ExchangerConfig) (*PrivXTokenExchanger, error) {
 
 // Exchange takes a minted JWT string and creates a new authenticated PrivX connector.
 // A new connector is created per call (no token caching).
-func (e *PrivXTokenExchanger) Exchange(_ context.Context, mintedJWT string) (restapi.Connector, error) {
+func (e *PrivXTokenExchanger) Exchange(ctx context.Context, mintedJWT string) (restapi.Connector, error) {
+	if ctx != nil {
+		if err := ctx.Err(); err != nil {
+			return nil, e.failExchange(err)
+		}
+	}
+
 	logging.Debug("token exchange", "url", e.baseURL+"/auth/api/v1/token/login")
 
 	// Create a base connector for the token exchange request.
 	baseClient := restapi.New(
 		restapi.BaseURL(e.baseURL),
 	)
+	if err := boundHTTPClient(baseClient); err != nil {
+		return nil, e.failExchange(err)
+	}
 
 	// Build OAuth options for the exchange.
 	opts := []sdkoauth.Option{
@@ -87,14 +96,7 @@ func (e *PrivXTokenExchanger) Exchange(_ context.Context, mintedJWT string) (res
 	// Eagerly obtain the access token to detect errors immediately.
 	_, err := authorizer.AccessToken()
 	if err != nil {
-		classified := e.classifyError(err)
-		logging.Error(
-			"token exchange failed",
-			"raw_error", err.Error(),
-			"classified_error", classified,
-		)
-
-		return nil, classified
+		return nil, e.failExchange(err)
 	}
 
 	logging.Debug("token exchange succeeded")
@@ -104,8 +106,25 @@ func (e *PrivXTokenExchanger) Exchange(_ context.Context, mintedJWT string) (res
 		restapi.BaseURL(e.baseURL),
 		restapi.Auth(authorizer),
 	)
+	if err := boundHTTPClient(connector); err != nil {
+		return nil, e.failExchange(err)
+	}
 
 	return connector, nil
+}
+
+// failExchange logs the PrivX failure and returns it to the caller. The
+// process keeps running; the MCP request fails with this error.
+func (e *PrivXTokenExchanger) failExchange(err error) error {
+	classified := e.classifyError(err)
+	logging.Error(
+		"token exchange failed",
+		"url", e.baseURL,
+		"raw_error", err.Error(),
+		"classified_error", classified,
+	)
+
+	return classified
 }
 
 // classifyError distinguishes authentication errors (401/403) from network errors.
@@ -148,6 +167,13 @@ func (e *PrivXTokenExchanger) classifyError(err error) error {
 		Message: fmt.Sprintf("token exchange failed: %s", errMsg),
 		Err:     err,
 	}
+}
+
+// isTimeout reports a deadline on the PrivX call. A refused connection is a
+// network error and is not a timeout.
+func isTimeout(err error) bool {
+	var timeout interface{ Timeout() bool }
+	return errors.As(err, &timeout) && timeout.Timeout()
 }
 
 // isNetworkError checks if the error is a network-level failure.

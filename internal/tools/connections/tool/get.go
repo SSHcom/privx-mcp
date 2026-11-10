@@ -49,9 +49,9 @@ func getConnectionHandler(ctx context.Context, params map[string]any) (*registry
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	connID := utils.StringFromMap(params, "id")
-	if connID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	connID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	raw := utils.BoolFromMap(params, "raw")

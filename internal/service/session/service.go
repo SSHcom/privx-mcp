@@ -201,6 +201,50 @@ func (s *Service) Set(privxBaseURL string, identity *oauth.IdentityClaims, value
 	s.mu.Unlock()
 }
 
+// SetConnectorUserID stores the connector user id on a live cache entry.
+// A missing, expired, or different user entry is left unchanged, so this write cannot start a new TTL.
+func (s *Service) SetConnectorUserID(
+	privxBaseURL string,
+	identity *oauth.IdentityClaims,
+	userID string,
+	connectorUserID string,
+) {
+	if !s.Enabled() {
+		return
+	}
+
+	key, ok := BuildIdentityKey(privxBaseURL, identity)
+	if !ok {
+		return
+	}
+
+	userID = strings.TrimSpace(userID)
+
+	connectorUserID = strings.TrimSpace(connectorUserID)
+	if userID == "" || connectorUserID == "" {
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	entry, exists := s.entries[key]
+	if !exists || !s.nowFunc().Before(entry.expiresAt) {
+		if exists {
+			delete(s.entries, key)
+		}
+
+		return
+	}
+
+	if !strings.EqualFold(strings.TrimSpace(entry.value.UserID), userID) {
+		return
+	}
+
+	entry.value.ConnectorUserID = connectorUserID
+	s.entries[key] = entry
+}
+
 // TryInvalidateForRefresh drops the cached context so the next lookup hits
 // PrivX, subject to a per-identity cooldown. lastRefresh outlives the cache
 // entry so deleting the value does not reset the cooldown. ok is false when

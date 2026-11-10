@@ -466,14 +466,11 @@ func (c *Core) storeConnectorUserID(claims *oauth.IdentityClaims, resolved *role
 		return
 	}
 
-	c.permissions.sessionService.Set(
+	c.permissions.sessionService.SetConnectorUserID(
 		c.permissions.sessionBaseURL,
 		claims,
-		session.CachedUserContext{
-			UserID:          resolved.ID,
-			ResolvedRoles:   resolved,
-			ConnectorUserID: connectorUserID,
-		},
+		resolved.ID,
+		connectorUserID,
 	)
 }
 

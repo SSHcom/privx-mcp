@@ -154,6 +154,7 @@ func narrow(keep [][]string, key string) [][]string {
 	}
 
 	var next [][]string
+
 	for _, path := range keep {
 		if len(path) == 0 {
 			return [][]string{nil}

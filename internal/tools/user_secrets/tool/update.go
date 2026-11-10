@@ -9,7 +9,6 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // Update returns the user-secret-update tool definition.
@@ -46,12 +45,16 @@ func updateHandler(ctx context.Context, params map[string]any) (*registry.ToolRe
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	name := utils.StringFromMap(params, "name")
-	if name == "" {
-		return registry.ErrorResult("validation error: missing required field: name"), nil
+	name, errResult := common.RequiredPathID(params, "name")
+	if errResult != nil {
+		return errResult, nil
 	}
 
-	userID := utils.StringFromMap(params, "user_id")
+	userID, errResult := common.OptionalPathID(params, "user_id")
+	if errResult != nil {
+		return errResult, nil
+	}
+
 	client := vault.New(authCtx.Connector)
 
 	var (

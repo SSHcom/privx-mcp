@@ -60,8 +60,9 @@ func TestWithRequestLogging_ForwardsSmallPostBody(t *testing.T) {
 	}
 }
 
-func TestWithRequestLogging_OmitsSensitiveBodies(t *testing.T) {
+func TestWithRequestLogging_OmitsSensitiveRequestBodies(t *testing.T) {
 	const secret = "checkout-password-value"
+	const responseSecret = "response-password-value"
 	path := filepath.Join(t.TempDir(), "app.log")
 	cleanup, err := applog.Setup(path, "debug")
 	if err != nil {
@@ -71,7 +72,7 @@ func TestWithRequestLogging_OmitsSensitiveBodies(t *testing.T) {
 
 	payload := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"target-domain-managed-account-checkout","arguments":{"secret":"` + secret + `"}}}`
 	handler := withRequestLogging(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.WriteString(w, `{"secret":"`+secret+`"}`)
+		_, _ = io.WriteString(w, `{"secret":"`+responseSecret+`"}`)
 	}), func(name string) bool {
 		return name == "host-list"
 	})
@@ -80,16 +81,20 @@ func TestWithRequestLogging_OmitsSensitiveBodies(t *testing.T) {
 	handler.ServeHTTP(httptest.NewRecorder(), req)
 
 	body := readLog(t, path)
-	if strings.Contains(body, secret) {
-		t.Fatalf("debug log included secret:\n%s", body)
+	if strings.Contains(body, secret) || strings.Contains(body, responseSecret) {
+		t.Fatalf("debug log included a secret:\n%s", body)
 	}
 	if !strings.Contains(body, "tools/call") || !strings.Contains(body, "target-domain-managed-account-checkout") {
 		t.Fatalf("debug log missing method or tool name:\n%s", body)
 	}
+	if !strings.Contains(body, "status=") {
+		t.Fatalf("debug log missing status:\n%s", body)
+	}
 }
 
-func TestWithRequestLogging_LogsNonSensitiveBodies(t *testing.T) {
-	const marker = "web-01.example"
+func TestWithRequestLogging_LogsRequestBodyNotResponse(t *testing.T) {
+	const requestMarker = "web-01.example"
+	const responseMarker = "response-only-marker"
 	path := filepath.Join(t.TempDir(), "app.log")
 	cleanup, err := applog.Setup(path, "debug")
 	if err != nil {
@@ -97,9 +102,9 @@ func TestWithRequestLogging_LogsNonSensitiveBodies(t *testing.T) {
 	}
 	defer cleanup()
 
-	payload := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"host-list","arguments":{"common_name":"` + marker + `"}}}`
+	payload := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"host-list","arguments":{"common_name":"` + requestMarker + `"}}}`
 	handler := withRequestLogging(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = io.WriteString(w, `{"items":["`+marker+`"]}`)
+		_, _ = io.WriteString(w, `{"items":["`+responseMarker+`"]}`)
 	}), func(name string) bool {
 		return name == "host-list"
 	})
@@ -108,8 +113,11 @@ func TestWithRequestLogging_LogsNonSensitiveBodies(t *testing.T) {
 	handler.ServeHTTP(httptest.NewRecorder(), req)
 
 	body := readLog(t, path)
-	if strings.Count(body, marker) < 2 {
-		t.Fatalf("expected request and response bodies in the debug log, got:\n%s", body)
+	if !strings.Contains(body, requestMarker) {
+		t.Fatalf("debug log missing request body:\n%s", body)
+	}
+	if strings.Contains(body, responseMarker) {
+		t.Fatalf("debug log included the response body:\n%s", body)
 	}
 }
 

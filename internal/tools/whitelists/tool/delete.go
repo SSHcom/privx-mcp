@@ -8,7 +8,6 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // Delete returns the whitelist-delete tool definition.
@@ -45,9 +44,9 @@ func deleteHandler(ctx context.Context, params map[string]any) (*registry.ToolRe
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	whitelistID := utils.StringFromMap(params, "id")
-	if whitelistID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	whitelistID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := hoststore.New(authCtx.Connector)

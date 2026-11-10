@@ -8,7 +8,6 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // Get returns the password-policy-get tool definition.
@@ -43,9 +42,9 @@ func getHandler(ctx context.Context, params map[string]any) (*registry.ToolResul
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	policyID := utils.StringFromMap(params, "id")
-	if policyID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	policyID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := secretsmanager.New(authCtx.Connector)

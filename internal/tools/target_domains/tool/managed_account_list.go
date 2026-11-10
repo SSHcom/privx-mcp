@@ -91,9 +91,9 @@ func listManagedAccountsHandler(ctx context.Context, params map[string]any) (*re
 		return registry.ErrorResult("validation error: sortKey must be id, username, full_name, or email"), nil
 	}
 
-	domainID := utils.StringFromMap(params, "id")
-	if domainID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	domainID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	proj := target_domains.ManagedAccountProjectionFromParams(params)

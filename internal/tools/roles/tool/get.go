@@ -43,9 +43,9 @@ func getRoleHandler(ctx context.Context, params map[string]any) (*registry.ToolR
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	roleID := utils.StringFromMap(params, "id")
-	if roleID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	roleID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := rolestore.New(authCtx.Connector)
