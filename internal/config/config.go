@@ -120,8 +120,9 @@ type PermissionsConfig struct {
 	// (e.g. "AD", "LOCAL", "MICROSOFTGRAPH").
 	SourceType string
 
-	// Per-identity tool-call rate limit (fixed window). Both must be > 0 to
-	// enable; either zero disables limiting.
+	// Per-identity rate limit (fixed window) for tools/list and tools/call.
+	// Both must be > 0 to enable; either zero disables limiting. They share
+	// one counter.
 	RequestWindowSeconds int
 	MaxRequestsPerWindow int
 	// MaxedWindowWaitSeconds is extra cooldown after a window that hit

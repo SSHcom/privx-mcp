@@ -157,6 +157,68 @@ func TestAuthMiddleware_DeniesWhenToolMissingFromRegistry(t *testing.T) {
 	}
 }
 
+func TestToolFilter_RateLimitStopsDirectorySearch(t *testing.T) {
+	identity := &oauth.IdentityClaims{
+		Issuer:  "https://issuer.example.com",
+		Subject: "subject-1",
+		Email:   "alice@example.com",
+	}
+
+	api := &stubPermissionUserAPI{
+		searchUsersResult: []rolestore.User{
+			{
+				ID:         "user-1",
+				Email:      "alice@example.com",
+				Principal:  "alice",
+				SourceType: "AD",
+			},
+		},
+		resolveByID: map[string]*rolestore.User{
+			"user-1": {Permissions: []string{"hosts-view"}},
+		},
+	}
+	reg := registry.NewRegistry()
+	reg.Register(registry.Tool{
+		Name:                "host-list",
+		Description:         "list hosts",
+		RequiredPermissions: []string{"hosts-view"},
+		InputSchema:         map[string]any{"type": "object"},
+	})
+
+	limiter := session.NewRateLimiter(60, 2, 0)
+	core := NewCore(
+		config.ServerConfig{Name: "test", Version: "test"},
+		stubAuth{authCtx: &auth.AuthContext{Username: "alice"}},
+		reg,
+		&PermissionEngine{userAPI: api, sourceType: "AD"},
+		stubClaimsSource{claims: identity},
+		WithRateLimiter(limiter, "https://privx.example.com"),
+	)
+
+	for i := 0; i < 2; i++ {
+		session := connectMemoryClient(t, core.Server())
+		listed, err := session.ListTools(context.Background(), nil)
+		if err != nil {
+			t.Fatalf("list %d: %v", i+1, err)
+		}
+		if len(listed.Tools) != 1 {
+			t.Fatalf("list %d: expected 1 tool, got %d", i+1, len(listed.Tools))
+		}
+	}
+	if api.searchCalls != 2 {
+		t.Fatalf("expected one PrivX user search per allowed list, got %d", api.searchCalls)
+	}
+
+	blocked := connectMemoryClient(t, core.Server())
+	_, err := blocked.ListTools(context.Background(), nil)
+	if err == nil || !strings.Contains(err.Error(), rateLimitExceededMessage) {
+		t.Fatalf("expected rate limit on the third list, got %v", err)
+	}
+	if api.searchCalls != 2 {
+		t.Fatalf("expected no PrivX user search after the list quota, got %d", api.searchCalls)
+	}
+}
+
 func TestAuthMiddleware_RateLimitExceeded(t *testing.T) {
 	identity := &oauth.IdentityClaims{
 		Issuer:  "https://issuer.example.com",

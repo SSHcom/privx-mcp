@@ -193,6 +193,16 @@ func TestApplyPermissionsWhitelistEnvOverrides(t *testing.T) {
 	}
 }
 
+func TestApplyPermissionsWhitelistEnvRejectsBlank(t *testing.T) {
+	t.Setenv("PERMISSIONS_WHITELIST", "host-, ,user-")
+
+	cfg := &Config{}
+	err := applyEnvOverrides(cfg)
+	if err == nil || !strings.Contains(err.Error(), "permissions.whitelist contains a blank entry") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestApplyPermissionsBlacklistEnvOverrides(t *testing.T) {
 	t.Setenv("PERMISSIONS_BLACKLIST", "host-delete, user-delete-")
 

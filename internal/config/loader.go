@@ -174,9 +174,6 @@ func tomlToConfig(tc *tomlConfig) (*Config, error) {
 		},
 		Permissions: PermissionsConfig{
 			DefaultReadOnly:        tc.Permissions.DefaultReadOnly,
-			Whitelist:              trimList(tc.Permissions.Whitelist),
-			Blacklist:              trimList(tc.Permissions.Blacklist),
-			ResponseFilter:         trimList(tc.Permissions.ResponseFilter),
 			SourceType:             tc.Permissions.SourceType,
 			RequestWindowSeconds:   tc.Permissions.RequestWindowSeconds,
 			MaxRequestsPerWindow:   tc.Permissions.MaxRequestsPerWindow,
@@ -188,7 +185,6 @@ func tomlToConfig(tc *tomlConfig) (*Config, error) {
 		OAuth: OAuthConfig{
 			IssuerURL:           tc.OAuth.IssuerURL,
 			AllowHTTP:           tc.OAuth.AllowHTTP,
-			Scopes:              trimList(tc.OAuth.Scopes),
 			JWKSURI:             tc.OAuth.JWKSURI,
 			ExpectedAudience:    tc.OAuth.Audience,
 			IdentityClaimField:  tc.OAuth.IdentityClaimField,
@@ -196,6 +192,22 @@ func tomlToConfig(tc *tomlConfig) (*Config, error) {
 			DCRStubClientID:     tc.OAuth.DCRStubClientID,
 			DCRStubClientSecret: tc.OAuth.DCRStubClientSecret,
 		},
+	}
+
+	if err := assignTrimmedList("permissions.whitelist", tc.Permissions.Whitelist, &cfg.Permissions.Whitelist); err != nil {
+		return nil, err
+	}
+
+	if err := assignTrimmedList("permissions.blacklist", tc.Permissions.Blacklist, &cfg.Permissions.Blacklist); err != nil {
+		return nil, err
+	}
+
+	if err := assignTrimmedList("permissions.response_filter", tc.Permissions.ResponseFilter, &cfg.Permissions.ResponseFilter); err != nil {
+		return nil, err
+	}
+
+	if err := assignTrimmedList("oauth.scopes", tc.OAuth.Scopes, &cfg.OAuth.Scopes); err != nil {
+		return nil, err
 	}
 
 	if err := parseDurationIfSet(
@@ -225,23 +237,37 @@ func tomlToConfig(tc *tomlConfig) (*Config, error) {
 	return cfg, nil
 }
 
-// trimList drops blank entries and trims the rest. A nil or empty input is returned unchanged.
-func trimList(items []string) []string {
+// assignTrimmedList trims items into dest. A blank or whitespace-only entry is an error
+// that names the field. A nil or empty input is stored unchanged.
+func assignTrimmedList(field string, items []string, dest *[]string) error {
+	trimmed, err := trimList(field, items)
+	if err != nil {
+		return err
+	}
+
+	*dest = trimmed
+
+	return nil
+}
+
+// trimList trims each entry. A blank or whitespace-only entry is an error that names the field.
+// A nil or empty input is returned unchanged.
+func trimList(field string, items []string) ([]string, error) {
 	if len(items) == 0 {
-		return items
+		return items, nil
 	}
 
 	out := make([]string, 0, len(items))
 	for _, item := range items {
 		item = strings.TrimSpace(item)
 		if item == "" {
-			continue
+			return nil, fmt.Errorf("%s contains a blank entry", field)
 		}
 
 		out = append(out, item)
 	}
 
-	return out
+	return out, nil
 }
 
 // parseDurationIfSet parses raw into target when it is set.

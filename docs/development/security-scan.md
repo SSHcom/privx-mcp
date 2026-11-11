@@ -159,7 +159,7 @@ These belong in Notes unless a code default is already unsafe:
 - Run the binary behind TLS or a reverse proxy; do not expose the RSA signing key or API credentials on a workstation against production PrivX ([security.md](../reference/security/security.md)).
 - Protect signing keys and PrivX API client secrets on disk.
 - Demo compose passwords and local IdP defaults are for demonstration only.
-- Unauthenticated load and bind address are a proxy or host problem; in-process rate limits apply only after a valid identity on `tools/call`.
+- Unauthenticated load and bind address are a proxy or host problem; in-process rate limits apply only after a valid identity, on `tools/list` and `tools/call`.
 
 ## What to do next (if you are an agent)
 

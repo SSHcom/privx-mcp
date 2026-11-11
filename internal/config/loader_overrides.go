@@ -130,15 +130,30 @@ func applyEnvOverrides(cfg *Config) error {
 	}
 
 	if v := os.Getenv("PERMISSIONS_WHITELIST"); v != "" {
-		cfg.Permissions.Whitelist = splitCommaList(v)
+		list, err := splitCommaList("permissions.whitelist", v)
+		if err != nil {
+			return err
+		}
+
+		cfg.Permissions.Whitelist = list
 	}
 
 	if v := os.Getenv("PERMISSIONS_BLACKLIST"); v != "" {
-		cfg.Permissions.Blacklist = splitCommaList(v)
+		list, err := splitCommaList("permissions.blacklist", v)
+		if err != nil {
+			return err
+		}
+
+		cfg.Permissions.Blacklist = list
 	}
 
 	if v := os.Getenv("PERMISSIONS_RESPONSE_FILTER"); v != "" {
-		cfg.Permissions.ResponseFilter = splitCommaList(v)
+		list, err := splitCommaList("permissions.response_filter", v)
+		if err != nil {
+			return err
+		}
+
+		cfg.Permissions.ResponseFilter = list
 	}
 
 	if err := parseDurationIfSet(
@@ -187,7 +202,12 @@ func applyEnvOverrides(cfg *Config) error {
 	}
 
 	if v := os.Getenv("OAUTH_SCOPES"); v != "" {
-		cfg.OAuth.Scopes = splitCommaList(v)
+		list, err := splitCommaList("oauth.scopes", v)
+		if err != nil {
+			return err
+		}
+
+		cfg.OAuth.Scopes = list
 	}
 
 	if v := os.Getenv("OAUTH_JWKS_URI"); v != "" {
@@ -260,7 +280,8 @@ func setBoolFromEnv(name string, dest *bool) error {
 	return nil
 }
 
-// splitCommaList splits a comma-separated env value into trimmed non-empty parts.
-func splitCommaList(v string) []string {
-	return trimList(strings.Split(v, ","))
+// splitCommaList splits a comma-separated env value and trims each part.
+// A blank or whitespace-only part is an error that names field.
+func splitCommaList(field, v string) ([]string, error) {
+	return trimList(field, strings.Split(v, ","))
 }

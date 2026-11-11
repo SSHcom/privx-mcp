@@ -244,6 +244,9 @@ identity_mapping_rule = "as-is"
 #   3. whitelist         — keep only tools matching a prefix (empty = no filter)
 #   4. blacklist         — drop tools matching a prefix (empty = no filter)
 #
+# A blank or whitespace-only entry in whitelist, blacklist, response_filter,
+# or oauth scopes is a configuration error. Omit the key, or use [], for no filter.
+#
 # Priority notes:
 #   - default_read_only supersedes whitelist: write tools are removed before
 #     whitelist is applied, so a write tool prefix in whitelist (e.g. "host-create")
@@ -300,7 +303,8 @@ session_cache_ttl = "30s"
 #
 refresh_cooldown = "1m"
 
-# Per-identity tool-call rate limit (fixed window).
+# Per-identity rate limit (fixed window) for tools/list and tools/call.
+# Both count toward the same quota.
 # request_window_seconds and max_requests_per_window must both be > 0 to
 # enable; leave at 0 (or omit) to disable.
 #

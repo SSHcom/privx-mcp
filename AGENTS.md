@@ -13,7 +13,7 @@
 - `service/logging/`: slog wrapper with optional lumberjack file rotation.
 - `service/privx_api/`: thin PrivX API wrappers (users, roles, workflow requestable roles) used by runtime and tools.
 - `service/security/`: MCP boundary hardening (sanitizing, response word filter, response envelope). See `docs/reference/security/security.md`.
-- `service/session/`: per-identity user-context cache and tool-call rate limiting.
+- `service/session/`: per-identity user-context cache and rate limiting for `tools/list` and `tools/call`.
 - `testutil/testconn/`: test-only fake `restapi.Connector` and auth-context helpers for tool handler tests.
 - `tools/`: tool registration (`register.go`, `permissions.go`) and one package per topic. Handlers live in `tool/` unless noted.
   - `tools/common/`: shared tool defaults and paging/sort helpers.

@@ -64,25 +64,25 @@ One tool is a deliberate exception. `request-set-decision` approves or denies an
 
 Permissions cap what a caller can do, not how often. A model stuck retrying a search or chasing a tool error keeps calling, and a hostile or buggy client can do the same on purpose. The cost lands on PrivX, on this server, and on the model's own context window.
 
-The `[permissions]` rate limit is a per-identity fixed window on `tools/call`. Listing tools is not counted. It is off unless both of the first two settings are above zero.
+The `[permissions]` rate limit is a per-identity fixed window on `tools/list` and `tools/call`. Both count toward the same quota. It is off unless both of the first two settings are above zero.
 
 | Setting                     | Role                                                                                                                                                                                                                       |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `request_window_seconds`    | How long each quota window lasts, starting at that identity's first accepted call in the window.                                                                                                                           |
-| `max_requests_per_window`   | How many tool calls that identity may make in one window. Further calls in the same window are refused (`Too many requests. Please try again later.`).                                                                     |
-| `maxed_window_wait_seconds` | Extra cooldown after a window that used the full quota. The next call is refused until the window has ended **and** this wait has elapsed. `0` (default) means the next window can start as soon as the previous one ends. |
+| `request_window_seconds`    | How long each quota window lasts, starting at that identity's first accepted request in the window.                                                                                                                        |
+| `max_requests_per_window`   | How many `tools/list` and `tools/call` requests that identity may make in one window. Further requests in the same window are refused (`Too many requests. Please try again later.`).                                      |
+| `maxed_window_wait_seconds` | Extra cooldown after a window that used the full quota. The next request is refused until the window has ended **and** this wait has elapsed. `0` (default) means the next window can start as soon as the previous one ends. |
 
 ### Why the extra wait exists
 
 - Without it, a client can repeat the same full burst the instant a window ends, which still averages `max / window`.
 - With it, maxing out a window is slower than staying under it. A looping model maxes out windows, while a human-paced session does not.
 - A window that was not filled to the max does not pay the extra wait.
-- Denied calls never count toward the next window.
+- Denied requests never count toward the next window.
 
 ### What the limit covers
 
 - It bounds one identity, not the site. Each identity has its own counter, so many callers in parallel still add up.
-- The quota is checked after the caller's credentials are verified and before the PrivX token exchange, so a call over the quota does not log in to PrivX.
+- The quota is checked after the caller's credentials are verified and before a `tools/list` user lookup or a `tools/call` PrivX token exchange, so a request over the quota does not search the directory or log in to PrivX.
 - Unauthenticated traffic is not counted. Limit it at a reverse proxy or in the network.
 
 ### How to set them

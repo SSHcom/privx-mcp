@@ -304,6 +304,13 @@ func (pe *PermissionEngine) resolveUserRoles(_ context.Context, identity *oauth.
 		}, nil
 	}
 
+	logging.Debug(
+		"fetching PrivX users to resolve caller",
+		"email", identity.Email,
+		"upn", identity.UPN,
+		"sub", identity.Subject,
+	)
+
 	users, err := pe.userAPI.SearchAllUsers(rolestore.UserSearch{})
 	if err != nil {
 		return userRoleResolution{}, fmt.Errorf("failed to get users from role store: %w", err)

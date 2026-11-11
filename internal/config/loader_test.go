@@ -1229,14 +1229,14 @@ rsa_key_id = "key-1"
 
 [permissions]
 source_type = "AD"
-whitelist = [" host-", " ", "user-"]
-blacklist = ["", " host-delete "]
-response_filter = [" sudo ", ""]
+whitelist = [" host-", "user-"]
+blacklist = [" host-delete "]
+response_filter = [" sudo "]
 
 [oauth]
 issuer_url = "https://idp.example.com"
 audience = "test-client"
-scopes = [" openid ", "", " email"]
+scopes = [" openid ", " email"]
 `
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.toml")
@@ -1315,6 +1315,26 @@ audience = "test-client"
 			name:    "identity mapping rule",
 			oauth:   `identity_mapping_rule = "lower"`,
 			wantErr: "oauth.identity_mapping_rule",
+		},
+		{
+			name:    "blank whitelist",
+			perms:   `whitelist = ["", " ", "host-"]`,
+			wantErr: "permissions.whitelist contains a blank entry",
+		},
+		{
+			name:    "blank blacklist",
+			perms:   `blacklist = [" "]`,
+			wantErr: "permissions.blacklist contains a blank entry",
+		},
+		{
+			name:    "blank response filter",
+			perms:   `response_filter = [""]`,
+			wantErr: "permissions.response_filter contains a blank entry",
+		},
+		{
+			name:    "blank scope",
+			oauth:   `scopes = ["openid", ""]`,
+			wantErr: "oauth.scopes contains a blank entry",
 		},
 	}
 
