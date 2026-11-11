@@ -9,6 +9,7 @@ How the PrivX MCP server decides **which tools a user can see** and **which tool
 - [User documentation](../user/USER.md)
 - [MCP server configuration](../server/SERVER.md)
 - [PrivX configuration](../server/privx.md)
+- [External token provider](../server/privx-token-provider.md)
 - [Configure machine-to-machine access](../../guide/04-m2m/04-m2m.md)
 
 ## Overview
@@ -57,7 +58,7 @@ See `permissions.source_type` in `privx-mcp-config-example.toml` and the resolut
 
 It may look as if setting `source_type` to whatever directory contains the user's identifier is enough. It is not.
 
-Tool calls do not only look the user up for permission checks. They also open a PrivX session on behalf of that user through an External Token Provider configured in PrivX, and that connection is bound to **one specific user directory**. See [PrivX configuration](../server/privx.md#user-specific-client) for the exchange itself.
+Tool calls do not only look the user up for permission checks. They also open a PrivX session on behalf of that user through an [external token provider](../server/privx-token-provider.md) configured in PrivX, and that connection is bound to **one specific user directory**. The provider's Users Directory supplies `[permissions].source_type`. The same provider also supplies `[privx_auth].subject_format`, `[privx_auth].rsa_key_id`, `[privx_auth].token_issuer`, `[privx_auth].audience`, and the optional `[privx_auth].rsa_public_key_file`. See [PrivX configuration](../server/privx.md#user-specific-client) for the exchange itself.
 
 So two things must agree:
 

@@ -33,13 +33,13 @@ m2m_jwt_identity_mapper = "preferred_username user-1 privx-user-1|email user-2@e
 privx_base_url = "https://privx.example.net"
 
 # Private key for JWTs exchanged with PrivX. Paste the matching public key
-# into the External Token Provider.
+# into the external token provider. See docs/reference/server/privx-token-provider.md.
 rsa_key_file = "/etc/privx-mcp/private-key.pem"
 # Optional startup check that this public key matches rsa_key_file.
 rsa_public_key_file = "/etc/privx-mcp/public-key.pem"
 
-# These four values must match the External Token Provider. See the annotated
-# screenshot in docs/guide/04-m2m/04-m2m.md.
+# subject_format, rsa_key_id, token_issuer, and audience come from the
+# external token provider. See docs/reference/server/privx-token-provider.md.
 rsa_key_id = "privx-mcp-key-1"
 audience = "privx-mcp-client"
 token_issuer = "privx-mcp"
@@ -62,7 +62,7 @@ enable_sensitive_data_tools = false
 sensitive_data_tools_allow_non_admin = false
 response_filter = ["sudo", "chmod", "chown", "curl", "wget", "ping", "nslookup", "sh", "bash", "zsh", "cmd", "exec", "eval"]
 
-# Must match the External Token Provider Users Directory.
+# Users Directory type from the external token provider.
 # LOCAL for a local PrivX account, which is the usual machine-to-machine choice.
 source_type = "LOCAL"
 session_cache_ttl = "30s"

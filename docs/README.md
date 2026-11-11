@@ -25,6 +25,7 @@ Supporting documentation, grouped by topic. The guide points into these pages.
   - [MCP server configuration](reference/server/SERVER.md)
   - [Configure machine-to-machine access](guide/04-m2m/04-m2m.md)
   - [PrivX configuration](reference/server/privx.md)
+  - [External token provider](reference/server/privx-token-provider.md)
   - [TLS (HTTPS)](reference/server/tls.md)
 
 - OIDC
