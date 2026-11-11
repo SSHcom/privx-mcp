@@ -9,6 +9,7 @@ The MCP server has been tested with PrivX v45, v44 & v43.
 An [mcp proxy](docs/reference/clients/privx-mcp-proxy.md) is also available for clients that have issues with streaming, OAuth, etc.
 
 > **Warning**
+>
 > Agents act on your PrivX instance with a mapped user's roles, so unintended changes or data loss are possible if the server is used carelessly. We recommend getting familiar with the server in a test environment before using it in production.
 
 ## Architecture
