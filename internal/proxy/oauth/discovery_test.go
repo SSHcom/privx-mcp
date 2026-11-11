@@ -429,6 +429,40 @@ func TestDiscoverNilClient(t *testing.T) {
 	}
 }
 
+func TestDiscoverAcceptsResourceTrailingSlash(t *testing.T) {
+	t.Parallel()
+
+	f := &discoveryFixture{}
+	srv := startDiscoveryServer(t, f)
+	f.prm = func(base string) map[string]any {
+		return map[string]any{
+			"resource":              base + "/mcp/",
+			"authorization_servers": []string{base},
+		}
+	}
+
+	got, err := discover(t, srv.URL+"/mcp", nil)
+	if err != nil {
+		t.Fatalf("Discover: %v", err)
+	}
+
+	if got.Resource != srv.URL+"/mcp/" {
+		t.Fatalf("resource = %q", got.Resource)
+	}
+}
+
+func TestSameResource_IgnoresTrailingSlash(t *testing.T) {
+	t.Parallel()
+
+	if !sameResource("https://mcp.example/mcp/", "https://mcp.example/mcp") {
+		t.Fatal("trailing slash should match")
+	}
+
+	if sameResource("https://mcp.example/mcp", "https://evil.example/mcp") {
+		t.Fatal("different host should not match")
+	}
+}
+
 func TestDiscoverRejectsResourceMismatch(t *testing.T) {
 	t.Parallel()
 

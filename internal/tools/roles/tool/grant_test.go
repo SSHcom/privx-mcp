@@ -210,6 +210,61 @@ func TestGrantRoleHandler_FloatingMissingLength(t *testing.T) {
 	}
 }
 
+func TestGrantRoleHandler_RestrictedInvalidDates(t *testing.T) {
+	conn := testconn.New(t)
+	conn.Handle("GET", "/role-store/api/v1/roles/:id", func(body any) (any, error) {
+		return rolestore.Role{ID: "r1", Name: "ops"}, nil
+	})
+	cases := []struct {
+		name  string
+		from  string
+		until string
+		want  string
+	}{
+		{
+			name:  "invalid valid_from",
+			from:  "2025-01-15",
+			until: "2025-06-30T17:00:00Z",
+			want:  "valid_from must be RFC3339",
+		},
+		{
+			name:  "invalid valid_until",
+			from:  "2025-01-15T09:00:00Z",
+			until: "next june",
+			want:  "valid_until must be RFC3339",
+		},
+		{
+			name:  "until equal to from",
+			from:  "2025-01-15T09:00:00Z",
+			until: "2025-01-15T09:00:00Z",
+			want:  "valid_until must be after valid_from",
+		},
+		{
+			name:  "until before from",
+			from:  "2025-06-30T17:00:00Z",
+			until: "2025-01-15T09:00:00Z",
+			want:  "valid_until must be after valid_from",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			res, err := grantRoleHandler(testconn.CtxWithAuth(conn), map[string]any{
+				"user_id":     "u1",
+				"role_id":     "r1",
+				"grant_type":  "restricted",
+				"valid_from":  tc.from,
+				"valid_until": tc.until,
+			})
+			if err != nil {
+				t.Fatalf("err: %v", err)
+			}
+			if !res.IsError || !strings.Contains(res.Content[0].Text, tc.want) {
+				t.Errorf("got %q, want containing %q", res.Content[0].Text, tc.want)
+			}
+		})
+	}
+}
+
 func TestGrantRoleHandler_RestrictedMissingDates(t *testing.T) {
 	conn := testconn.New(t)
 	conn.Handle("GET", "/role-store/api/v1/roles/:id", func(body any) (any, error) {

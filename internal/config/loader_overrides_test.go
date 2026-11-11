@@ -71,6 +71,19 @@ func TestApplyOAuthEnvOverrides(t *testing.T) {
 	}
 }
 
+func TestApplyOAuthScopesTrimsEntries(t *testing.T) {
+	t.Setenv("OAUTH_SCOPES", " openid, ,profile ,email ")
+
+	cfg := &Config{}
+	if err := applyEnvOverrides(cfg); err != nil {
+		t.Fatal(err)
+	}
+
+	if len(cfg.OAuth.Scopes) != 3 || cfg.OAuth.Scopes[0] != "openid" || cfg.OAuth.Scopes[1] != "profile" || cfg.OAuth.Scopes[2] != "email" {
+		t.Fatalf("scopes = %v", cfg.OAuth.Scopes)
+	}
+}
+
 func TestValidateOAuth_RequiresProviderFields(t *testing.T) {
 	base := PrivXAuthConfig{
 		PrivXBaseURL: "https://privx.example.com",
@@ -89,10 +102,12 @@ func TestValidateOAuth_RequiresProviderFields(t *testing.T) {
 
 	cfg.Server.PublicURL = "http://localhost:8181"
 	cfg.Permissions.SourceType = "AD"
+	cfg.PrivXAuth.SubjectFormat = "plain"
 	cfg.OAuth = OAuthConfig{
-		IssuerURL:          "https://login.example.com",
-		ExpectedAudience:   "mcp-client",
-		IdentityClaimField: "email",
+		IssuerURL:           "https://login.example.com",
+		ExpectedAudience:    "mcp-client",
+		IdentityClaimField:  "email",
+		IdentityMappingRule: "as-is",
 	}
 	if err := validate(cfg); err != nil {
 		t.Fatalf("unexpected validation error: %v", err)
@@ -178,6 +193,16 @@ func TestApplyPermissionsWhitelistEnvOverrides(t *testing.T) {
 	}
 }
 
+func TestApplyPermissionsWhitelistEnvRejectsBlank(t *testing.T) {
+	t.Setenv("PERMISSIONS_WHITELIST", "host-, ,user-")
+
+	cfg := &Config{}
+	err := applyEnvOverrides(cfg)
+	if err == nil || !strings.Contains(err.Error(), "permissions.whitelist contains a blank entry") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestApplyPermissionsBlacklistEnvOverrides(t *testing.T) {
 	t.Setenv("PERMISSIONS_BLACKLIST", "host-delete, user-delete-")
 
@@ -255,6 +280,44 @@ func TestApplyPermissionsRateLimitEnvOverrides(t *testing.T) {
 	if cfg.Permissions.MaxedWindowWaitSeconds != 12 {
 		t.Fatalf("expected maxed window wait seconds override, got %d", cfg.Permissions.MaxedWindowWaitSeconds)
 	}
+}
+
+func TestApplyEnvOverridesRejectsInvalidDurationAndInt(t *testing.T) {
+	t.Run("session cache ttl", func(t *testing.T) {
+		t.Setenv("PERMISSIONS_SESSION_CACHE_TTL", "soon")
+
+		err := applyEnvOverrides(&Config{})
+		if err == nil || !strings.Contains(err.Error(), "permissions.session_cache_ttl") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+
+	t.Run("refresh cooldown", func(t *testing.T) {
+		t.Setenv("PERMISSIONS_REFRESH_COOLDOWN", "soon")
+
+		err := applyEnvOverrides(&Config{})
+		if err == nil || !strings.Contains(err.Error(), "permissions.refresh_cooldown") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+
+	t.Run("jwks cache ttl", func(t *testing.T) {
+		t.Setenv("OAUTH_JWKS_CACHE_TTL", "soon")
+
+		err := applyEnvOverrides(&Config{})
+		if err == nil || !strings.Contains(err.Error(), "oauth.jwks_cache_ttl") {
+			t.Fatalf("error = %v", err)
+		}
+	})
+
+	t.Run("request window", func(t *testing.T) {
+		t.Setenv("PERMISSIONS_REQUEST_WINDOW_SECONDS", "ninety")
+
+		err := applyEnvOverrides(&Config{})
+		if err == nil || !strings.Contains(err.Error(), "PERMISSIONS_REQUEST_WINDOW_SECONDS") {
+			t.Fatalf("error = %v", err)
+		}
+	})
 }
 
 func TestApplyPermissionsDefaultReadOnlyEnv(t *testing.T) {

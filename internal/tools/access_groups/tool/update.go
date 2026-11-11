@@ -66,9 +66,9 @@ func updateHandler(ctx context.Context, params map[string]any) (*registry.ToolRe
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	accessGroupID := utils.StringFromMap(params, "id")
-	if accessGroupID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	accessGroupID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := authorizer.New(authCtx.Connector)

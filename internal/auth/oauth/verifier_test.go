@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -351,6 +352,12 @@ func TestJWKSTokenVerifier_WrongAudience(t *testing.T) {
 	if authErr.Reason != "wrong_audience" {
 		t.Errorf("expected reason %q, got %q", "wrong_audience", authErr.Reason)
 	}
+	if authErr.Message != "token audience does not match expected audience" {
+		t.Errorf("unexpected message: %q", authErr.Message)
+	}
+	if strings.Contains(authErr.Message, audience) {
+		t.Errorf("message must not leak expected audience %q", audience)
+	}
 }
 
 func TestJWKSTokenVerifier_WrongIssuer(t *testing.T) {
@@ -397,6 +404,12 @@ func TestJWKSTokenVerifier_WrongIssuer(t *testing.T) {
 	}
 	if authErr.Reason != "wrong_issuer" {
 		t.Errorf("expected reason %q, got %q", "wrong_issuer", authErr.Reason)
+	}
+	if authErr.Message != "token issuer does not match expected issuer" {
+		t.Errorf("unexpected message: %q", authErr.Message)
+	}
+	if strings.Contains(authErr.Message, issuer) {
+		t.Errorf("message must not leak expected issuer %q", issuer)
 	}
 }
 

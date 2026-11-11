@@ -19,10 +19,11 @@ import (
 // withRequestLogging wraps an http.Handler with a single-line log per
 // incoming request, including method, path, remote addr, and the resulting
 // status code / duration. For POST /mcp it also logs the JSON-RPC method and,
-// for tools/call, the tool name. Request and response bodies are included only
-// when logToolBody reports that the named tool is registered and not sensitive.
-// Every other POST is logged as a byte count. A POST body above
-// utils.MaxRequestBody is rejected with 413 before the next handler runs.
+// for tools/call, the tool name. The request body is included only when
+// logToolBody reports that the named tool is registered and not sensitive.
+// Every other POST is logged as a byte count. Response bodies are not kept;
+// the tool handler logs those. A POST body above utils.MaxRequestBody is
+// rejected with 413 before the next handler runs.
 func withRequestLogging(next http.Handler, logToolBody func(name string) bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
@@ -31,6 +32,7 @@ func withRequestLogging(next http.Handler, logToolBody func(name string) bool) h
 
 		// Capture request body for POST so we can see the JSON-RPC method.
 		var reqBody []byte
+
 		if r.Method == http.MethodPost {
 			body, err := utils.ReadLimitedBody(w, r)
 			if err != nil {
@@ -42,7 +44,7 @@ func withRequestLogging(next http.Handler, logToolBody func(name string) bool) h
 			r.Body = io.NopCloser(bytes.NewReader(reqBody))
 		}
 
-		rr := &statusRecorder{ResponseWriter: w, status: http.StatusOK, body: &bytes.Buffer{}}
+		rr := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rr, r)
 
 		applog.Debug(
@@ -57,9 +59,7 @@ func withRequestLogging(next http.Handler, logToolBody func(name string) bool) h
 		)
 
 		if r.Method == http.MethodPost {
-			call := classifyPostBody(reqBody, logToolBody)
-			debugBody("http request body", call, reqBody)
-			debugBody("http response body", call, rr.body.Bytes())
+			debugBody("http request body", classifyPostBody(reqBody, logToolBody), reqBody)
 		}
 	})
 }
@@ -148,7 +148,6 @@ type statusRecorder struct {
 	http.ResponseWriter
 	status      int
 	wroteHeader bool
-	body        *bytes.Buffer
 }
 
 func (s *statusRecorder) WriteHeader(code int) {
@@ -162,7 +161,6 @@ func (s *statusRecorder) WriteHeader(code int) {
 }
 
 func (s *statusRecorder) Write(p []byte) (int, error) {
-	s.body.Write(p)
 	return s.ResponseWriter.Write(p)
 }
 

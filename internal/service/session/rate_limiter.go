@@ -12,7 +12,8 @@ type rateLimitEntry struct {
 	count       int
 }
 
-// RateLimiter enforces a fixed-window per-identity tool-call quota.
+// RateLimiter enforces a fixed-window per-identity quota. tools/list and
+// tools/call share one counter.
 type RateLimiter struct {
 	window    time.Duration
 	max       int

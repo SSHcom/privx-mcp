@@ -109,6 +109,125 @@ func TestToolHandler_SensitiveParamsStayOutOfDebugLog(t *testing.T) {
 	}
 }
 
+func TestToolHandler_SensitiveResponseStaysOutOfDebugLog(t *testing.T) {
+	const secret = "checkout-password-value"
+	path := filepath.Join(t.TempDir(), "app.log")
+	cleanup, err := logging.Setup(path, "debug")
+	if err != nil {
+		t.Fatalf("Setup: %v", err)
+	}
+	defer cleanup()
+
+	tool := registry.Tool{
+		Name:      "target-domain-managed-account-checkout",
+		Sensitive: true,
+		Trusted:   true,
+		Handler: func(context.Context, map[string]any) (*registry.ToolResult, error) {
+			return registry.TextResult(secret), nil
+		},
+	}
+	callTool(t, tool, map[string]any{"account": "svc"})
+
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read log: %v", err)
+	}
+	logged := string(body)
+	if strings.Contains(logged, secret) {
+		t.Fatalf("debug log included secret:\n%s", logged)
+	}
+	if !strings.Contains(logged, "target-domain-managed-account-checkout") || !strings.Contains(logged, "bytes=") {
+		t.Fatalf("debug log missing tool name or response size:\n%s", logged)
+	}
+}
+
+func TestToolHandler_DebugLogsNonSensitiveResponse(t *testing.T) {
+	const marker = "web-01.example"
+	path := filepath.Join(t.TempDir(), "app.log")
+	cleanup, err := logging.Setup(path, "debug")
+	if err != nil {
+		t.Fatalf("Setup: %v", err)
+	}
+	defer cleanup()
+
+	tool := registry.Tool{
+		Name: "host-list",
+		Handler: func(context.Context, map[string]any) (*registry.ToolResult, error) {
+			return registry.TextResult(`{"items":[{"common_name":"` + marker + `"}]}`), nil
+		},
+	}
+	callTool(t, tool, map[string]any{"limit": float64(1)})
+
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read log: %v", err)
+	}
+	logged := string(body)
+	if !strings.Contains(logged, "tool call response") || !strings.Contains(logged, marker) {
+		t.Fatalf("debug log missing response body:\n%s", logged)
+	}
+}
+
+func TestToolHandler_ResponseDebugIsSkippedWhenDebugIsOff(t *testing.T) {
+	const marker = "web-01.example"
+	path := filepath.Join(t.TempDir(), "app.log")
+	cleanup, err := logging.Setup(path, "info")
+	if err != nil {
+		t.Fatalf("Setup: %v", err)
+	}
+	defer cleanup()
+
+	tool := registry.Tool{
+		Name: "host-list",
+		Handler: func(context.Context, map[string]any) (*registry.ToolResult, error) {
+			return registry.TextResult(`{"items":[{"common_name":"` + marker + `"}]}`), nil
+		},
+	}
+	callTool(t, tool, map[string]any{"limit": float64(1)})
+
+	body, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return
+		}
+		t.Fatalf("read log: %v", err)
+	}
+	if strings.Contains(string(body), marker) {
+		t.Fatalf("info log included the response:\n%s", body)
+	}
+}
+
+func TestToolHandler_DebugTruncatesLongResponse(t *testing.T) {
+	const tail = "RESPONSE-TAIL"
+	path := filepath.Join(t.TempDir(), "app.log")
+	cleanup, err := logging.Setup(path, "debug")
+	if err != nil {
+		t.Fatalf("Setup: %v", err)
+	}
+	defer cleanup()
+
+	payload := `{"items":"` + strings.Repeat("a", toolResponseLogLimit) + tail + `"}`
+	tool := registry.Tool{
+		Name: "host-list",
+		Handler: func(context.Context, map[string]any) (*registry.ToolResult, error) {
+			return registry.TextResult(payload), nil
+		},
+	}
+	callTool(t, tool, map[string]any{"limit": float64(1)})
+
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read log: %v", err)
+	}
+	logged := string(body)
+	if !strings.Contains(logged, "...[truncated]") {
+		t.Fatalf("debug log missing truncation marker:\n%s", logged)
+	}
+	if strings.Contains(logged, tail) {
+		t.Fatalf("debug log included the response tail:\n%s", logged)
+	}
+}
+
 func TestToolHandler_DebugLogsNonSensitiveParams(t *testing.T) {
 	const marker = "web-01.example"
 	path := filepath.Join(t.TempDir(), "app.log")

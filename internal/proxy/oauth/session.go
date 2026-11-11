@@ -16,6 +16,11 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/proxy/store"
 )
 
+// refreshTimeout bounds a token refresh after it is detached from the caller.
+// Detach keeps one cancelled MCP request from aborting a token rotation that
+// other requests are waiting on.
+const refreshTimeout = 15 * time.Second
+
 // Session holds in-memory OAuth tokens and refreshes them for MCP traffic.
 type Session struct {
 	mu sync.Mutex
@@ -32,6 +37,9 @@ type Session struct {
 	ephemeral bool
 
 	inflight *refreshWait
+	// onRefreshWait, when set, runs after this call joins an in-flight refresh.
+	// Tests use it to observe that join. Production leaves it nil.
+	onRefreshWait func()
 }
 
 type refreshWait struct {
@@ -204,7 +212,12 @@ func (s *Session) doRefresh(ctx context.Context, onlyIfStale bool, sentAccess st
 
 	if s.inflight != nil {
 		wait := s.inflight
+		joined := s.onRefreshWait
 		s.mu.Unlock()
+
+		if joined != nil {
+			joined()
+		}
 
 		select {
 		case <-ctx.Done():
@@ -237,7 +250,10 @@ func (s *Session) doRefresh(ctx context.Context, onlyIfStale bool, sentAccess st
 	rt := s.tokens.RefreshToken
 	s.mu.Unlock()
 
-	tok, refreshed, err := s.refreshShared(ctx, rt, sentAccess)
+	refreshCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), refreshTimeout)
+	defer cancel()
+
+	tok, refreshed, err := s.refreshShared(refreshCtx, rt, sentAccess)
 
 	s.mu.Lock()
 	s.inflight = nil

@@ -7,22 +7,43 @@ import (
 )
 
 func openBrowser(rawURL string) error {
-	var cmd *exec.Cmd
+	cmd, err := browserCommand(rawURL)
+	if err != nil {
+		return err
+	}
 
+	_, err = startAndReap(cmd)
+
+	return err
+}
+
+func browserCommand(rawURL string) (*exec.Cmd, error) {
 	switch runtime.GOOS {
 	case "linux":
-		cmd = exec.Command("xdg-open", rawURL)
+		return exec.Command("xdg-open", rawURL), nil
 	case "darwin":
-		cmd = exec.Command("open", rawURL)
+		return exec.Command("open", rawURL), nil
 	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", rawURL)
+		return exec.Command("rundll32", "url.dll,FileProtocolHandler", rawURL), nil
 	default:
-		return fmt.Errorf("unsupported platform %q", runtime.GOOS)
+		return nil, fmt.Errorf("unsupported platform %q", runtime.GOOS)
 	}
+}
 
+// startAndReap starts cmd and waits for it in the background so a short-lived
+// helper such as xdg-open does not stay a zombie.
+func startAndReap(cmd *exec.Cmd) (<-chan struct{}, error) {
 	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("open browser: %w", err)
+		return nil, fmt.Errorf("open browser: %w", err)
 	}
 
-	return nil
+	done := make(chan struct{})
+
+	go func() {
+		_ = cmd.Wait()
+
+		close(done)
+	}()
+
+	return done, nil
 }

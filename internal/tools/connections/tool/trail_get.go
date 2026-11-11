@@ -77,9 +77,9 @@ func trailGetHandler(ctx context.Context, params map[string]any) (*registry.Tool
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	connID := utils.StringFromMap(params, "id")
-	if connID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	connID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	paging, errResult := common.ParsePaging(params, common.ConnectionTrailListLimit, common.ConnectionTrailListMax)
@@ -87,7 +87,11 @@ func trailGetHandler(ctx context.Context, params map[string]any) (*registry.Tool
 		return errResult, nil
 	}
 
-	channelID := utils.StringFromMap(params, "channel_id")
+	channelID, errResult := common.OptionalPathID(params, "channel_id")
+	if errResult != nil {
+		return errResult, nil
+	}
+
 	keywords := utils.StringFromMap(params, "keywords")
 	raw := utils.BoolFromMap(params, "raw")
 

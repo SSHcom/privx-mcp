@@ -8,7 +8,6 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // Delete returns the api-target-delete tool definition.
@@ -45,9 +44,9 @@ func deleteAPITargetHandler(ctx context.Context, params map[string]any) (*regist
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	targetID := utils.StringFromMap(params, "id")
-	if targetID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	targetID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := apiproxy.New(authCtx.Connector)

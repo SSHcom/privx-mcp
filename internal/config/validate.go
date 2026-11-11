@@ -13,6 +13,8 @@ import (
 func validate(cfg *Config) error {
 	var missing []string
 
+	cfg.Server.PublicURL = strings.TrimSpace(cfg.Server.PublicURL)
+
 	if cfg.PrivXAuth.PrivXBaseURL == "" {
 		missing = append(missing, "privx_auth.privx_base_url")
 	}
@@ -72,6 +74,16 @@ func validate(cfg *Config) error {
 
 	if cfg.Permissions.RefreshCooldown < 0 {
 		return fmt.Errorf("permissions.refresh_cooldown must be non-negative")
+	}
+
+	if cfg.OAuth.JWKSCacheTTL < 0 {
+		return fmt.Errorf("oauth.jwks_cache_ttl must be non-negative")
+	}
+
+	switch cfg.PrivXAuth.SubjectFormat {
+	case "plain", "dn":
+	default:
+		return fmt.Errorf("privx_auth.subject_format must be plain or dn (got %q)", cfg.PrivXAuth.SubjectFormat)
 	}
 
 	if cfg.Permissions.RequestWindowSeconds < 0 {
@@ -155,6 +167,12 @@ func validate(cfg *Config) error {
 
 	switch mode {
 	case "oauth":
+		switch cfg.OAuth.IdentityMappingRule {
+		case "as-is", "strip-domain":
+		default:
+			return fmt.Errorf("oauth.identity_mapping_rule must be as-is or strip-domain (got %q)", cfg.OAuth.IdentityMappingRule)
+		}
+
 		if len(cfg.Server.M2MIdentityMapper) > 0 {
 			return fmt.Errorf("server.m2m_identity_mapper must be empty when server.auth_mode is oauth")
 		}

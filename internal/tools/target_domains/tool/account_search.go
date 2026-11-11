@@ -137,9 +137,9 @@ func searchTargetDomainAccountsHandler(ctx context.Context, params map[string]an
 		return registry.ErrorResult("validation error: sortKey must be id, username, full_name, or email"), nil
 	}
 
-	domainID := utils.StringFromMap(params, "id")
-	if domainID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	domainID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	search, err := buildScannedAccountsSearch(params["search"])

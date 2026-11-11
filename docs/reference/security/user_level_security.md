@@ -145,8 +145,9 @@ Special cases:
 When a client asks for the available tools, the server:
 
 1. Reads the caller's identity from the request context.
-2. Resolves that identity to PrivX permissions **once** for the whole list, not once per tool.
-3. Keeps only tools the caller is allowed to use.
+2. Optionally enforces a per-identity rate limit (`request_window_seconds` / `max_requests_per_window`), shared with tool calls. A refused list stops here and does not look the user up in PrivX.
+3. Resolves that identity to PrivX permissions **once** for the whole list, not once per tool.
+4. Keeps only tools the caller is allowed to use.
 
 The result is a personalized catalog. Tools the user cannot invoke are omitted rather than shown and then rejected later.
 
@@ -166,7 +167,7 @@ Each decision is logged with the tool name, identity claims, required scopes, an
 
 Implementation: `internal/mcp/runtime/access.go` (`authMiddleware`) and `internal/mcp/runtime/permissions.go` (`IsAllowed`).
 
-Listing and calling share the identity mapping, the required scopes, and the effective PrivX permissions, including admin bypass and role time windows. The difference is operational: listing resolves the user once and filters many tools, while a call checks one tool and also runs authentication and optional rate limiting.
+Listing and calling share the identity mapping, the required scopes, the effective PrivX permissions, including admin bypass and role time windows, and the optional per-identity rate limit. Listing resolves the user once and filters many tools. A call checks one tool and also runs authentication.
 
 ## Quick troubleshooting
 

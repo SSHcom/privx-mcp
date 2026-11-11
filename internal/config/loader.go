@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -106,7 +107,11 @@ func LoadConfig(path string) (*Config, error) {
 		}
 	}
 
-	cfg := tomlToConfig(&tc)
+	cfg, err := tomlToConfig(&tc)
+	if err != nil {
+		return nil, err
+	}
+
 	applyDefaults(cfg, meta)
 
 	if err := applyEnvOverrides(cfg); err != nil {
@@ -134,7 +139,7 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 // tomlToConfig converts the TOML intermediate struct to the public Config type.
-func tomlToConfig(tc *tomlConfig) *Config {
+func tomlToConfig(tc *tomlConfig) (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
 			Name:                       tc.Server.Name,
@@ -160,7 +165,7 @@ func tomlToConfig(tc *tomlConfig) *Config {
 			RSAPublicKeyFile:     tc.PrivXAuth.RSAPublicKeyFile,
 			RSAKeyID:             tc.PrivXAuth.RSAKeyID,
 			TokenIssuer:          tc.PrivXAuth.TokenIssuer,
-			SubjectFormat:        tc.PrivXAuth.SubjectFormat,
+			SubjectFormat:        strings.TrimSpace(tc.PrivXAuth.SubjectFormat),
 			APIOAuthClientID:     tc.PrivXAuth.APIOAuthClientID,
 			APIOAuthClientSecret: tc.PrivXAuth.APIOAuthClientSecret,
 			APIClientID:          tc.PrivXAuth.APIClientID,
@@ -169,9 +174,6 @@ func tomlToConfig(tc *tomlConfig) *Config {
 		},
 		Permissions: PermissionsConfig{
 			DefaultReadOnly:        tc.Permissions.DefaultReadOnly,
-			Whitelist:              tc.Permissions.Whitelist,
-			Blacklist:              tc.Permissions.Blacklist,
-			ResponseFilter:         tc.Permissions.ResponseFilter,
 			SourceType:             tc.Permissions.SourceType,
 			RequestWindowSeconds:   tc.Permissions.RequestWindowSeconds,
 			MaxRequestsPerWindow:   tc.Permissions.MaxRequestsPerWindow,
@@ -183,32 +185,111 @@ func tomlToConfig(tc *tomlConfig) *Config {
 		OAuth: OAuthConfig{
 			IssuerURL:           tc.OAuth.IssuerURL,
 			AllowHTTP:           tc.OAuth.AllowHTTP,
-			Scopes:              tc.OAuth.Scopes,
 			JWKSURI:             tc.OAuth.JWKSURI,
 			ExpectedAudience:    tc.OAuth.Audience,
 			IdentityClaimField:  tc.OAuth.IdentityClaimField,
-			IdentityMappingRule: tc.OAuth.IdentityMappingRule,
+			IdentityMappingRule: strings.TrimSpace(tc.OAuth.IdentityMappingRule),
 			DCRStubClientID:     tc.OAuth.DCRStubClientID,
 			DCRStubClientSecret: tc.OAuth.DCRStubClientSecret,
 		},
 	}
 
-	parseDurationIfSet(tc.OAuth.JWKSCacheTTL, &cfg.OAuth.JWKSCacheTTL)
-	parseDurationIfSet(tc.Permissions.SessionCacheTTL, &cfg.Permissions.SessionCacheTTL)
-	parseDurationIfSet(tc.Permissions.RefreshCooldown, &cfg.Permissions.RefreshCooldown)
+	if err := assignTrimmedList("permissions.whitelist", tc.Permissions.Whitelist, &cfg.Permissions.Whitelist); err != nil {
+		return nil, err
+	}
 
-	return cfg
+	if err := assignTrimmedList("permissions.blacklist", tc.Permissions.Blacklist, &cfg.Permissions.Blacklist); err != nil {
+		return nil, err
+	}
+
+	if err := assignTrimmedList("permissions.response_filter", tc.Permissions.ResponseFilter, &cfg.Permissions.ResponseFilter); err != nil {
+		return nil, err
+	}
+
+	if err := assignTrimmedList("oauth.scopes", tc.OAuth.Scopes, &cfg.OAuth.Scopes); err != nil {
+		return nil, err
+	}
+
+	if err := parseDurationIfSet(
+		"oauth.jwks_cache_ttl",
+		tc.OAuth.JWKSCacheTTL,
+		&cfg.OAuth.JWKSCacheTTL,
+	); err != nil {
+		return nil, err
+	}
+
+	if err := parseDurationIfSet(
+		"permissions.session_cache_ttl",
+		tc.Permissions.SessionCacheTTL,
+		&cfg.Permissions.SessionCacheTTL,
+	); err != nil {
+		return nil, err
+	}
+
+	if err := parseDurationIfSet(
+		"permissions.refresh_cooldown",
+		tc.Permissions.RefreshCooldown,
+		&cfg.Permissions.RefreshCooldown,
+	); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
 }
 
-func parseDurationIfSet(s string, target *time.Duration) {
+// assignTrimmedList trims items into dest. A blank or whitespace-only entry is an error
+// that names the field. A nil or empty input is stored unchanged.
+func assignTrimmedList(field string, items []string, dest *[]string) error {
+	trimmed, err := trimList(field, items)
+	if err != nil {
+		return err
+	}
+
+	*dest = trimmed
+
+	return nil
+}
+
+// trimList trims each entry. A blank or whitespace-only entry is an error that names the field.
+// A nil or empty input is returned unchanged.
+func trimList(field string, items []string) ([]string, error) {
+	if len(items) == 0 {
+		return items, nil
+	}
+
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			return nil, fmt.Errorf("%s contains a blank entry", field)
+		}
+
+		out = append(out, item)
+	}
+
+	return out, nil
+}
+
+// parseDurationIfSet parses raw into target when it is set.
+// A bare "0" is accepted because session_cache_ttl and refresh_cooldown use it
+// to disable the feature, and time.ParseDuration requires a unit.
+func parseDurationIfSet(field, raw string, target *time.Duration) error {
+	s := strings.TrimSpace(raw)
 	if s == "" {
-		return
+		return nil
+	}
+
+	if s == "0" {
+		*target = 0
+		return nil
 	}
 
 	d, err := time.ParseDuration(s)
 	if err != nil {
-		return
+		return fmt.Errorf("invalid %s %q: %w", field, raw, err)
 	}
 
 	*target = d
+
+	return nil
 }

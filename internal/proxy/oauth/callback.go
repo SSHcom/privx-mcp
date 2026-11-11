@@ -46,6 +46,15 @@ func StartCallback(cb config.CallbackConfig, state string) (*Callback, error) {
 
 		q := r.URL.Query()
 
+		// A request that does not carry this attempt's state is not the
+		// identity provider. Answer it and leave the login waiting.
+		gotState := q.Get("state")
+		if gotState != state {
+			writeCallbackHTML(w, http.StatusBadRequest, "Authentication failed.", "Invalid state.")
+
+			return
+		}
+
 		idpErr := strings.TrimSpace(q.Get("error"))
 		if idpErr != "" {
 			desc := strings.TrimSpace(q.Get("error_description"))
@@ -53,14 +62,6 @@ func StartCallback(cb config.CallbackConfig, state string) (*Callback, error) {
 			sendCallbackResult(result, callbackResult{
 				err: fmt.Errorf("authorization server error %q", idpErr),
 			})
-
-			return
-		}
-
-		gotState := q.Get("state")
-		if gotState != state {
-			writeCallbackHTML(w, http.StatusBadRequest, "Authentication failed.", "Invalid state.")
-			sendCallbackResult(result, callbackResult{err: fmt.Errorf("oauth callback state mismatch")})
 
 			return
 		}

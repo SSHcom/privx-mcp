@@ -17,9 +17,14 @@ func (c *Core) createToolHandler(tool registry.Tool) mcp.ToolHandler {
 	safeHandler := RecoverMiddleware(tool.Handler)
 
 	return func(ctx context.Context, request *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		finish := func(result *mcp.CallToolResult) (*mcp.CallToolResult, error) {
+			logToolResponse(tool, result)
+			return result, nil
+		}
+
 		params, err := argumentsMap(request)
 		if err != nil {
-			return errorCallResult("invalid tool arguments: expected a JSON object"), nil
+			return finish(errorCallResult("invalid tool arguments: expected a JSON object"))
 		}
 
 		if !tool.Trusted {
@@ -27,7 +32,7 @@ func (c *Core) createToolHandler(tool registry.Tool) mcp.ToolHandler {
 		}
 
 		if rejectsRedactedMarker(tool.Name) && security.ContainsRedacted(params) {
-			return errorCallResult(`invalid tool arguments: "[redacted]" is not allowed in a value`), nil
+			return finish(errorCallResult(`invalid tool arguments: "[redacted]" is not allowed in a value`))
 		}
 
 		if tool.Sensitive {
@@ -40,12 +45,97 @@ func (c *Core) createToolHandler(tool registry.Tool) mcp.ToolHandler {
 
 		result, err := safeHandler(ctx, params)
 		if err != nil {
-			errResult := ToMCPError(err)
-			return toCallToolResult(errResult, tool, c.responseFilter), nil
+			return finish(toCallToolResult(ToMCPError(err), tool, c.responseFilter))
 		}
 
-		return toCallToolResult(result, tool, c.responseFilter), nil
+		return finish(toCallToolResult(result, tool, c.responseFilter))
 	}
+}
+
+const toolResponseLogLimit = 2000
+
+// logToolResponse writes the agent-facing tool result at debug level.
+// Sensitive tools record the tool name and the result size. Other tools record
+// the result text, cut off past toolResponseLogLimit. Debug off skips the line
+// before the result text is read.
+func logToolResponse(tool registry.Tool, result *mcp.CallToolResult) {
+	if !logging.DebugEnabled() {
+		return
+	}
+
+	if tool.Sensitive {
+		logging.Debug("tool call response", "tool", tool.Name, "bytes", responseSize(result))
+		return
+	}
+
+	logging.Debug("tool call response", "tool", tool.Name, "body", responseText(result, toolResponseLogLimit))
+}
+
+func responseSize(result *mcp.CallToolResult) int {
+	if result == nil {
+		return 0
+	}
+
+	n := 0
+
+	for _, block := range result.Content {
+		text, ok := block.(*mcp.TextContent)
+		if !ok {
+			continue
+		}
+
+		n += len(text.Text)
+	}
+
+	return n
+}
+
+func responseText(result *mcp.CallToolResult, limit int) string {
+	if result == nil || limit <= 0 {
+		return ""
+	}
+
+	if len(result.Content) == 1 {
+		text, ok := result.Content[0].(*mcp.TextContent)
+		if !ok {
+			return ""
+		}
+
+		return truncateText(text.Text, limit)
+	}
+
+	var b strings.Builder
+
+	for _, block := range result.Content {
+		text, ok := block.(*mcp.TextContent)
+		if !ok {
+			continue
+		}
+
+		if b.Len() >= limit {
+			return b.String() + "...[truncated]"
+		}
+
+		remain := limit - b.Len()
+		if len(text.Text) <= remain {
+			b.WriteString(text.Text)
+			continue
+		}
+
+		b.WriteString(text.Text[:remain])
+
+		return b.String() + "...[truncated]"
+	}
+
+	return b.String()
+}
+
+func truncateText(text string, limit int) string {
+	if len(text) <= limit {
+		return text
+	}
+
+	return text[:limit] + "...[truncated]"
 }
 
 func paramKeys(params map[string]any) []string {

@@ -39,6 +39,7 @@ func ParseM2MJWTIdentityMapper(raw string) ([]M2MJWTIdentity, error) {
 		}
 
 		seen[key] = struct{}{}
+
 		out = append(out, M2MJWTIdentity{Claim: claim, Value: value, Username: username})
 	}
 

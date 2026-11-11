@@ -2,6 +2,7 @@
 package logging
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -95,3 +96,8 @@ func Info(msg string, args ...any) { slog.Default().Info(msg, args...) }
 
 // Debug logs at debug level through the logger configured by Setup.
 func Debug(msg string, args ...any) { slog.Default().Debug(msg, args...) }
+
+// DebugEnabled reports whether a debug line would be recorded.
+func DebugEnabled() bool {
+	return slog.Default().Enabled(context.Background(), slog.LevelDebug)
+}

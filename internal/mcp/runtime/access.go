@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/SSHcom/privx-sdk-go/v2/api/rolestore"
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
@@ -18,8 +19,33 @@ import (
 )
 
 // rateLimitExceededMessage is returned to MCP clients when a caller exceeds
-// the configured per-identity tool-call quota.
+// the configured per-identity quota on tools/list or tools/call.
 const rateLimitExceededMessage = "Too many requests. Please try again later."
+
+// limitList applies the shared per-identity quota to tools/list. A refusal
+// is returned before the catalog is built, so the list does not resolve the
+// caller in PrivX.
+func (c *Core) limitList(ctx context.Context) error {
+	if c.rateLimiter == nil || !c.rateLimiter.Enabled() || c.claimsSource == nil {
+		return nil
+	}
+
+	claims := c.claimsSource.ListClaims(ctx)
+	if c.rateLimiter.Allow(c.sessionBaseURL, claims) {
+		return nil
+	}
+
+	logging.Info(
+		"tools/list rate limited",
+		"email", identityEmail(claims),
+		"upn", identityUPN(claims),
+	)
+
+	return &jsonrpc.Error{
+		Code:    jsonrpc.CodeInternalError,
+		Message: rateLimitExceededMessage,
+	}
+}
 
 // filterListedTools narrows tools/list to those the caller is authorised to
 // invoke. Visibility mirrors the call-time auth middleware so a client never
@@ -466,14 +492,11 @@ func (c *Core) storeConnectorUserID(claims *oauth.IdentityClaims, resolved *role
 		return
 	}
 
-	c.permissions.sessionService.Set(
+	c.permissions.sessionService.SetConnectorUserID(
 		c.permissions.sessionBaseURL,
 		claims,
-		session.CachedUserContext{
-			UserID:          resolved.ID,
-			ResolvedRoles:   resolved,
-			ConnectorUserID: connectorUserID,
-		},
+		resolved.ID,
+		connectorUserID,
 	)
 }
 

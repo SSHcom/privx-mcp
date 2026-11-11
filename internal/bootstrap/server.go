@@ -78,6 +78,8 @@ func NewServerFromConfig(cfg *config.Config) (*http.Server, func(), error) {
 	// The MCP server acts as a resource server only; clients perform the
 	// browser-based OAuth flow directly with the provider.
 	registrars := []httpservice.RouteRegistrar{}
+
+	mcpResource := strings.TrimRight(cfg.Server.PublicURL, "/") + "/mcp"
 	if cfg.Server.AuthMode != "m2m" && cfg.Server.AuthMode != "m2m-jwt" {
 		registrars = append(registrars,
 			func(m *http.ServeMux) error {
@@ -87,7 +89,7 @@ func NewServerFromConfig(cfg *config.Config) (*http.Server, func(), error) {
 				}
 
 				return wellknown.RegisterRoutes(m, wellknown.ProtectedResourceConfig{
-					Resource:             cfg.Server.PublicURL + "/mcp",
+					Resource:             mcpResource,
 					AuthorizationServers: []string{authServer},
 				})
 			},

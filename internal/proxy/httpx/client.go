@@ -159,6 +159,7 @@ func redirectPort(u *url.URL) string {
 	}
 
 	defaultHTTPS := u.Scheme == "https" && port == "443"
+
 	defaultHTTP := u.Scheme == "http" && port == "80"
 	if defaultHTTPS || defaultHTTP {
 		return ""

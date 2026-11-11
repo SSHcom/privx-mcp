@@ -8,7 +8,6 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // Delete returns the user-delete-local tool definition.
@@ -51,9 +50,9 @@ func deleteUserHandler(ctx context.Context, params map[string]any) (*registry.To
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	userID := utils.StringFromMap(params, "id")
-	if userID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	userID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := userstore.New(authCtx.Connector)

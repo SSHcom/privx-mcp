@@ -166,6 +166,45 @@ func TestRefreshTokens_SuccessAndInvalidGrant(t *testing.T) {
 	}
 }
 
+func TestTokenRequest_RejectsMissingExpiresIn(t *testing.T) {
+	t.Parallel()
+
+	bodies := []string{
+		`{"access_token":"at","token_type":"Bearer"}`,
+		`{"access_token":"at","token_type":"Bearer","expires_in":0}`,
+		`{"access_token":"at","token_type":"Bearer","expires_in":-1}`,
+		`{"access_token":"at","token_type":"Bearer","expires_in":null}`,
+	}
+
+	for _, body := range bodies {
+		t.Run(body, func(t *testing.T) {
+			t.Parallel()
+
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = io.WriteString(w, body)
+			}))
+			t.Cleanup(srv.Close)
+
+			_, err := tokenRequest(
+				context.Background(),
+				srv.Client(),
+				srv.URL,
+				clientAuth{
+					ClientID:                "proxy",
+					ClientSecret:            "s3cret",
+					TokenEndpointAuthMethod: "client_secret_post",
+				},
+				url.Values{"grant_type": []string{"refresh_token"}},
+				time.Now(),
+			)
+			if err == nil || !strings.Contains(err.Error(), "omitted expires_in") {
+				t.Fatalf("error = %v", err)
+			}
+		})
+	}
+}
+
 func TestTokenRequestRejectsPlainHTTP(t *testing.T) {
 	t.Parallel()
 

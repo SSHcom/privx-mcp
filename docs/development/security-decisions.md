@@ -9,6 +9,29 @@ Product behaviour we inspected and chose not to change. Scanners read this befor
 
 Each entry has a one-line summary, then **Behaviour**, **Accepted because**, and **Revisit if**.
 
+## A cache miss searches the whole PrivX user directory
+
+- Date: 2026-11-10
+- Path: `internal/mcp/runtime/permissions.go`
+
+Resolving an uncached caller reads every PrivX user and matches them in memory, because role-store search cannot express the match.
+
+**Behaviour:**
+
+- On a session cache miss, `resolveUserRoles` calls `SearchAllUsers` with an empty `UserSearch`.
+- The token's email, UPN (`preferred_username`, else `upn`), and `sub` are matched: address-shaped values against `email` or `windows_account`, others against `principal`. `API-CLIENT` users are skipped, and exactly one user with `source_type` equal to `permissions.source_type` must remain.
+- The hit, or `NotFound`, is cached by PrivX base URL, issuer, and `sub` for `session_cache_ttl`.
+
+**Accepted because:**
+
+- `UserSearch` only filters on `keywords`, `source` (directory id, not `source_type`), and `user_id`. A single `keywords` string cannot express three independent claims matched against different fields, and per-claim searches can miss users who match only on `windows_account`.
+- Caching limits the full search to once per identity per TTL.
+
+**Revisit if:**
+
+- Role-store search can filter `email`, `principal`, `windows_account`, and `source_type`.
+- A repeated call with the same issuer and `sub` searches the directory again before `session_cache_ttl` expires.
+
 ## Some tools are not gated by a PrivX permission
 
 - Date: 2026-11-06

@@ -10,7 +10,6 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/hosts"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // Delete returns the host-delete tool definition.
@@ -56,9 +55,9 @@ func deleteHostHandler(ctx context.Context, params map[string]any) (*registry.To
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	hostID := utils.StringFromMap(params, "id")
-	if hostID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	hostID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	hostClient := hoststore.New(authCtx.Connector)

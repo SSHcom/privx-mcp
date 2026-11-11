@@ -80,6 +80,66 @@ func TestMCPHTTP_UnauthorizedRetriesAfterRefresh(t *testing.T) {
 	}
 }
 
+func TestDoRefresh_IgnoresCallerCancel(t *testing.T) {
+	t.Parallel()
+
+	release := make(chan struct{})
+	entered := make(chan struct{})
+	env := newRefreshEnv(t, refreshOpts{
+		initialAccess: "old-at",
+		expiresIn:     -time.Minute,
+		accept:        "new-at",
+		releaseToken:  release,
+		tokenEntered:  entered,
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	first := make(chan error, 1)
+
+	go func() {
+		first <- env.sess.doRefresh(ctx, true, "")
+	}()
+
+	<-entered
+
+	joined := make(chan struct{})
+	env.sess.onRefreshWait = func() {
+		close(joined)
+	}
+
+	second := make(chan error, 1)
+
+	go func() {
+		second <- env.sess.doRefresh(context.Background(), true, "")
+	}()
+
+	select {
+	case <-joined:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for the in-flight refresh")
+	}
+
+	close(release)
+
+	if err := <-first; err != nil {
+		t.Fatal(err)
+	}
+
+	if err := <-second; err != nil {
+		t.Fatal(err)
+	}
+
+	if env.sess.AccessToken() != "new-at" {
+		t.Fatalf("access = %q", env.sess.AccessToken())
+	}
+
+	if env.tokenPosts.Load() != 1 {
+		t.Fatalf("token posts = %d", env.tokenPosts.Load())
+	}
+}
+
 func TestMCPHTTP_SingleFlightOnOverlapping401(t *testing.T) {
 	t.Parallel()
 
@@ -355,6 +415,8 @@ type refreshOpts struct {
 	ephemeral          bool
 	delay401           time.Duration
 	delayToken         time.Duration
+	releaseToken       chan struct{}
+	tokenEntered       chan struct{}
 }
 
 type refreshEnv struct {
@@ -385,6 +447,19 @@ func newRefreshEnv(t *testing.T, cfg refreshOpts) *refreshEnv {
 
 		body, _ := io.ReadAll(r.Body)
 		form, _ := url.ParseQuery(string(body))
+
+		if env.tokenEntered != nil {
+			select {
+			case <-env.tokenEntered:
+			default:
+				close(env.tokenEntered)
+			}
+		}
+
+		if env.releaseToken != nil {
+			<-env.releaseToken
+		}
+
 		if env.delayToken > 0 {
 			time.Sleep(env.delayToken)
 		}

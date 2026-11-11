@@ -23,6 +23,10 @@ func TestKey_DiffersByInputs(t *testing.T) {
 	if Key("http://mcp/mcp", "http://mcp/mcp", "client") != a {
 		t.Fatal("same inputs must produce the same key")
 	}
+
+	if Key("http://mcp/mcp/", "http://mcp/mcp/", "client") != a {
+		t.Fatal("trailing slash must not change the key")
+	}
 }
 
 func TestTokens_RoundTrip(t *testing.T) {
@@ -201,6 +205,47 @@ func TestWithLock_Serializes(t *testing.T) {
 
 	if len(order) != 2 || order[0] != "first" || order[1] != "second" {
 		t.Fatalf("order = %v", order)
+	}
+}
+
+func TestSaveAndLock_TightenDirectoryMode(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.Chmod(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := Save(dir, "session", Tokens{
+		AccessToken: "at",
+		ExpiresAt:   time.Now().Add(time.Hour),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	assertDirMode(t, dir, 0o700)
+
+	if err := os.Chmod(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := WithLock(dir, "session", func() error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+
+	assertDirMode(t, dir, 0o700)
+}
+
+func assertDirMode(t *testing.T, dir string, want os.FileMode) {
+	t.Helper()
+
+	st, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if st.Mode().Perm() != want {
+		t.Fatalf("mode = %o, want %o", st.Mode().Perm(), want)
 	}
 }
 

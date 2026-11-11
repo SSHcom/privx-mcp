@@ -8,7 +8,6 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // Revoke returns the request-revoke-role tool definition.
@@ -45,9 +44,9 @@ func revokeRequestRoleHandler(ctx context.Context, params map[string]any) (*regi
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	requestID := utils.StringFromMap(params, "id")
-	if requestID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	requestID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := workflow.New(authCtx.Connector)

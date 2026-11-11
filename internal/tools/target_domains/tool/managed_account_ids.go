@@ -2,7 +2,7 @@ package tool
 
 import (
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
+	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
 )
 
 func managedAccountIDSchema() *registry.OrderedMap {
@@ -26,14 +26,14 @@ func managedAccountIDSchema() *registry.OrderedMap {
 }
 
 func managedAccountIDs(params map[string]any) (string, string, *registry.ToolResult) {
-	domainID := utils.StringFromMap(params, "id")
-	if domainID == "" {
-		return "", "", registry.ErrorResult("validation error: missing required field: id")
+	domainID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return "", "", errResult
 	}
 
-	accountID := utils.StringFromMap(params, "account_id")
-	if accountID == "" {
-		return "", "", registry.ErrorResult("validation error: missing required field: account_id")
+	accountID, errResult := common.RequiredPathID(params, "account_id")
+	if errResult != nil {
+		return "", "", errResult
 	}
 
 	return domainID, accountID, nil

@@ -98,7 +98,7 @@ func applyEnvOverrides(cfg *Config) error {
 	}
 
 	if v := os.Getenv("PRIVX_SUBJECT_FORMAT"); v != "" {
-		cfg.PrivXAuth.SubjectFormat = v
+		cfg.PrivXAuth.SubjectFormat = strings.TrimSpace(v)
 	}
 
 	if v := os.Getenv("PRIVX_API_OAUTH_CLIENT_ID"); v != "" {
@@ -130,42 +130,58 @@ func applyEnvOverrides(cfg *Config) error {
 	}
 
 	if v := os.Getenv("PERMISSIONS_WHITELIST"); v != "" {
-		cfg.Permissions.Whitelist = splitCommaList(v)
+		list, err := splitCommaList("permissions.whitelist", v)
+		if err != nil {
+			return err
+		}
+
+		cfg.Permissions.Whitelist = list
 	}
 
 	if v := os.Getenv("PERMISSIONS_BLACKLIST"); v != "" {
-		cfg.Permissions.Blacklist = splitCommaList(v)
+		list, err := splitCommaList("permissions.blacklist", v)
+		if err != nil {
+			return err
+		}
+
+		cfg.Permissions.Blacklist = list
 	}
 
 	if v := os.Getenv("PERMISSIONS_RESPONSE_FILTER"); v != "" {
-		cfg.Permissions.ResponseFilter = splitCommaList(v)
+		list, err := splitCommaList("permissions.response_filter", v)
+		if err != nil {
+			return err
+		}
+
+		cfg.Permissions.ResponseFilter = list
 	}
 
-	parseDurationIfSet(os.Getenv("PERMISSIONS_SESSION_CACHE_TTL"), &cfg.Permissions.SessionCacheTTL)
-	parseDurationIfSet(os.Getenv("PERMISSIONS_REFRESH_COOLDOWN"), &cfg.Permissions.RefreshCooldown)
-
-	if v := os.Getenv("PERMISSIONS_REQUEST_WINDOW_SECONDS"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.Permissions.RequestWindowSeconds = n
-		}
+	if err := parseDurationIfSet(
+		"permissions.session_cache_ttl",
+		os.Getenv("PERMISSIONS_SESSION_CACHE_TTL"),
+		&cfg.Permissions.SessionCacheTTL,
+	); err != nil {
+		return err
 	}
 
-	if v := os.Getenv("PERMISSIONS_MAX_REQUESTS_PER_WINDOW"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.Permissions.MaxRequestsPerWindow = n
-		}
+	if err := parseDurationIfSet(
+		"permissions.refresh_cooldown",
+		os.Getenv("PERMISSIONS_REFRESH_COOLDOWN"),
+		&cfg.Permissions.RefreshCooldown,
+	); err != nil {
+		return err
 	}
 
-	if v := os.Getenv("PERMISSIONS_MAXED_WINDOW_WAIT_SECONDS"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.Permissions.MaxedWindowWaitSeconds = n
-		}
+	if err := setIntFromEnv("PERMISSIONS_REQUEST_WINDOW_SECONDS", &cfg.Permissions.RequestWindowSeconds); err != nil {
+		return err
 	}
 
-	if v := os.Getenv("PERMISSIONS_MAXED_WINDOW_WAIT_SECONDS"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			cfg.Permissions.MaxedWindowWaitSeconds = n
-		}
+	if err := setIntFromEnv("PERMISSIONS_MAX_REQUESTS_PER_WINDOW", &cfg.Permissions.MaxRequestsPerWindow); err != nil {
+		return err
+	}
+
+	if err := setIntFromEnv("PERMISSIONS_MAXED_WINDOW_WAIT_SECONDS", &cfg.Permissions.MaxedWindowWaitSeconds); err != nil {
+		return err
 	}
 
 	if err := setBoolFromEnv("PERMISSIONS_ENABLE_SENSITIVE_DATA_TOOLS", &cfg.Permissions.EnableSensitiveDataTools); err != nil {
@@ -186,7 +202,12 @@ func applyEnvOverrides(cfg *Config) error {
 	}
 
 	if v := os.Getenv("OAUTH_SCOPES"); v != "" {
-		cfg.OAuth.Scopes = strings.Split(v, ",")
+		list, err := splitCommaList("oauth.scopes", v)
+		if err != nil {
+			return err
+		}
+
+		cfg.OAuth.Scopes = list
 	}
 
 	if v := os.Getenv("OAUTH_JWKS_URI"); v != "" {
@@ -202,7 +223,7 @@ func applyEnvOverrides(cfg *Config) error {
 	}
 
 	if v := os.Getenv("OAUTH_ID_MAPPING_RULE"); v != "" {
-		cfg.OAuth.IdentityMappingRule = v
+		cfg.OAuth.IdentityMappingRule = strings.TrimSpace(v)
 	}
 
 	if v := os.Getenv("OAUTH_DCR_STUB_CLIENT_ID"); v != "" {
@@ -213,7 +234,30 @@ func applyEnvOverrides(cfg *Config) error {
 		cfg.OAuth.DCRStubClientSecret = v
 	}
 
-	parseDurationIfSet(os.Getenv("OAUTH_JWKS_CACHE_TTL"), &cfg.OAuth.JWKSCacheTTL)
+	if err := parseDurationIfSet(
+		"oauth.jwks_cache_ttl",
+		os.Getenv("OAUTH_JWKS_CACHE_TTL"),
+		&cfg.OAuth.JWKSCacheTTL,
+	); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// setIntFromEnv applies name when it is set. An empty value leaves dest unchanged.
+func setIntFromEnv(name string, dest *int) error {
+	v := os.Getenv(name)
+	if v == "" {
+		return nil
+	}
+
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return fmt.Errorf("%s: %w (got %q)", name, err, v)
+	}
+
+	*dest = n
 
 	return nil
 }
@@ -236,19 +280,8 @@ func setBoolFromEnv(name string, dest *bool) error {
 	return nil
 }
 
-// splitCommaList splits a comma-separated env value into trimmed non-empty parts.
-func splitCommaList(v string) []string {
-	parts := strings.Split(v, ",")
-
-	out := make([]string, 0, len(parts))
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if part == "" {
-			continue
-		}
-
-		out = append(out, part)
-	}
-
-	return out
+// splitCommaList splits a comma-separated env value and trims each part.
+// A blank or whitespace-only part is an error that names field.
+func splitCommaList(field, v string) ([]string, error) {
+	return trimList(field, strings.Split(v, ","))
 }

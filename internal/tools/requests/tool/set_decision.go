@@ -76,6 +76,10 @@ func setRequestDecisionHandler(ctx context.Context, params map[string]any) (*reg
 		return registry.ErrorResult("validation error: missing required field: id"), nil
 	}
 
+	if errResult := common.PathSegmentError("id", requestID); errResult != nil {
+		return errResult, nil
+	}
+
 	if _, ok := params["step"]; !ok {
 		return registry.ErrorResult("validation error: missing required field: step"), nil
 	}

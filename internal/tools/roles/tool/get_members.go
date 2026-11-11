@@ -9,7 +9,6 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/users"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // GetMembers returns the get-role-members tool definition.
@@ -54,9 +53,9 @@ func getRoleMembersHandler(ctx context.Context, params map[string]any) (*registr
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	roleID := utils.StringFromMap(params, "role_id")
-	if roleID == "" {
-		return registry.ErrorResult("validation error: missing required field: role_id"), nil
+	roleID, errResult := common.RequiredPathID(params, "role_id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	paging, errResult := common.ParsePaging(params, common.RolesListLimit, common.UsersListMax)

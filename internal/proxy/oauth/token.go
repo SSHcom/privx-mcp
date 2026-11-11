@@ -215,10 +215,11 @@ func tokenRequest(
 		tokenType = "Bearer"
 	}
 
-	expiresAt := now.UTC()
-	if parsed.ExpiresIn > 0 {
-		expiresAt = now.Add(time.Duration(int(parsed.ExpiresIn)) * time.Second).UTC()
+	if parsed.ExpiresIn <= 0 {
+		return store.Tokens{}, fmt.Errorf("token endpoint omitted expires_in")
 	}
+
+	expiresAt := now.Add(time.Duration(int(parsed.ExpiresIn)) * time.Second).UTC()
 
 	return store.Tokens{
 		AccessToken:  parsed.AccessToken,

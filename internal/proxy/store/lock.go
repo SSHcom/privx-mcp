@@ -11,8 +11,8 @@ import (
 // following save or delete, so two proxies cannot refresh at once or remove
 // a token file the other proxy has just replaced.
 func WithLock(dir, key string, fn func() error) error {
-	if err := os.MkdirAll(dir, tokenDirMod); err != nil {
-		return fmt.Errorf("create token dir: %w", err)
+	if err := ensureTokenDir(dir); err != nil {
+		return err
 	}
 
 	f, err := os.OpenFile(lockPath(dir, key), os.O_CREATE|os.O_RDWR, tokenFileMod)

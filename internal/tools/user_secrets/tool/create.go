@@ -85,7 +85,10 @@ func createHandler(ctx context.Context, params map[string]any) (*registry.ToolRe
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	userID := utils.StringFromMap(params, "user_id")
+	userID, errResult := common.OptionalPathID(params, "user_id")
+	if errResult != nil {
+		return errResult, nil
+	}
 
 	secret, errResult := secretRequest(userID, params)
 	if errResult != nil {
@@ -112,9 +115,9 @@ func createHandler(ctx context.Context, params map[string]any) (*registry.ToolRe
 }
 
 func secretRequest(userID string, params map[string]any) (*vault.SecretRequest, *registry.ToolResult) {
-	name := utils.StringFromMap(params, "name")
-	if name == "" {
-		return nil, registry.ErrorResult("validation error: missing required field: name")
+	name, errResult := common.RequiredPathID(params, "name")
+	if errResult != nil {
+		return nil, errResult
 	}
 
 	req := &vault.SecretRequest{
