@@ -5,6 +5,7 @@ How each client connects, using `mcp.json` or equivalent, and which callbacks ea
 This server is **streamable HTTP** at `/mcp` (no SSE). Prefer native HTTP when the client supports MCP OAuth. Use [privx-mcp-proxy](privx-mcp-proxy.md) locally as an alternative stdio bridge.
 
 > **Note**
+>
 > MCP clients are under active development, and new releases can change how they connect, where their configuration lives, which callback URLs they use, and how they support OAuth. This page reflects what we last verified and may not match the latest client versions. When something does not work, check the client's own documentation, and see [known issues](#known-issues) at the end of this page.
 
 ## Related documents
