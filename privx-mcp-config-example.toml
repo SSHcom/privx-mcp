@@ -109,26 +109,26 @@ rsa_key_file = "/path/to/private-key.pem"
 # rsa_public_key_file = "/path/to/public-key.pem"
 
 # kid header placed in minted JWTs.
-# Must match the Key ID configured in the PrivX External Token Provider.
+# Taken from the external token provider Key ID.
+# See docs/reference/server/privx-token-provider.md.
 #
 rsa_key_id = "privx-mcp-key-1"
 
-# audience and token_issuer are placed into minted JWTs.
-# Both must match the PrivX External Token Provider configuration in the
-# PrivX admin UI.
+# audience and token_issuer also come from that provider.
 #
 audience = "privx-mcp-client"
 token_issuer = "privx-mcp"
 
-# Subject format for minted JWTs.
+# Subject format for minted JWTs. Comes from the provider's Subject Type.
 # Allowed values: "plain" | "dn"
 #
 subject_format = "plain"
 
-# ------- API credentials flow --------
+# ------- PrivX API client --------
 #
-# Separate from the external JWT exchange path.
-# Leave commented unless you explicitly use ConnectWithAPICredentials.
+# Required. Separate from the external token provider above: the server uses
+# this client to look up users, roles, and permissions, not to run tools.
+# The client's role needs users-view and roles-view.
 #
 api_oauth_client_id = "privx-external"
 api_oauth_client_secret = "replace-with-secret"
@@ -284,8 +284,9 @@ blacklist = ["-delete"]
 response_filter = ["sudo", "chmod", "chown", "curl", "wget", "ping", "nslookup", "sh", "bash", "zsh", "cmd", "exec", "eval"]
 
 # PrivX user directory used when resolving the authenticated identity to a
-# PrivX user. Required. When the same identifier exists in multiple sources,
-# only the user whose source_type matches this value is selected.
+# PrivX user. Required. This is the Users Directory type from the external
+# token provider. When the same identifier exists in multiple sources, only
+# the user whose source_type matches this value is selected.
 # Typical values: "AD", "LOCAL", "MICROSOFTGRAPH".
 #
 source_type = "MICROSOFTGRAPH"

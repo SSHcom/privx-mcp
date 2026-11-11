@@ -9,10 +9,11 @@ This document describes general security considerations. Note that other documen
 - [MCP tools](../user/tools.md)
 - [MCP server configuration](../server/SERVER.md)
 - [Configure machine-to-machine access](../../guide/04-m2m/04-m2m.md)
+- [External token provider](../server/privx-token-provider.md)
 
 ## Deploy the MCP server remotely in production
 
-The MCP server acts in PrivX as the caller. After identifying the caller, it signs a short-lived JWT for the caller's PrivX username with its RSA private key and exchanges that JWT with PrivX. PrivX trusts the signature because the matching public key is installed as an External Token Provider.
+The MCP server acts in PrivX as the caller. After identifying the caller, it signs a short-lived JWT for the caller's PrivX username with its RSA private key and exchanges that JWT with PrivX. PrivX trusts the signature because the matching public key is installed as an [external token provider](../server/privx-token-provider.md). That provider supplies `[privx_auth].subject_format`, `[privx_auth].rsa_key_id`, `[privx_auth].token_issuer`, `[privx_auth].audience`, and `[permissions].source_type`. `[privx_auth].rsa_public_key_file` is an optional path to the public key pasted into the provider.
 
 Anyone holding that key pair can therefore mint a JWT for any username and act as that person in PrivX. In production:
 

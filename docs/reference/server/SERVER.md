@@ -25,6 +25,7 @@ The server can also be configured entirely through the environment. Each paramet
 ## Related documents
 
 - [PrivX configuration](privx.md)
+- [External token provider](privx-token-provider.md)
 - [TLS (HTTPS)](tls.md)
 - [OIDC configuration](../oidc/OIDC.md)
 - [Configure machine-to-machine access](../../guide/04-m2m/04-m2m.md)
@@ -57,7 +58,10 @@ With `log_level = "debug"`, each `/mcp` request log includes `mcp_session_id_pre
 
 ## `[privx_auth]`
 
-The `rsa_*`, `audience`, `token_issuer`, and `subject_format` values configure the JWT exchange that gives each caller a user-specific PrivX connection. The `api_*` values and `ca_cert` configure the non-user API client used for server-level lookups. See [PrivX configuration](privx.md) for how the two connections differ.
+This section configures two separate connections to PrivX. See [PrivX configuration](privx.md) for how they differ.
+
+- **User connection**: `[privx_auth].rsa_*`, `[privx_auth].audience`, `[privx_auth].token_issuer`, and `[privx_auth].subject_format`. The server exchanges a signed JWT for a PrivX token for each tool call, and tools run as the caller. These values, plus `[permissions].source_type`, come from the [external token provider](privx-token-provider.md).
+- **API client connection**: the four `[privx_auth].api_*` values and `[privx_auth].ca_cert`. Opened once at startup and used only to look up the caller's PrivX user, roles, and permissions. These values come from a PrivX API client whose role has `users-view` and `roles-view`.
 
 
 | Parameter / Environment variable override               | Description                                                                                                                       |
@@ -120,13 +124,19 @@ Rate-limit sizing guidance: [Security considerations](../security/security.md#lo
 
 ## Identity alignment with PrivX
 
-Tool calls reach PrivX as the caller's own PrivX user. In `oauth` mode the server mints a JWT for the identity behind the incoming access token. In `m2m` mode the JWT subject is the username bound to the matched secret, and identity claim mapping is not applied. In `m2m-jwt` the subject is the PrivX username from the one matching `m2m_jwt_identity_mapper` row, and identity claim mapping is not applied. Either way it exchanges that JWT with a PrivX **External Token Provider**, configured under `Administration -> Deployment -> External Token Authentication`. [PrivX configuration](privx.md) covers the exchange and the signing-key registration that makes PrivX trust the minted token. `permissions.source_type` and the provider's users directory still have to agree in every mode.
+Tool calls reach PrivX as the caller's own PrivX user. The server puts that PrivX username in the JWT it exchanges with the [external token provider](privx-token-provider.md). How it picks the username depends on `[server].auth_mode`:
 
-For PrivX to resolve the identity inside that token, three settings must agree:
+- `oauth`: from the incoming access token, using the `[oauth]` identity mapping.
+- `m2m`: the username bound to the matched service secret.
+- `m2m-jwt`: the username from the matching `[server].m2m_jwt_identity_mapper` row.
 
-- MCP `[oauth]` identity mapping (`identity_claim_field`, `identity_mapping_rule`)
-- MCP `[permissions].source_type`
-- The **Users Directory** field of the PrivX External Token Provider
+PrivX must then find that username in the right directory. These settings must agree:
+
+- `[oauth].identity_claim_field` and `[oauth].identity_mapping_rule` (`oauth` mode only)
+- `[permissions].source_type`
+- The **Users Directory** field of the external token provider
+
+See [PrivX configuration](privx.md) for the exchange itself.
 
 
 

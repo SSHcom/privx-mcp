@@ -8,7 +8,12 @@ Create `privx-mcp-config.toml`. In the GitHub repository, find `privx-mcp-config
 
 ## 2) Fill the minimum required settings
 
-Example:
+The server opens two separate connections to PrivX, and each needs its own setup in PrivX:
+
+- **API client connection** (server-level): opened once at startup with the `[privx_auth].api_`* credentials. The server uses it to look up the caller's PrivX user, roles, and permissions, which decide the tools that caller can see and call. It does not act as any user.
+- **User connection** (per caller): opened for each tool call through the external token provider. The server signs a short-lived JWT for the caller's PrivX username and exchanges it for a PrivX token. Tools run on this connection, so PrivX authorizes and audits them as that user.
+
+**Example configuration:**
 
 ```toml
 [server]
@@ -16,25 +21,39 @@ Example:
 # Add tls_ params for setting up a certificate
 public_url = "https://mcp.example.net:8181"
 
-
 [privx_auth]
 privx_base_url = "https://privx.example.net"
+
+# User connection: values from the external token provider
 rsa_key_file = "/secure/path/private-key.pem"
 rsa_key_id = "privx-mcp-key-1"
 audience = "privx-mcp-client"
+token_issuer = "privx-mcp"
+
+# API client connection: values from the PrivX API client
 api_oauth_client_id = "privx-external"
 api_oauth_client_secret = "replace-me"
 api_client_id = "replace-me"
 api_client_secret = "replace-me"
 
 [permissions]
-# Set this to the PrivX user directory source you use.
+# Users Directory type of the external token provider
 source_type = "MICROSOFTGRAPH"
 ```
 
-This step covers the required settings that every setup needs.
+### User connection: external token provider
 
-See the [reference documents](#reference) for more settings.
+Register the server's public key as an [external token provider](../reference/server/privx-token-provider.md) in PrivX, and:
+
+- point `[privx_auth].rsa_key_file` at the matching private key.
+- from the provider, get values to set `[privx_auth].rsa_key_id`, `[privx_auth].audience`, `[privx_auth].token_issuer` (default `privx-mcp`), `[privx_auth].subject_format` (default `plain`), and `[permissions].source_type`.
+- `[privx_auth].rsa_public_key_file` is an optional path to the public key, checked against the private key at startup.
+
+### API client connection: PrivX API client
+
+In PrivX, open **Administration → Deployment → Integrate with PrivX Using API Clients** and create an API client with a role that has `users-view` and `roles-view`. Copy its values into the four `[privx_auth].api_`* settings. If PrivX uses a private CA, set `[privx_auth].ca_cert` too.
+
+See [PrivX configuration](../reference/server/privx.md) for how the two connections work, and the [reference documents](#reference) for more settings.
 
 ## 3) Set `auth_mode`
 
@@ -79,6 +98,7 @@ If mandatory options are missing, the server will not start.
 ## Reference
 
 - [MCP server configuration](../reference/server/SERVER.md)
+- [External token provider](../reference/server/privx-token-provider.md)
 - [PrivX configuration](../reference/server/privx.md)
 - [TLS (HTTPS)](../reference/server/tls.md)
 - [User-level security](../reference/security/user_level_security.md)
@@ -88,6 +108,7 @@ If mandatory options are missing, the server will not start.
 **Previous**: [Installation](02-install.md)
 
 **Next**:
+
 - [Configure OIDC](04-oidc.md) for browser clients
 - [Configure machine-to-machine access](04-m2m/04-m2m.md) for clients that send their own bearer
 

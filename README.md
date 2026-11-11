@@ -4,7 +4,12 @@ An MCP (Model Context Protocol) server written in Go providing agents secure acc
 
 Secure access starts with identity. The server runs in `oauth` or `m2m` (machine-to-machine) mode: an IdP token or a service secret is mapped to a PrivX user, and that user's roles decide which resources they can see, add, or update.
 
+The MCP server has been tested with PrivX v45, v44 & v43.
+
 An [mcp proxy](docs/reference/clients/privx-mcp-proxy.md) is also available for clients that have issues with streaming, OAuth, etc.
+
+> **Warning**
+> Agents act on your PrivX instance with a mapped user's roles, so unintended changes or data loss are possible if the server is used carelessly. We recommend getting familiar with the server in a test environment before using it in production.
 
 ## Architecture
 
@@ -27,10 +32,8 @@ Machine-to-machine mode is for automated clients with no interactive sign-in. Th
 ## Prerequisites
 
 - Go 1.26.5+
-- A PrivX instance with API Client and External Token Authentication configured
-- Tested with PrivX v45, v44 & v43
-- An RSA key pair (the public key registered in PrivX External Token configuration)
-- For `oauth`: an IdP issuing OIDC tokens
+- A PrivX instance with an API client, which the server uses to look up users, roles, and permissions, and an [external token provider](docs/reference/server/privx-token-provider.md), which lets tools call PrivX as the signed-in user. See [PrivX configuration](docs/reference/server/privx.md).
+- For OAuth: an IdP issuing OIDC tokens
 
 ## Security Precautions
 
