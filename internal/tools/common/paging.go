@@ -22,9 +22,25 @@ type Paging struct {
 	SortDir string
 }
 
+// LimitSchema is the JSON Schema property for a paginated limit.
+// extra is appended to the standard default/maximum sentence when non-empty.
+func LimitSchema(defaultLimit, maxLimit int, extra string) map[string]any {
+	desc := fmt.Sprintf("Page size. Defaults to %d, maximum %d.", defaultLimit, maxLimit)
+	if extra != "" {
+		desc += " " + extra
+	}
+
+	return map[string]any{
+		"type":        "integer",
+		"minimum":     1,
+		"maximum":     maxLimit,
+		"description": desc,
+	}
+}
+
 // ParsePaging extracts limit, offset, and sort options from MCP params.
-// Empty sortKey/sortDir default to created / DESC.
-func ParsePaging(params map[string]any, defaultLimit int) (Paging, *registry.ToolResult) {
+// Empty sortKey/sortDir default to created / DESC. limit above maxLimit is rejected.
+func ParsePaging(params map[string]any, defaultLimit, maxLimit int) (Paging, *registry.ToolResult) {
 	limit, err := utils.IntFromMap(params, "limit", defaultLimit)
 	if err != nil {
 		return Paging{}, registry.ErrorResult(fmt.Sprintf("validation error: %v", err))
@@ -32,6 +48,10 @@ func ParsePaging(params map[string]any, defaultLimit int) (Paging, *registry.Too
 
 	if limit < 1 {
 		return Paging{}, registry.ErrorResult("validation error: limit must be >= 1")
+	}
+
+	if limit > maxLimit {
+		return Paging{}, registry.ErrorResult(fmt.Sprintf("validation error: limit must be <= %d", maxLimit))
 	}
 
 	offset, err := utils.IntFromMap(params, "offset", 0)

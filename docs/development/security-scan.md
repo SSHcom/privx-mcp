@@ -4,7 +4,7 @@ Agent and human instruction for reviewing **this** process: an HTTP MCP resource
 
 Walk the trust chain in the code. Optional tools on `PATH` may add secrets and dependency CVEs; they do not replace reading that chain. The checklist below is a floor: known claims to verify, not the set of paths you are allowed to look at.
 
-Threat model and intended controls: [security.md](../manual/reference/security/security.md), [user_level_security.md](../manual/reference/security/user_level_security.md). Accepted product behaviour: [security-decisions.md](security-decisions.md). Package layout: [AGENTS.md](../../AGENTS.md). If the threat-model docs and the code disagree, the code is what you scan. Do not rewrite this file during the scan.
+Threat model and intended controls: [security.md](../reference/security/security.md), [user_level_security.md](../reference/security/user_level_security.md). Accepted product behaviour: [security-decisions.md](security-decisions.md). Package layout: [AGENTS.md](../../AGENTS.md). If the threat-model docs and the code disagree, the code is what you scan. Do not rewrite this file during the scan.
 
 ## Operating rules
 
@@ -27,7 +27,7 @@ Threat model and intended controls: [security.md](../manual/reference/security/s
 ## Trust chain
 
 ```
-MCP client --bearer--> /mcp (JWKS) --> rate limit --> RSA JWT mint --> PrivX as that user --> PermissionEngine --> tool handler --> sanitize / blacklist / envelope
+MCP client --bearer--> /mcp (JWKS) --> rate limit --> RSA JWT mint --> PrivX as that user --> PermissionEngine --> tool handler --> sanitize / response filter / envelope
 ```
 
 ## Checklist
@@ -59,16 +59,15 @@ Read tool registration, permission mapping, and the MCP runtime.
 
 - Write tools are dropped when read-only mode is on. A mutating tool classified as non-writing is an issue unless the product docs call that out as an exception; if they do, record the judgement as `ok`.
 - A tool with no required PrivX scopes is listed and judged: any authenticated caller can invoke it. Record that as `ok` on this section, not as Notes.
-- Trusted tools are for server-generated content only. A Trusted tool that mixes in PrivX-sourced strings must run the same string hardening the runtime uses for everyone else.
+- Trusted tools are for server-generated content only. `mcp-info` still sanitizes PrivX-sourced names and applies the response filter to them. `target-domain-managed-account-checkout` returns PrivX strings unchanged.
 - Session cache TTL: a stale **allow** after revoke until TTL expires is documented; a stale allow that never expires is an issue.
 
 ### 4. MCP data boundary
 
 Read the MCP security package and the runtime that applies it on tool calls.
 
-- Non-Trusted tools: inbound hardening on params; outbound sanitize, blacklist, envelope.
-- List/search: drop failing `items` rows; single-object get withholds the whole payload; do not name the blocked word on the way out.
-- Blacklist exceptions stay key-scoped and match [security.md](../manual/reference/security/security.md). Injection terms are not excepted on fields where that document still blocks them.
+- Non-Trusted tools: inbound sanitize on params; outbound sanitize, optional whole-word response filter, envelope. `Verbatim` paths are left unchanged in both directions: user-secret `data` and `items[].data`, and target-domain `endpoints[].ldap_bind_password` and `endpoints[].entra_client_secret`.
+- The response filter replaces configured whole words and keeps the payload, including list rows. It does not run on `whitelist-*` tools or sensitive tools. Create and update tools, and `request-set-decision`, reject any parameter value containing `[redacted]`, including those tools.
 - Homoglyph / non-English instruction gaps are known limits in `security.md`, not new issues unless a bypass is worse than documented.
 
 ### 5. Handler trust
@@ -83,7 +82,7 @@ On a first full-repo scan, sample several resource topics (see AGENTS.md for lay
 
 - Config loaders: secrets from TOML/env/files, not logs.
 - `.gitignore` covers live config and key material.
-- MCP client must not see omitted-row bodies or bearer tokens. Server logs that help an operator clean a blacklisted record are fine if the client never sees them.
+- MCP client must not see bearer tokens. The response filter replaces words in place; it does not omit rows.
 
 ### 7. Proxy
 
@@ -157,10 +156,10 @@ Issue fields: severity (`critical` / `high` / `medium` / `low`), section, path, 
 
 These belong in Notes unless a code default is already unsafe:
 
-- Run the binary behind TLS or a reverse proxy; do not expose the RSA signing key or API credentials on a workstation against production PrivX ([security.md](../manual/reference/security/security.md)).
+- Run the binary behind TLS or a reverse proxy; do not expose the RSA signing key or API credentials on a workstation against production PrivX ([security.md](../reference/security/security.md)).
 - Protect signing keys and PrivX API client secrets on disk.
 - Demo compose passwords and local IdP defaults are for demonstration only.
-- Unauthenticated load and bind address are a proxy or host problem; in-process rate limits apply only after a valid identity on `tools/call`.
+- Unauthenticated load and bind address are a proxy or host problem; in-process rate limits apply only after a valid identity, on `tools/list` and `tools/call`.
 
 ## What to do next (if you are an agent)
 

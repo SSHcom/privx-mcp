@@ -55,15 +55,38 @@ func TestCallback_SuccessAndFailures(t *testing.T) {
 		}
 	})
 
-	t.Run("state mismatch", func(t *testing.T) {
+	t.Run("forged callback does not abort login", func(t *testing.T) {
 		t.Parallel()
 
 		cb, port := startTestCallback(t, "expected-state")
 		t.Cleanup(func() { _ = cb.Close() })
 
 		go func() {
+			forged := []string{
+				fmt.Sprintf("http://127.0.0.1:%d/oauth/callback?error=access_denied", port),
+				fmt.Sprintf("http://127.0.0.1:%d/oauth/callback?code=x&state=wrong", port),
+				fmt.Sprintf(
+					"http://127.0.0.1:%d/oauth/callback?error=access_denied&state=wrong",
+					port,
+				),
+			}
+			for _, rawURL := range forged {
+				resp, err := http.Get(rawURL)
+				if err != nil {
+					t.Error(err)
+
+					return
+				}
+
+				if resp.StatusCode != http.StatusBadRequest {
+					t.Errorf("status = %d", resp.StatusCode)
+				}
+
+				_ = resp.Body.Close()
+			}
+
 			resp, err := http.Get(fmt.Sprintf(
-				"http://127.0.0.1:%d/oauth/callback?code=x&state=wrong",
+				"http://127.0.0.1:%d/oauth/callback?code=the-code&state=expected-state",
 				port,
 			))
 			if err != nil {
@@ -75,9 +98,13 @@ func TestCallback_SuccessAndFailures(t *testing.T) {
 			_ = resp.Body.Close()
 		}()
 
-		_, err := cb.Wait(context.Background(), 3*time.Second)
-		if err == nil {
-			t.Fatal("error = nil")
+		code, err := cb.Wait(context.Background(), 3*time.Second)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if code != "the-code" {
+			t.Fatalf("code = %q", code)
 		}
 	})
 

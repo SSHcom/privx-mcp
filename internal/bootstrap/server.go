@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
@@ -17,8 +18,10 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/transport"
 	httpservice "github.com/pmsshintegration/privx-mcp/internal/service/http"
 	"github.com/pmsshintegration/privx-mcp/internal/service/logging"
+	"github.com/pmsshintegration/privx-mcp/internal/service/security"
 	"github.com/pmsshintegration/privx-mcp/internal/service/session"
 	"github.com/pmsshintegration/privx-mcp/internal/tools"
+	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 var connectWithAPICredentials = privx.ConnectWithAPICredentials
@@ -53,6 +56,7 @@ func NewServerFromConfig(cfg *config.Config) (*http.Server, func(), error) {
 	}
 
 	logIdentityVerifier(cfg)
+	logSensitiveDataTools(cfg)
 
 	// Build the runtime core. Token verification happens at the edge; the
 	// authenticator consumes already-verified claims from request context.
@@ -74,7 +78,9 @@ func NewServerFromConfig(cfg *config.Config) (*http.Server, func(), error) {
 	// The MCP server acts as a resource server only; clients perform the
 	// browser-based OAuth flow directly with the provider.
 	registrars := []httpservice.RouteRegistrar{}
-	if cfg.Server.AuthMode != "m2m" {
+
+	mcpResource := strings.TrimRight(cfg.Server.PublicURL, "/") + "/mcp"
+	if cfg.Server.AuthMode != "m2m" && cfg.Server.AuthMode != "m2m-jwt" {
 		registrars = append(registrars,
 			func(m *http.ServeMux) error {
 				authServer := cfg.OAuth.IssuerURL
@@ -83,7 +89,7 @@ func NewServerFromConfig(cfg *config.Config) (*http.Server, func(), error) {
 				}
 
 				return wellknown.RegisterRoutes(m, wellknown.ProtectedResourceConfig{
-					Resource:             cfg.Server.PublicURL + "/mcp",
+					Resource:             mcpResource,
 					AuthorizationServers: []string{authServer},
 				})
 			},
@@ -107,6 +113,7 @@ func NewServerFromConfig(cfg *config.Config) (*http.Server, func(), error) {
 					PublicURL:         cfg.Server.PublicURL,
 					UpstreamIssuerURL: cfg.OAuth.IssuerURL,
 					Scopes:            cfg.OAuth.Scopes,
+					AllowHTTP:         cfg.OAuth.AllowHTTP,
 				})
 			},
 		)
@@ -118,6 +125,8 @@ func NewServerFromConfig(cfg *config.Config) (*http.Server, func(), error) {
 			Verifier:                   verifier,
 			DisableLocalhostProtection: cfg.Server.DisableLocalhostProtection,
 			Stateless:                  cfg.Server.Stateless,
+			CheckAPIKey:                cfg.Server.M2MJWTKeySet,
+			APIKeySum:                  cfg.Server.M2MJWTKey,
 		})
 	})
 
@@ -164,6 +173,7 @@ func buildRuntimeCore(cfg *config.Config, authenticator auth.Authenticator, clai
 		reg,
 		permissions,
 		claimsSource,
+		runtime.WithResponseFilter(security.NewFilter(cfg.Permissions.ResponseFilter)),
 		runtime.WithRateLimiter(
 			session.NewRateLimiter(
 				cfg.Permissions.RequestWindowSeconds,
@@ -175,20 +185,24 @@ func buildRuntimeCore(cfg *config.Config, authenticator auth.Authenticator, clai
 	)
 }
 
-// identityVerifier is the HTTP-edge bearer check. OAuth uses JWKS; m2m uses service secrets.
+// identityVerifier is the HTTP-edge bearer check.
+// OAuth uses JWKS, m2m compares a secret, and m2m-jwt maps a JWT claim.
 type identityVerifier interface {
 	Verify(ctx context.Context, raw string) (*oauth.IdentityClaims, error)
 	Close()
 }
 
 func buildIdentityVerifier(cfg *config.Config) (identityVerifier, error) {
-	if cfg.Server.AuthMode == "m2m" {
-		return m2m.NewVerifier(cfg.Server.ServiceSecrets), nil
+	switch cfg.Server.AuthMode {
+	case "m2m":
+		return m2m.NewVerifier(cfg.Server.M2MIdentityMapper), nil
+	case "m2m-jwt":
+		return m2m.NewJWTVerifier(cfg.Server.M2MJWTIdentityMapper, cfg.Server.M2MJWTIssuer), nil
 	}
 
 	provider := cfg.OAuth
 
-	issuerURL, jwksURI, err := resolveVerifierEndpoints(provider.IssuerURL, provider.JWKSURI)
+	issuerURL, jwksURI, err := resolveVerifierEndpoints(provider.IssuerURL, provider.JWKSURI, provider.AllowHTTP)
 	if err != nil {
 		return nil, err
 	}
@@ -198,52 +212,93 @@ func buildIdentityVerifier(cfg *config.Config) (identityVerifier, error) {
 		ExpectedIssuer:   issuerURL,
 		ExpectedAudience: provider.ExpectedAudience,
 		CacheTTL:         provider.JWKSCacheTTL,
+		AllowHTTP:        provider.AllowHTTP,
 	})
 }
 
-func resolveVerifierEndpoints(issuerURL, jwksURI string) (string, string, error) {
+func resolveVerifierEndpoints(issuerURL, jwksURI string, allowHTTP bool) (string, string, error) {
+	if strings.TrimSpace(issuerURL) == "" {
+		return "", "", fmt.Errorf("oauth.issuer_url is required")
+	}
+
+	if _, err := utils.RequireHTTPURL(issuerURL, allowHTTP); err != nil {
+		return "", "", fmt.Errorf("oauth.issuer_url: %w", err)
+	}
+
 	if jwksURI != "" {
+		if _, err := utils.RequireHTTPURL(jwksURI, allowHTTP); err != nil {
+			return "", "", fmt.Errorf("oauth.jwks_uri: %w", err)
+		}
+
 		return issuerURL, jwksURI, nil
 	}
 
-	discoveredIssuer, discoveredJWKS, err := discoverJWKSURI(issuerURL)
+	discoveredJWKS, err := discoverJWKSURI(issuerURL, allowHTTP)
 	if err != nil {
 		return "", "", err
-	}
-
-	if discoveredIssuer != "" {
-		issuerURL = discoveredIssuer
 	}
 
 	return issuerURL, discoveredJWKS, nil
 }
 
 func logIdentityVerifier(cfg *config.Config) {
-	usernames := make([]string, len(cfg.Server.ServiceSecrets))
-	for i, secret := range cfg.Server.ServiceSecrets {
-		usernames[i] = secret.Username
+	usernames := make([]string, 0, len(cfg.Server.M2MIdentityMapper)+len(cfg.Server.M2MJWTIdentityMapper))
+	for _, mapping := range cfg.Server.M2MIdentityMapper {
+		usernames = append(usernames, mapping.Username)
+	}
+
+	for _, mapping := range cfg.Server.M2MJWTIdentityMapper {
+		usernames = append(usernames, mapping.Username)
 	}
 
 	logging.Info(
 		"identity verifier ready",
 		"auth_mode", cfg.Server.AuthMode,
-		"service_secrets", len(usernames),
+		"m2m_identity_mapper", len(cfg.Server.M2MIdentityMapper),
+		"m2m_jwt_identity_mapper", len(cfg.Server.M2MJWTIdentityMapper),
 		"usernames", usernames,
 	)
 }
 
-func discoverJWKSURI(issuerURL string) (string, string, error) {
-	if issuerURL == "" {
-		return "", "", fmt.Errorf("oauth.issuer_url is required")
+// logSensitiveDataTools emits a startup warning when the sensitive-data tool
+// gate is open, so an operator can see in the logs that tools which may expose
+// secrets or raw session content are registered, and in which access mode.
+func logSensitiveDataTools(cfg *config.Config) {
+	if !cfg.Permissions.EnableSensitiveDataTools {
+		if cfg.Permissions.SensitiveDataToolsAllowNonAdmin {
+			logging.Warn(
+				"permissions.sensitive_data_tools_allow_non_admin is set but has no effect " +
+					"because permissions.enable_sensitive_data_tools is false",
+			)
+		}
+
+		return
+	}
+
+	access := "privx-admin only"
+	if cfg.Permissions.SensitiveDataToolsAllowNonAdmin {
+		access = "any user with the tool's granular PrivX permissions"
+	}
+
+	logging.Warn(
+		"sensitive-data tools are ENABLED; these can expose secrets and raw session content. "+
+			"Enable only with a private/self-hosted LLM you control.",
+		"access", access,
+	)
+}
+
+func discoverJWKSURI(issuerURL string, allowHTTP bool) (string, error) {
+	if strings.TrimSpace(issuerURL) == "" {
+		return "", fmt.Errorf("oauth.issuer_url is required")
 	}
 
 	discoveryCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	discoveryDoc, err := oauth.NewHTTPDiscoveryClient(nil).Fetch(discoveryCtx, issuerURL)
+	discoveryDoc, err := oauth.NewHTTPDiscoveryClient(nil, allowHTTP).Fetch(discoveryCtx, issuerURL)
 	if err != nil {
-		return "", "", fmt.Errorf("fetch provider discovery document: %w", err)
+		return "", fmt.Errorf("fetch provider discovery document: %w", err)
 	}
 
-	return discoveryDoc.Issuer, discoveryDoc.JWKSURI, nil
+	return discoveryDoc.JWKSURI, nil
 }

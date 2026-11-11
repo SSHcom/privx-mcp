@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/SSHcom/privx-sdk-go/v2/api/rolestore"
+	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
@@ -18,8 +19,33 @@ import (
 )
 
 // rateLimitExceededMessage is returned to MCP clients when a caller exceeds
-// the configured per-identity tool-call quota.
+// the configured per-identity quota on tools/list or tools/call.
 const rateLimitExceededMessage = "Too many requests. Please try again later."
+
+// limitList applies the shared per-identity quota to tools/list. A refusal
+// is returned before the catalog is built, so the list does not resolve the
+// caller in PrivX.
+func (c *Core) limitList(ctx context.Context) error {
+	if c.rateLimiter == nil || !c.rateLimiter.Enabled() || c.claimsSource == nil {
+		return nil
+	}
+
+	claims := c.claimsSource.ListClaims(ctx)
+	if c.rateLimiter.Allow(c.sessionBaseURL, claims) {
+		return nil
+	}
+
+	logging.Info(
+		"tools/list rate limited",
+		"email", identityEmail(claims),
+		"upn", identityUPN(claims),
+	)
+
+	return &jsonrpc.Error{
+		Code:    jsonrpc.CodeInternalError,
+		Message: rateLimitExceededMessage,
+	}
+}
 
 // filterListedTools narrows tools/list to those the caller is authorised to
 // invoke. Visibility mirrors the call-time auth middleware so a client never
@@ -78,6 +104,7 @@ func (c *Core) filterByPermissions(ctx context.Context, identity *oauth.Identity
 			"upn", identityUPN(identity),
 			"user_id", userID,
 			"roles", roleNames(user),
+			"admin_role", hasPrivxAdminRole(user),
 			"permissions", resolvedPermissions(user),
 		)
 
@@ -86,6 +113,7 @@ func (c *Core) filterByPermissions(ctx context.Context, identity *oauth.Identity
 
 	filtered := make([]*mcp.Tool, 0, len(tools))
 	hidden := 0
+	hiddenTargetDomains := make([]string, 0)
 
 	for _, tool := range tools {
 		if tool == nil {
@@ -106,12 +134,17 @@ func (c *Core) filterByPermissions(ctx context.Context, identity *oauth.Identity
 			roles = ensureResolved()
 		}
 
-		if AllowResolved(identity, roles, required) {
+		reason := listDenyReason(identity, roles, required, resolveFailed)
+		if reason == "" {
 			filtered = append(filtered, tool)
 			continue
 		}
 
 		hidden++
+
+		if strings.HasPrefix(tool.Name, "target-domain-") {
+			hiddenTargetDomains = append(hiddenTargetDomains, tool.Name+": "+reason)
+		}
 	}
 
 	logging.Info(
@@ -121,12 +154,49 @@ func (c *Core) filterByPermissions(ctx context.Context, identity *oauth.Identity
 		"input", len(tools),
 		"visible", len(filtered),
 		"hidden", hidden,
+		"hidden_target_domains", hiddenTargetDomains,
 		"resolve_tried", resolveTried,
 		"resolve_failed", resolveFailed,
 		"resolve_err", resolveErr,
 	)
 
 	return filtered
+}
+
+// listDenyReason explains why tools/list hides a tool. An empty reason means
+// the tool stays visible. It matches AllowResolved.
+func listDenyReason(
+	identity *oauth.IdentityClaims,
+	resolvedRoles *rolestore.User,
+	required []string,
+	resolveFailed bool,
+) string {
+	if len(required) == 0 {
+		return ""
+	}
+
+	if identity == nil {
+		return "missing identity"
+	}
+
+	if len(required) == 1 && required[0] == registry.PermissionAuthenticated {
+		return ""
+	}
+
+	if resolveFailed || resolvedRoles == nil {
+		return "permission resolution failed"
+	}
+
+	if hasPrivxAdminRole(resolvedRoles) {
+		return ""
+	}
+
+	missing := missingRequirements(required, buildPermissionSet(resolvedRoles, time.Now()))
+	if len(missing) == 0 {
+		return ""
+	}
+
+	return "missing " + strings.Join(missing, ",")
 }
 
 func identityEmail(identity *oauth.IdentityClaims) string {
@@ -222,7 +292,7 @@ func (c *Core) authMiddleware(next mcp.ToolHandler) mcp.ToolHandler {
 			)
 			result := ToMCPError(err)
 
-			return toCallToolResult(result, false, toolName), nil
+			return toCallToolResult(result, registry.Tool{Name: toolName}, c.responseFilter), nil
 		}
 
 		if err := c.bindIssuerSubject(authCtx, claims); err != nil {
@@ -241,7 +311,7 @@ func (c *Core) authMiddleware(next mcp.ToolHandler) mcp.ToolHandler {
 		tool, ok := c.registry.Get(toolName)
 		if !ok {
 			result := ToMCPError(&AuthorizationError{ToolName: toolName})
-			return toCallToolResult(result, false, toolName), nil
+			return toCallToolResult(result, registry.Tool{Name: toolName}, c.responseFilter), nil
 		}
 
 		decision := c.permissions.IsAllowed(ctx, claims, tool.RequiredPermissions)
@@ -257,14 +327,24 @@ func (c *Core) authMiddleware(next mcp.ToolHandler) mcp.ToolHandler {
 				result = scopeDeniedToolResult(toolName, decision.RolesChanged)
 			}
 
-			return toCallToolResult(result, false, toolName), nil
+			return toCallToolResult(result, tool, c.responseFilter), nil
 		}
 
-		// After permission gating, copy user ID and active roles onto
-		// AuthContext for handler-side checks. Resolve hits the session cache
-		// when IsAllowed already resolved the user; failure leaves UserID/Roles
-		// empty (allowed authenticated-only tools still proceed).
-		if resolved, resolveErr := c.permissions.ResolveUserContext(ctx, claims); resolveErr == nil && resolved != nil {
+		// Resolve and bind every non-public tool call to a PrivX user so the
+		// mapped connector identity cannot run unchecked when lookup fails.
+		if len(tool.RequiredPermissions) > 0 {
+			resolved, resolveErr := c.permissions.ResolveUserContext(ctx, claims)
+			if resolveErr != nil || resolved == nil {
+				logging.Warn(
+					"permission user resolution failed during tool call",
+					"tool", toolName,
+					"mapped_username", authCtx.Username,
+					"err", resolveErr,
+				)
+
+				return errorCallResult("authentication failed: unable to resolve authorized user"), nil
+			}
+
 			authCtx.UserID = resolved.ID
 			authCtx.Roles = activeRoles(resolved)
 
@@ -412,14 +492,11 @@ func (c *Core) storeConnectorUserID(claims *oauth.IdentityClaims, resolved *role
 		return
 	}
 
-	c.permissions.sessionService.Set(
+	c.permissions.sessionService.SetConnectorUserID(
 		c.permissions.sessionBaseURL,
 		claims,
-		session.CachedUserContext{
-			UserID:          resolved.ID,
-			ResolvedRoles:   resolved,
-			ConnectorUserID: connectorUserID,
-		},
+		resolved.ID,
+		connectorUserID,
 	)
 }
 

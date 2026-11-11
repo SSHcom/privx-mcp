@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,6 +66,7 @@ ca_cert = "/tmp/ca.pem"
 default_read_only = false
 whitelist = ["host-", "user-", "test-"]
 blacklist = ["host-delete", "user-delete-"]
+response_filter = ["sudo", "sh"]
 source_type = "AD"
 session_cache_ttl = "45s"
 request_window_seconds = 60
@@ -167,6 +169,9 @@ identity_mapping_rule = "strip-domain"
 	if cfg.Permissions.Blacklist[0] != "host-delete" || cfg.Permissions.Blacklist[1] != "user-delete-" {
 		t.Errorf("Permissions.Blacklist = %v, want [host-delete user-delete-]", cfg.Permissions.Blacklist)
 	}
+	if len(cfg.Permissions.ResponseFilter) != 2 || cfg.Permissions.ResponseFilter[0] != "sudo" || cfg.Permissions.ResponseFilter[1] != "sh" {
+		t.Errorf("Permissions.ResponseFilter = %v, want [sudo sh]", cfg.Permissions.ResponseFilter)
+	}
 	if cfg.Permissions.SessionCacheTTL != 45*time.Second {
 		t.Errorf("Permissions.SessionCacheTTL = %v, want %v", cfg.Permissions.SessionCacheTTL, 45*time.Second)
 	}
@@ -256,6 +261,12 @@ audience = "test-client"
 	if cfg.Permissions.MaxedWindowWaitSeconds != 0 {
 		t.Errorf("Permissions.MaxedWindowWaitSeconds default = %d, want 0", cfg.Permissions.MaxedWindowWaitSeconds)
 	}
+	if cfg.Permissions.EnableSensitiveDataTools {
+		t.Errorf("Permissions.EnableSensitiveDataTools default = %v, want false", cfg.Permissions.EnableSensitiveDataTools)
+	}
+	if cfg.Permissions.SensitiveDataToolsAllowNonAdmin {
+		t.Errorf("Permissions.SensitiveDataToolsAllowNonAdmin default = %v, want false", cfg.Permissions.SensitiveDataToolsAllowNonAdmin)
+	}
 	if cfg.Server.LogFile != "" {
 		t.Errorf("Server.LogFile default = %q, want empty string", cfg.Server.LogFile)
 	}
@@ -267,6 +278,85 @@ audience = "test-client"
 	}
 	if !cfg.Server.Stateless {
 		t.Errorf("Server.Stateless default = %v, want true", cfg.Server.Stateless)
+	}
+}
+
+func TestLoadConfig_SensitiveDataToolsFromTOML(t *testing.T) {
+	keyFile := writeKeyFile(t)
+	content := `
+[server]
+public_url = "http://localhost:8181"
+
+[privx_auth]
+privx_base_url = "https://privx.example.com"
+rsa_key_file = "` + keyFile + `"
+rsa_key_id = "key-1"
+
+[permissions]
+source_type = "AD"
+enable_sensitive_data_tools = true
+sensitive_data_tools_allow_non_admin = true
+
+[oauth]
+issuer_url = "https://idp.example.com"
+audience = "test-client"
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if !cfg.Permissions.EnableSensitiveDataTools {
+		t.Error("Permissions.EnableSensitiveDataTools = false, want true")
+	}
+	if !cfg.Permissions.SensitiveDataToolsAllowNonAdmin {
+		t.Error("Permissions.SensitiveDataToolsAllowNonAdmin = false, want true")
+	}
+}
+
+func TestLoadConfig_SensitiveDataToolsEnvOverride(t *testing.T) {
+	keyFile := writeKeyFile(t)
+	content := `
+[server]
+public_url = "http://localhost:8181"
+
+[privx_auth]
+privx_base_url = "https://privx.example.com"
+rsa_key_file = "` + keyFile + `"
+rsa_key_id = "key-1"
+
+[permissions]
+source_type = "AD"
+
+[oauth]
+issuer_url = "https://idp.example.com"
+audience = "test-client"
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("PERMISSIONS_ENABLE_SENSITIVE_DATA_TOOLS", "true")
+	t.Setenv("PERMISSIONS_SENSITIVE_DATA_TOOLS_ALLOW_NON_ADMIN", "1")
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if !cfg.Permissions.EnableSensitiveDataTools {
+		t.Error("env PERMISSIONS_ENABLE_SENSITIVE_DATA_TOOLS=true did not enable the flag")
+	}
+	if !cfg.Permissions.SensitiveDataToolsAllowNonAdmin {
+		t.Error("env PERMISSIONS_SENSITIVE_DATA_TOOLS_ALLOW_NON_ADMIN=1 did not enable the flag")
 	}
 }
 
@@ -867,6 +957,40 @@ func TestLoadConfig_NoFileNoEnvVar(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_PublicURLWhitespaceRejected(t *testing.T) {
+	keyFile := writeKeyFile(t)
+	content := `
+[server]
+public_url = "   "
+
+[privx_auth]
+privx_base_url = "https://privx.example.com"
+rsa_key_file = "` + keyFile + `"
+rsa_key_id = "key-1"
+
+[permissions]
+source_type = "AD"
+
+[oauth]
+issuer_url = "https://idp.example.com"
+audience = "test-client"
+`
+
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := LoadConfig(path)
+	if err == nil {
+		t.Fatal("expected validation error for whitespace public_url")
+	}
+
+	if !strings.Contains(err.Error(), "server.public_url") {
+		t.Fatalf("expected server.public_url error, got: %v", err)
+	}
+}
+
 func TestLoadConfig_InvalidLogLevel(t *testing.T) {
 	keyFile := writeKeyFile(t)
 	content := `
@@ -1052,7 +1176,9 @@ audience = "test-client"
 func TestParseDurationIfSet(t *testing.T) {
 	t.Run("empty leaves target unchanged", func(t *testing.T) {
 		d := 45 * time.Second
-		parseDurationIfSet("", &d)
+		if err := parseDurationIfSet("permissions.session_cache_ttl", "", &d); err != nil {
+			t.Fatal(err)
+		}
 		if d != 45*time.Second {
 			t.Fatalf("got %v", d)
 		}
@@ -1060,17 +1186,170 @@ func TestParseDurationIfSet(t *testing.T) {
 
 	t.Run("valid duration", func(t *testing.T) {
 		var d time.Duration
-		parseDurationIfSet("30m", &d)
+		if err := parseDurationIfSet("oauth.jwks_cache_ttl", "30m", &d); err != nil {
+			t.Fatal(err)
+		}
 		if d != 30*time.Minute {
 			t.Fatalf("got %v", d)
 		}
 	})
 
-	t.Run("invalid duration leaves target unchanged", func(t *testing.T) {
+	t.Run("bare zero", func(t *testing.T) {
 		d := time.Hour
-		parseDurationIfSet("not-a-duration", &d)
+		if err := parseDurationIfSet("permissions.refresh_cooldown", "0", &d); err != nil {
+			t.Fatal(err)
+		}
+		if d != 0 {
+			t.Fatalf("got %v", d)
+		}
+	})
+
+	t.Run("invalid duration", func(t *testing.T) {
+		d := time.Hour
+		err := parseDurationIfSet("permissions.session_cache_ttl", "not-a-duration", &d)
+		if err == nil || !strings.Contains(err.Error(), "permissions.session_cache_ttl") {
+			t.Fatalf("error = %v", err)
+		}
 		if d != time.Hour {
 			t.Fatalf("got %v", d)
 		}
 	})
+}
+
+func TestLoadConfig_TrimsListEntries(t *testing.T) {
+	keyFile := writeKeyFile(t)
+	content := `
+[server]
+public_url = "http://localhost:8181"
+
+[privx_auth]
+privx_base_url = "https://privx.example.com"
+rsa_key_file = "` + keyFile + `"
+rsa_key_id = "key-1"
+
+[permissions]
+source_type = "AD"
+whitelist = [" host-", "user-"]
+blacklist = [" host-delete "]
+response_filter = [" sudo "]
+
+[oauth]
+issuer_url = "https://idp.example.com"
+audience = "test-client"
+scopes = [" openid ", " email"]
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.toml")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := LoadConfig(path)
+	if err != nil {
+		t.Fatalf("LoadConfig failed: %v", err)
+	}
+
+	if len(cfg.Permissions.Whitelist) != 2 || cfg.Permissions.Whitelist[0] != "host-" || cfg.Permissions.Whitelist[1] != "user-" {
+		t.Fatalf("whitelist = %v", cfg.Permissions.Whitelist)
+	}
+	if len(cfg.Permissions.Blacklist) != 1 || cfg.Permissions.Blacklist[0] != "host-delete" {
+		t.Fatalf("blacklist = %v", cfg.Permissions.Blacklist)
+	}
+	if len(cfg.Permissions.ResponseFilter) != 1 || cfg.Permissions.ResponseFilter[0] != "sudo" {
+		t.Fatalf("response filter = %v", cfg.Permissions.ResponseFilter)
+	}
+	if len(cfg.OAuth.Scopes) != 2 || cfg.OAuth.Scopes[0] != "openid" || cfg.OAuth.Scopes[1] != "email" {
+		t.Fatalf("scopes = %v", cfg.OAuth.Scopes)
+	}
+}
+
+func TestLoadConfig_RejectsInvalidDurationAndEnums(t *testing.T) {
+	keyFile := writeKeyFile(t)
+	base := `
+[server]
+public_url = "http://localhost:8181"
+
+[privx_auth]
+privx_base_url = "https://privx.example.com"
+rsa_key_file = "` + keyFile + `"
+rsa_key_id = "key-1"
+%s
+
+[permissions]
+source_type = "AD"
+%s
+
+[oauth]
+issuer_url = "https://idp.example.com"
+audience = "test-client"
+%s
+`
+	tests := []struct {
+		name    string
+		privx   string
+		perms   string
+		oauth   string
+		wantErr string
+	}{
+		{
+			name:    "jwks cache ttl",
+			oauth:   `jwks_cache_ttl = "later"`,
+			wantErr: "oauth.jwks_cache_ttl",
+		},
+		{
+			name:    "negative jwks cache ttl",
+			oauth:   `jwks_cache_ttl = "-1s"`,
+			wantErr: "oauth.jwks_cache_ttl must be non-negative",
+		},
+		{
+			name:    "session cache ttl",
+			perms:   `session_cache_ttl = "later"`,
+			wantErr: "permissions.session_cache_ttl",
+		},
+		{
+			name:    "subject format",
+			privx:   `subject_format = "DN"`,
+			wantErr: "privx_auth.subject_format",
+		},
+		{
+			name:    "identity mapping rule",
+			oauth:   `identity_mapping_rule = "lower"`,
+			wantErr: "oauth.identity_mapping_rule",
+		},
+		{
+			name:    "blank whitelist",
+			perms:   `whitelist = ["", " ", "host-"]`,
+			wantErr: "permissions.whitelist contains a blank entry",
+		},
+		{
+			name:    "blank blacklist",
+			perms:   `blacklist = [" "]`,
+			wantErr: "permissions.blacklist contains a blank entry",
+		},
+		{
+			name:    "blank response filter",
+			perms:   `response_filter = [""]`,
+			wantErr: "permissions.response_filter contains a blank entry",
+		},
+		{
+			name:    "blank scope",
+			oauth:   `scopes = ["openid", ""]`,
+			wantErr: "oauth.scopes contains a blank entry",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			content := fmt.Sprintf(base, tt.privx, tt.perms, tt.oauth)
+			path := filepath.Join(t.TempDir(), "config.toml")
+			if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+				t.Fatal(err)
+			}
+
+			_, err := LoadConfig(path)
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("error = %v, want substring %q", err, tt.wantErr)
+			}
+		})
+	}
 }

@@ -2,6 +2,8 @@ package transport
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -20,6 +22,20 @@ import (
 // transport package can stay decoupled from the concrete verifier type.
 type BearerVerifier interface {
 	Verify(ctx context.Context, rawToken string) (*oauth.IdentityClaims, error)
+}
+
+// WithAPIKey rejects a request whose X-API-KEY does not match sum.
+// sum is the SHA-256 of the configured key. The header value is not logged.
+func WithAPIKey(sum [32]byte, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		presented := sha256.Sum256([]byte(r.Header.Get("X-API-KEY")))
+		if subtle.ConstantTimeCompare(presented[:], sum[:]) != 1 {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 // WithBearerVerification wraps an http.Handler with the MCP Authorization

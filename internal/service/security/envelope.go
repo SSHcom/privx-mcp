@@ -1,7 +1,7 @@
 // Package security hardens the MCP boundary against prompt injection carried
-// in PrivX data: it strips invisible Unicode from string values, rejects
-// blacklisted words in both directions, and wraps tool payloads in an envelope
-// that marks them as untrusted data.
+// in PrivX data: it strips invisible Unicode from string values, replaces
+// configured whole words in tool responses, and wraps tool payloads in an
+// envelope that marks them as untrusted data.
 package security
 
 import "encoding/json"

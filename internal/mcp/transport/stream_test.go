@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
@@ -22,6 +23,32 @@ func (stubAuthenticator) Authenticate(_ context.Context, _ *oauth.IdentityClaims
 func TestRegisterRoutesValidatesInput(t *testing.T) {
 	if err := RegisterRoutes(nil, nil, StreamConfig{}); err == nil {
 		t.Fatal("expected nil mux/core validation error")
+	}
+
+	core := runtime.NewCore(
+		config.ServerConfig{Name: "test", Version: "test"},
+		stubAuthenticator{},
+		registry.NewRegistry(),
+		runtime.NewPermissionEngine(),
+		HTTPClaimsSource{},
+	)
+
+	mux := http.NewServeMux()
+
+	err := RegisterRoutes(mux, core, StreamConfig{
+		PublicURL: "   ",
+		Verifier:  &stubVerifier{claims: &oauth.IdentityClaims{Subject: "alice"}},
+	})
+	if err == nil || !strings.Contains(err.Error(), "public_url is required") {
+		t.Fatalf("expected public_url validation error, got: %v", err)
+	}
+
+	err = RegisterRoutes(mux, core, StreamConfig{
+		PublicURL: "http://localhost:8181",
+		Verifier:  nil,
+	})
+	if err == nil || !strings.Contains(err.Error(), "bearer verifier is required") {
+		t.Fatalf("expected verifier validation error, got: %v", err)
 	}
 }
 

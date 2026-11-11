@@ -53,7 +53,7 @@ Create and edit the configuration file:
 $EDITOR "$HOME/.privx-mcp/privx-mcp-config.toml"
 ```
 
-Configuration reference: [MCP server configuration](../../docs/manual/reference/server/SERVER.md).
+Configuration reference: [MCP server configuration](../../docs/reference/server/SERVER.md).
 
 Leave `log_file` unset (the default) so the server logs to stdout. *systemd* captures that in the user journal. If `log_file` is set, logs go to that file instead and will not appear as journal/syslog entries.
 

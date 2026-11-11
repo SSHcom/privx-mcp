@@ -20,12 +20,15 @@ var ErrIssuerSubjectRequired = errors.New("issuer and subject are required")
 var ErrIssuerSubjectChanged = errors.New("issuer or subject changed")
 
 // CachedUserContext is the resolved PrivX user context stored per identity.
+// NotFound is a completed lookup that matched no PrivX user. It uses the same
+// TTL as a successful entry so a later request does not read the directory again.
 type CachedUserContext struct {
 	UserID          string
 	ResolvedRoles   *rolestore.User
 	ConnectorUserID string
 	Issuer          string
 	Subject         string
+	NotFound        bool
 }
 
 type issuerSubjectBinding struct {
@@ -198,6 +201,50 @@ func (s *Service) Set(privxBaseURL string, identity *oauth.IdentityClaims, value
 	s.mu.Unlock()
 }
 
+// SetConnectorUserID stores the connector user id on a live cache entry.
+// A missing, expired, or different user entry is left unchanged, so this write cannot start a new TTL.
+func (s *Service) SetConnectorUserID(
+	privxBaseURL string,
+	identity *oauth.IdentityClaims,
+	userID string,
+	connectorUserID string,
+) {
+	if !s.Enabled() {
+		return
+	}
+
+	key, ok := BuildIdentityKey(privxBaseURL, identity)
+	if !ok {
+		return
+	}
+
+	userID = strings.TrimSpace(userID)
+
+	connectorUserID = strings.TrimSpace(connectorUserID)
+	if userID == "" || connectorUserID == "" {
+		return
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	entry, exists := s.entries[key]
+	if !exists || !s.nowFunc().Before(entry.expiresAt) {
+		if exists {
+			delete(s.entries, key)
+		}
+
+		return
+	}
+
+	if !strings.EqualFold(strings.TrimSpace(entry.value.UserID), userID) {
+		return
+	}
+
+	entry.value.ConnectorUserID = connectorUserID
+	s.entries[key] = entry
+}
+
 // TryInvalidateForRefresh drops the cached context so the next lookup hits
 // PrivX, subject to a per-identity cooldown. lastRefresh outlives the cache
 // entry so deleting the value does not reset the cooldown. ok is false when
@@ -261,6 +308,7 @@ func cloneCachedUserContext(value CachedUserContext) CachedUserContext {
 		ConnectorUserID: strings.TrimSpace(value.ConnectorUserID),
 		Issuer:          strings.TrimSpace(value.Issuer),
 		Subject:         strings.TrimSpace(value.Subject),
+		NotFound:        value.NotFound,
 	}
 }
 

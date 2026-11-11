@@ -18,6 +18,10 @@ func TestSanitize(t *testing.T) {
 		{name: "newlines and tabs kept", in: "line one\nline\ttwo\r\n", want: "line one\nline\ttwo\r\n"},
 		{name: "non breaking space removed", in: "you\u00A0must", want: "youmust"},
 		{name: "printable unicode kept", in: "käyttäjä", want: "käyttäjä"},
+		{name: "decomposed accent kept", in: "ka\u0308ytta\u0308ja\u0308", want: "ka\u0308ytta\u0308ja\u0308"},
+		{name: "combining grapheme joiner removed", in: "su\u034Fdo", want: "sudo"},
+		{name: "variation selector removed", in: "su\uFE0Edo", want: "sudo"},
+		{name: "supplementary variation selector removed", in: "su\U000E0100do", want: "sudo"},
 		{name: "control character removed", in: "a\x01b", want: "ab"},
 	}
 
@@ -40,10 +44,17 @@ func TestSanitize_CleanASCIINotRewritten(t *testing.T) {
 	}
 }
 
-func TestSanitize_ThenBlacklisted(t *testing.T) {
-	term, found := FindBlacklisted(Sanitize("de\u200Blete this host"))
-	if !found || term != "delete" {
-		t.Fatalf("expected sanitized text to hit %q, got %q found=%v", "delete", term, found)
+func TestSanitize_ThenFilter(t *testing.T) {
+	filter := NewFilter([]string{"delete", "sudo"})
+
+	got := filter.Redact(Sanitize("de\u200Blete this host"))
+	if got != "[redacted] this host" {
+		t.Fatalf("expected sanitized text to be redacted, got %q", got)
+	}
+
+	got = filter.Redact(Sanitize("run su\u034Fdo now"))
+	if got != "run [redacted] now" {
+		t.Fatalf("expected mark-split word to be redacted, got %q", got)
 	}
 }
 

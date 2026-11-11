@@ -45,17 +45,37 @@ type ServerConfig struct {
 	// true, the streamable endpoint runs in stateless mode.
 	Stateless bool
 
-	// AuthMode is "oauth" (default) or "m2m". One process uses one mode.
+	// AuthMode is "oauth" (default), "m2m", or "m2m-jwt". One process uses one mode.
 	AuthMode string
-	// ServiceSecrets are the parsed username-to-secret mappings for m2m.
+	// M2MIdentityMapper is the parsed username-to-secret mappings for m2m.
 	// The plaintext is not retained after a successful load.
-	ServiceSecrets []ServiceSecret
-	// serviceSecretsRaw is the TOML or env string. validate parses it and clears it.
-	serviceSecretsRaw string
+	M2MIdentityMapper []M2MIdentity
+	// m2mIdentityMapperRaw is the TOML or env string. validate parses it and clears it.
+	m2mIdentityMapperRaw string
+
+	// M2MJWTKeySet is true when m2m_jwt_key was configured. The plaintext is not retained.
+	M2MJWTKeySet bool
+	// M2MJWTKey is the SHA-256 of m2m_jwt_key.
+	M2MJWTKey [32]byte
+	// M2MJWTIdentityMapper maps a JWT claim value to a PrivX username.
+	M2MJWTIdentityMapper []M2MJWTIdentity
+	// M2MJWTIssuer is an optional exact match for jwt.iss. Empty skips the check.
+	M2MJWTIssuer string
+	// m2mJWTKeyRaw and m2mJWTIdentityMapperRaw are the TOML or env strings.
+	// validate parses them and clears them.
+	m2mJWTKeyRaw            string
+	m2mJWTIdentityMapperRaw string
 }
 
-// ServiceSecret is one m2m mapping. Sum is the SHA-256 of the secret.
-type ServiceSecret struct {
+// M2MJWTIdentity is one m2m-jwt mapping. Claim is preferred_username or email.
+type M2MJWTIdentity struct {
+	Claim    string
+	Value    string
+	Username string
+}
+
+// M2MIdentity is one m2m mapping. Sum is the SHA-256 of the secret.
+type M2MIdentity struct {
 	Username string
 	Sum      [32]byte
 }
@@ -85,7 +105,12 @@ type PermissionsConfig struct {
 	Whitelist []string
 	// Blacklist is a prefix deny-list for tool names, e.g. ["host-delete", "user-delete-"].
 	// Empty means no blacklist filtering. Applied after Whitelist.
-	Blacklist       []string
+	Blacklist []string
+	// ResponseFilter lists whole words replaced with [redacted] in successful
+	// tool responses. Matching is case-insensitive. Empty means no replacement.
+	// Tools named whitelist-* and tools marked Sensitive are not filtered.
+	// Create and update tools, and request-set-decision, reject any value containing [redacted].
+	ResponseFilter  []string
 	SessionCacheTTL time.Duration
 	// RefreshCooldown is the minimum interval between on-deny PrivX role
 	// refreshes for the same identity. Zero disables on-deny refresh.
@@ -95,14 +120,28 @@ type PermissionsConfig struct {
 	// (e.g. "AD", "LOCAL", "MICROSOFTGRAPH").
 	SourceType string
 
-	// Per-identity tool-call rate limit (fixed window). Both must be > 0 to
-	// enable; either zero disables limiting.
+	// Per-identity rate limit (fixed window) for tools/list and tools/call.
+	// Both must be > 0 to enable; either zero disables limiting. They share
+	// one counter.
 	RequestWindowSeconds int
 	MaxRequestsPerWindow int
 	// MaxedWindowWaitSeconds is extra cooldown after a window that hit
 	// MaxRequestsPerWindow. Zero disables the extra wait. Must be 0 when
 	// rate limiting is disabled.
 	MaxedWindowWaitSeconds int
+
+	// EnableSensitiveDataTools gates tools marked Sensitive (e.g.
+	// connection-trail-get, the target-domain tools, and the user-secret tools) that can surface
+	// secrets or raw session content. Defaults to false: such tools are not
+	// registered at all. This key is intentionally omitted from the example
+	// config. See docs/reference/security/security.md.
+	EnableSensitiveDataTools bool
+	// SensitiveDataToolsAllowNonAdmin only has effect when
+	// EnableSensitiveDataTools is true. Defaults to false: sensitive tools are
+	// restricted to privx-admin role holders. When true, sensitive tools
+	// instead require their own granular PrivX scopes (e.g. connections-view +
+	// connections-trail), allowing suitably permissioned non-admins to use them.
+	SensitiveDataToolsAllowNonAdmin bool
 }
 
 // OAuthConfig holds OIDC provider settings used by the MCP server to
@@ -115,6 +154,9 @@ type PermissionsConfig struct {
 // (formerly the [dcr] section) are merged into this section.
 type OAuthConfig struct {
 	IssuerURL string // OIDC discovery base URL; also the expected iss claim in tokens
+	// AllowHTTP permits non-loopback http for issuer_url and jwks_uri.
+	// When false, plain HTTP is limited to localhost and loopback addresses.
+	AllowHTTP bool
 	// ExpectedAudience is the expected audience (aud claim) of bearer JWTs sent
 	// to /mcp.
 	Scopes           []string      // optional compatibility hint for client scopes; not used for token verification

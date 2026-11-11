@@ -67,11 +67,7 @@ func Search() registry.Tool {
 
 	properties := registry.NewOrderedMap().
 		Set("search", searchObject).
-		Set("limit", map[string]any{
-			"type":        "integer",
-			"minimum":     1,
-			"description": fmt.Sprintf("Page size. Default %d.", common.AuditEventsListLimit),
-		}).
+		Set("limit", common.LimitSchema(common.AuditEventsListLimit, common.AuditEventsListMax, "")).
 		Set("offset", map[string]any{
 			"type":        "integer",
 			"minimum":     0,
@@ -100,7 +96,7 @@ func searchAuditEventsHandler(ctx context.Context, params map[string]any) (*regi
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	paging, errResult := common.ParsePaging(params, common.AuditEventsListLimit)
+	paging, errResult := common.ParsePaging(params, common.AuditEventsListLimit, common.AuditEventsListMax)
 	if errResult != nil {
 		return errResult, nil
 	}

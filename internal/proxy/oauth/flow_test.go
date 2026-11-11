@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -217,6 +218,115 @@ func TestObtain_RefreshThenInteractive(t *testing.T) {
 	}
 }
 
+func TestObtain_ConcurrentRefreshKeepsTokenFile(t *testing.T) {
+	t.Parallel()
+
+	var mu sync.Mutex
+
+	posts := 0
+	seen := map[string]bool{}
+
+	tokenSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		form, _ := url.ParseQuery(string(body))
+		refreshToken := form.Get("refresh_token")
+
+		mu.Lock()
+		posts++
+		reused := seen[refreshToken]
+		seen[refreshToken] = true
+		mu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json")
+
+		if reused {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = w.Write([]byte(`{"error":"invalid_grant"}`))
+
+			return
+		}
+
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"access_token":  "refreshed-at",
+			"refresh_token": "new-rt",
+			"expires_in":    3600,
+		})
+	}))
+	t.Cleanup(tokenSrv.Close)
+
+	dir := t.TempDir()
+	cfg := testClientConfig()
+	key := store.Key(cfg.MCPURL, cfg.MCPURL, cfg.Client.ClientID)
+
+	if err := store.Save(dir, key, store.Tokens{
+		AccessToken:  "old-at",
+		RefreshToken: "old-rt",
+		ExpiresAt:    time.Now().Add(-time.Minute),
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+
+	errs := make(chan error, 2)
+
+	for range 2 {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+
+			tok, err := Obtain(context.Background(), ObtainParams{
+				HTTP:   tokenSrv.Client(),
+				Config: cfg,
+				Discovered: Result{
+					Resource:      cfg.MCPURL,
+					TokenEndpoint: tokenSrv.URL,
+				},
+				AuthDir: dir,
+				OpenBrowser: func(string) error {
+					return fmt.Errorf("browser opened")
+				},
+			})
+			if err != nil {
+				errs <- err
+
+				return
+			}
+
+			if tok.AccessToken != "refreshed-at" || tok.RefreshToken != "new-rt" {
+				errs <- fmt.Errorf("tokens = %+v", tok)
+			}
+		}()
+	}
+
+	wg.Wait()
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	mu.Lock()
+	gotPosts := posts
+	mu.Unlock()
+
+	if gotPosts != 1 {
+		t.Fatalf("token posts = %d", gotPosts)
+	}
+
+	stored, err := store.Load(dir, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if stored.RefreshToken != "new-rt" {
+		t.Fatalf("stored = %+v", stored)
+	}
+}
+
 func TestObtain_Interactive(t *testing.T) {
 	t.Parallel()
 
@@ -296,6 +406,37 @@ func TestObtain_Interactive(t *testing.T) {
 
 	if tok.AccessToken != "interactive-at" {
 		t.Fatalf("access = %q", tok.AccessToken)
+	}
+}
+
+func TestObtainRejectsFileAuthorizationEndpoint(t *testing.T) {
+	t.Parallel()
+
+	opened := false
+	_, err := Obtain(context.Background(), ObtainParams{
+		HTTP:   NewHTTPClient(false),
+		Config: testClientConfig(),
+		Discovered: Result{
+			AuthorizationEndpoint: "file://localhost/etc/passwd",
+			TokenEndpoint:         "https://idp.example/token",
+		},
+		AuthDir: t.TempDir(),
+		OpenBrowser: func(string) error {
+			opened = true
+
+			return nil
+		},
+	})
+	if err == nil {
+		t.Fatal("error = nil")
+	}
+
+	if opened {
+		t.Fatal("browser opened for file authorization endpoint")
+	}
+
+	if !strings.Contains(err.Error(), "http or https") {
+		t.Fatalf("error = %v", err)
 	}
 }
 

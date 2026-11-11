@@ -56,7 +56,11 @@ func componentsStatusHandler(ctx context.Context, params map[string]any) (*regis
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	hostname := utils.StringFromMap(params, "hostname")
+	hostname, errResult := common.OptionalPathID(params, "hostname")
+	if errResult != nil {
+		return errResult, nil
+	}
+
 	fields := utils.MergeUnique(status.DefaultComponentFields(), utils.CSVFromMap(params, "fields"))
 	raw := utils.BoolFromMap(params, "raw")
 

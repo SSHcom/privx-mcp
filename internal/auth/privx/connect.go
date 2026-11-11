@@ -71,10 +71,10 @@ func ConnectWithExternalJWT(ctx context.Context, cfg *config.Config, claims *oau
 	return connector, username, nil
 }
 
-// usernameFromClaims resolves the PrivX username. A service-secret caller is
-// the configured subject. An OAuth caller goes through identity mapping.
+// usernameFromClaims resolves the PrivX username. m2m and m2m-jwt callers
+// use the configured subject. An OAuth caller goes through identity mapping.
 func usernameFromClaims(cfg *config.Config, claims *oauth.IdentityClaims) (string, error) {
-	if claims.Issuer == m2m.Issuer {
+	if m2m.UsesConfiguredUsername(claims.Issuer) {
 		if claims.Subject == "" {
 			return "", fmt.Errorf("m2m subject is required")
 		}
@@ -129,6 +129,10 @@ func ConnectWithAPICredentials(cfg *config.Config) (restapi.Connector, error) {
 	}
 
 	baseConnector := restapi.New(baseOptions...)
+	if err := boundHTTPClient(baseConnector); err != nil {
+		return nil, fmt.Errorf("configure PrivX HTTP timeout: %w", err)
+	}
+
 	authorizer := sdkoauth.WithClientID(
 		baseConnector,
 		sdkoauth.AuthClientId(cfg.PrivXAuth.APIOAuthClientID),
@@ -137,12 +141,26 @@ func ConnectWithAPICredentials(cfg *config.Config) (restapi.Connector, error) {
 		sdkoauth.Secret(cfg.PrivXAuth.APIClientSecret),
 	)
 
-	// Validate credentials eagerly so startup/auth failures surface immediately.
+	// A rejected login still fails startup. A timeout is logged and the
+	// connector is returned so the process stays up; the next PrivX call retries.
 	if _, err := authorizer.AccessToken(); err != nil {
-		return nil, fmt.Errorf("authenticate with api credentials: %w", err)
+		if !isTimeout(err) {
+			return nil, fmt.Errorf("authenticate with api credentials: %w", err)
+		}
+
+		logging.Error(
+			"PrivX API login timed out; the server will keep running and retry on use",
+			"url", cfg.PrivXAuth.PrivXBaseURL,
+			"err", err,
+		)
 	}
 
-	return restapi.New(append(baseOptions, restapi.Auth(authorizer))...), nil
+	connector := restapi.New(append(baseOptions, restapi.Auth(authorizer))...)
+	if err := boundHTTPClient(connector); err != nil {
+		return nil, fmt.Errorf("configure PrivX HTTP timeout: %w", err)
+	}
+
+	return connector, nil
 }
 
 func loadCACertificate(caCert string) (*x509.Certificate, error) {

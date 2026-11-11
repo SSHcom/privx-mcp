@@ -60,13 +60,8 @@ func Discover(ctx context.Context, client *http.Client, mcpURL string, cfgScopes
 		return Result{}, fmt.Errorf("http client is required")
 	}
 
-	mcp, err := url.Parse(mcpURL)
-	if err != nil || mcp.Scheme == "" || mcp.Host == "" {
-		return Result{}, fmt.Errorf("mcp_url is not a valid absolute URL")
-	}
-
-	if err := httpx.RejectInsecureHTTP(mcp, allowHTTP); err != nil {
-		return Result{}, err
+	if _, err := httpx.RequireHTTPURL(mcpURL, allowHTTP); err != nil {
+		return Result{}, fmt.Errorf("mcp_url: %w", err)
 	}
 
 	resp, err := probeMCP(ctx, client, mcpURL)
@@ -76,7 +71,7 @@ func Discover(ctx context.Context, client *http.Client, mcpURL string, cfgScopes
 
 	defer func() { _ = resp.Body.Close() }()
 
-	if err := httpx.RejectInsecureHTTP(resp.Request.URL, allowHTTP); err != nil {
+	if _, err := httpx.RequireHTTPURL(resp.Request.URL.String(), allowHTTP); err != nil {
 		return Result{}, err
 	}
 
@@ -104,6 +99,10 @@ func Discover(ctx context.Context, client *http.Client, mcpURL string, cfgScopes
 		return Result{}, err
 	}
 
+	if _, err := httpx.RequireHTTPURL(metadataURL, allowHTTP); err != nil {
+		return Result{}, fmt.Errorf("resource_metadata: %w", err)
+	}
+
 	slog.Debug("fetching protected resource metadata", "url", metadataURL)
 
 	var prm protectedResourceMetadata
@@ -113,6 +112,15 @@ func Discover(ctx context.Context, client *http.Client, mcpURL string, cfgScopes
 
 	if strings.TrimSpace(prm.Resource) == "" {
 		return Result{}, fmt.Errorf("protected resource metadata is missing resource")
+	}
+
+	// RFC 9728 §3.3: resource must be the protected-resource identifier the client requested.
+	if !sameResource(prm.Resource, mcpURL) {
+		return Result{}, fmt.Errorf(
+			"protected resource metadata resource %q does not match MCP URL %q",
+			prm.Resource,
+			mcpURL,
+		)
 	}
 
 	if len(prm.AuthorizationServers) == 0 {
@@ -127,11 +135,16 @@ func Discover(ctx context.Context, client *http.Client, mcpURL string, cfgScopes
 	}
 
 	issuer := strings.TrimRight(strings.TrimSpace(prm.AuthorizationServers[0]), "/")
-	if issuer == "" {
-		return Result{}, fmt.Errorf("authorization_servers[0] is empty")
+	if _, err := httpx.RequireHTTPURL(issuer, allowHTTP); err != nil {
+		return Result{}, fmt.Errorf("authorization_servers[0]: %w", err)
 	}
 
-	as, err := fetchASMetadata(ctx, client, issuer)
+	as, err := fetchASMetadata(
+		ctx,
+		client,
+		issuer,
+		allowHTTP,
+	)
 	if err != nil {
 		return Result{}, err
 	}
@@ -207,7 +220,7 @@ func protectedResourceURL(mcpURL, resourceMetadata string) (string, error) {
 	return base.ResolveReference(ref).String(), nil
 }
 
-func fetchASMetadata(ctx context.Context, client *http.Client, issuer string) (asMetadata, error) {
+func fetchASMetadata(ctx context.Context, client *http.Client, issuer string, allowHTTP bool) (asMetadata, error) {
 	candidates := []string{
 		issuer + "/.well-known/openid-configuration",
 		issuer + "/.well-known/oauth-authorization-server",
@@ -225,14 +238,17 @@ func fetchASMetadata(ctx context.Context, client *http.Client, issuer string) (a
 			continue
 		}
 
-		if strings.TrimSpace(as.AuthorizationEndpoint) == "" || strings.TrimSpace(as.TokenEndpoint) == "" {
-			errs = append(errs, fmt.Errorf("%s: metadata is missing authorization_endpoint or token_endpoint", raw))
+		if err := validateASEndpoints(as, allowHTTP); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", raw, err))
 
 			continue
 		}
 
-		if strings.TrimSpace(as.Issuer) == "" {
-			as.Issuer = issuer
+		// RFC 8414 §3.3: issuer must be the identifier used to build this well-known URL.
+		if err := validateIssuer(as.Issuer, issuer); err != nil {
+			errs = append(errs, fmt.Errorf("%s: %w", raw, err))
+
+			continue
 		}
 
 		return as, nil
@@ -243,6 +259,47 @@ func fetchASMetadata(ctx context.Context, client *http.Client, issuer string) (a
 	}
 
 	return asMetadata{}, fmt.Errorf("authorization server metadata not found for %s", issuer)
+}
+
+func validateIssuer(got, want string) error {
+	if strings.TrimSpace(got) == "" {
+		return fmt.Errorf("missing issuer")
+	}
+
+	if !issuersEqual(got, want) {
+		return fmt.Errorf("issuer %q does not match authorization server %q", strings.TrimSpace(got), want)
+	}
+
+	return nil
+}
+
+// issuersEqual compares issuer identifiers, ignoring one trailing slash.
+func issuersEqual(a, b string) bool {
+	return strings.TrimSuffix(strings.TrimSpace(a), "/") == strings.TrimSuffix(strings.TrimSpace(b), "/")
+}
+
+func validateASEndpoints(as asMetadata, allowHTTP bool) error {
+	if _, err := httpx.RequireHTTPURL(as.AuthorizationEndpoint, allowHTTP); err != nil {
+		return fmt.Errorf("authorization_endpoint: %w", err)
+	}
+
+	if _, err := httpx.RequireHTTPURL(as.TokenEndpoint, allowHTTP); err != nil {
+		return fmt.Errorf("token_endpoint: %w", err)
+	}
+
+	if strings.TrimSpace(as.RegistrationEndpoint) == "" {
+		return nil
+	}
+
+	if _, err := httpx.RequireHTTPURL(as.RegistrationEndpoint, allowHTTP); err != nil {
+		return fmt.Errorf("registration_endpoint: %w", err)
+	}
+
+	return nil
+}
+
+func sameResource(resource, mcpURL string) bool {
+	return strings.TrimRight(resource, "/") == strings.TrimRight(mcpURL, "/")
 }
 
 func resolveScopes(cfg []string, challengeScope string, prm, as []string) []string {
@@ -275,6 +332,11 @@ func splitScopes(s string) []string {
 }
 
 func getJSON(ctx context.Context, client *http.Client, rawURL string, dest any) error {
+	parsed, err := url.Parse(rawURL)
+	if err != nil || !httpx.AbsoluteHTTP(parsed) {
+		return fmt.Errorf("%s: URL must be absolute http or https", rawURL)
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, http.NoBody)
 	if err != nil {
 		return err

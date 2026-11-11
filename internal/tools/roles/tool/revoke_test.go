@@ -17,7 +17,7 @@ func TestRevokeRoleHandler_Happy(t *testing.T) {
 		return response.ResultSet[rolestore.Role]{
 			Count: 2,
 			Items: []rolestore.Role{
-				{ID: "r1", Name: "ops"},
+				{ID: "r1", Name: "ops", Explicit: true},
 				{ID: "r2", Name: "user"},
 			},
 		}, nil
@@ -47,6 +47,59 @@ func TestRevokeRoleHandler_Happy(t *testing.T) {
 	m := testconn.DecodeResult(t, res.Content[0].Text)
 	if m["user_id"] != "u1" || m["role_id"] != "r1" || m["revoked"] != true {
 		t.Errorf("result = %v", m)
+	}
+}
+
+func TestRevokeRoleHandler_DirectAndMapped(t *testing.T) {
+	conn := testconn.New(t)
+	conn.Handle("GET", "/role-store/api/v1/users/:id/roles", func(body any) (any, error) {
+		return response.ResultSet[rolestore.Role]{
+			Count: 1,
+			Items: []rolestore.Role{{ID: "r1", Name: "ops", Explicit: true, Implicit: true}},
+		}, nil
+	})
+	conn.Handle("PUT", "/role-store/api/v1/users/:id/roles", func(body any) (any, error) {
+		raw, _ := json.Marshal(body)
+		var roles []rolestore.Role
+		if err := json.Unmarshal(raw, &roles); err != nil {
+			t.Fatalf("unmarshal roles: %v", err)
+		}
+		if len(roles) != 0 {
+			t.Errorf("roles after revoke = %+v", roles)
+		}
+		return nil, nil
+	})
+
+	res, err := revokeRoleHandler(testconn.CtxWithAuth(conn), map[string]any{
+		"user_id": "u1",
+		"role_id": "r1",
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("unexpected error: %s", res.Content[0].Text)
+	}
+}
+
+func TestRevokeRoleHandler_MappedRole(t *testing.T) {
+	conn := testconn.New(t)
+	conn.Handle("GET", "/role-store/api/v1/users/:id/roles", func(body any) (any, error) {
+		return response.ResultSet[rolestore.Role]{
+			Count: 1,
+			Items: []rolestore.Role{{ID: "r1", Name: "ops", Implicit: true}},
+		}, nil
+	})
+
+	res, err := revokeRoleHandler(testconn.CtxWithAuth(conn), map[string]any{
+		"user_id": "u1",
+		"role_id": "r1",
+	})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if !res.IsError || !strings.Contains(res.Content[0].Text, "cannot be revoked directly") {
+		t.Errorf("got %q", res.Content[0].Text)
 	}
 }
 
@@ -115,7 +168,7 @@ func TestRevokeRoleHandler_UpdateFails(t *testing.T) {
 	conn.Handle("GET", "/role-store/api/v1/users/:id/roles", func(body any) (any, error) {
 		return response.ResultSet[rolestore.Role]{
 			Count: 1,
-			Items: []rolestore.Role{{ID: "r1"}},
+			Items: []rolestore.Role{{ID: "r1", Explicit: true}},
 		}, nil
 	})
 	conn.Handle("PUT", "/role-store/api/v1/users/:id/roles", func(body any) (any, error) {

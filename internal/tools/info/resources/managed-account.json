@@ -1,0 +1,47 @@
+{
+  "author": "00000000-0000-4000-8000-000000000003",
+  "checkouts": [
+    {
+      "created": "2026-01-01T12:10:00.000000Z",
+      "email": "example-user@example.com",
+      "explicit_checkout": true,
+      "expires": "2026-01-01T12:15:00.000000Z",
+      "full_name": "Example User",
+      "id": "00000000-0000-4000-8000-000000000081",
+      "type": "TARGET_DOMAIN_SECRET",
+      "user_id": "00000000-0000-4000-8000-000000000003",
+      "username": "example-user@example.com"
+    }
+  ],
+  "comment": "example comment",
+  "created": "2026-01-01T12:00:00.000000Z",
+  "disable_rdp_cert_auth": false,
+  "email": "example-user@example.com",
+  "enabled": true,
+  "explicit_checkout": true,
+  "full_name": "Example User",
+  "id": "00000000-0000-4000-8000-000000000080",
+  "locked": false,
+  "password_policy": {
+    "id": "00000000-0000-4000-8000-000000000070",
+    "name": "example-policy"
+  },
+  "rotation_enabled": true,
+  "rotation_history": [
+    {
+      "rotated": "2026-01-01T12:05:00.000000Z",
+      "status": "SUCCESS",
+      "trigger": "MANUAL",
+      "version": 1
+    }
+  ],
+  "sam_account_name": "example-user",
+  "state": "MANAGED",
+  "target_domain": {
+    "id": "00000000-0000-4000-8000-000000000060",
+    "name": "example-target-domain"
+  },
+  "updated": "2026-01-01T12:05:00.000000Z",
+  "updated_by": "00000000-0000-4000-8000-000000000003",
+  "username": "example-user@example.com"
+}

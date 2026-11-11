@@ -32,6 +32,19 @@ func TestRequiredPermissionsForTool_PrefersViewOverManage(t *testing.T) {
 		{"api-target-list", PermissionAPITargetsView},
 		{"api-target-get", PermissionAPITargetsView},
 		{"api-target-delete", PermissionAPITargetsManage},
+		{"target-domain-list", PermissionTargetDomainsView},
+		{"target-domain-get", PermissionTargetDomainsView},
+		{"target-domain-account-search", PermissionTargetDomainsView},
+		{"target-domain-managed-account-list", PermissionTargetDomainsView},
+		{"target-domain-managed-account-get", PermissionTargetDomainsView},
+		{"target-domain-create", PermissionTargetDomainsManage},
+		{"target-domain-update", PermissionTargetDomainsManage},
+		{"target-domain-scan", PermissionTargetDomainsManage},
+		{"target-domain-managed-account-create", PermissionTargetDomainsManage},
+		{"target-domain-managed-account-update", PermissionTargetDomainsManage},
+		{"target-domain-managed-account-delete", PermissionTargetDomainsManage},
+		{"target-domain-managed-account-rotate", PermissionTargetDomainsManage},
+		{"target-domain-managed-account-checkout", PermissionTargetDomainsManage},
 		{"audit-event-codes", PermissionLogsView},
 		{"audit-event-list", PermissionLogsView},
 		{"audit-event-search", PermissionLogsView},
@@ -48,6 +61,12 @@ func TestRequiredPermissionsForTool_PrefersViewOverManage(t *testing.T) {
 		{"access-group-list", PermissionAccessGroupsManage},
 		{"access-group-create", PermissionAccessGroupsManage},
 
+		{"user-secret-list", PermissionVaultManage},
+		{"user-secret-get", PermissionVaultManage},
+		{"user-secret-create", PermissionVaultAdd},
+		{"user-secret-update", PermissionVaultManage},
+		{"user-secret-delete", PermissionVaultManage},
+
 		{"password-policy-list", PermissionPrivxAdmin},
 		{"whitelist-list", PermissionPrivxAdmin},
 		{"whitelist-evaluate", PermissionPrivxAdmin},
@@ -57,6 +76,31 @@ func TestRequiredPermissionsForTool_PrefersViewOverManage(t *testing.T) {
 		if len(got) != 1 || got[0] != tc.want {
 			t.Fatalf("tool %q: got %v, want [%s]", tc.tool, got, tc.want)
 		}
+	}
+}
+
+func TestRequiredPermissionsForTool_ConnectionTrailRequiresBothScopes(t *testing.T) {
+	got := RequiredPermissionsForTool("connection-trail-get")
+
+	want := map[string]bool{
+		PermissionConnectionsView:  true,
+		PermissionConnectionsTrail: true,
+	}
+	if len(got) != len(want) {
+		t.Fatalf("connection-trail-get: got %v, want both %s and %s",
+			got, PermissionConnectionsView, PermissionConnectionsTrail)
+	}
+
+	for _, scope := range got {
+		if !want[scope] {
+			t.Fatalf("connection-trail-get: unexpected scope %q in %v", scope, got)
+		}
+
+		delete(want, scope)
+	}
+
+	if len(want) != 0 {
+		t.Fatalf("connection-trail-get: missing scopes %v (got %v)", want, got)
 	}
 }
 

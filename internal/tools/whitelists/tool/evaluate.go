@@ -57,9 +57,9 @@ func evaluateHandler(ctx context.Context, params map[string]any) (*registry.Tool
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	whitelistID := utils.StringFromMap(params, "id")
-	if whitelistID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	whitelistID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	rawCommands, ok := params["commands"]

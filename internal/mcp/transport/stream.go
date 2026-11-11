@@ -3,6 +3,7 @@ package transport
 import (
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
@@ -36,6 +37,11 @@ type StreamConfig struct {
 
 	// Stateless maps to mcp.StreamableHTTPOptions.Stateless.
 	Stateless bool
+
+	// CheckAPIKey gates /mcp on X-API-KEY before bearer verification.
+	// APIKeySum is the SHA-256 of the configured key.
+	CheckAPIKey bool
+	APIKeySum   [32]byte
 }
 
 // NewStream builds a streamable MCP transport endpoint handler.
@@ -69,12 +75,11 @@ func (s *Stream) Handler() http.Handler {
 	return s.handler
 }
 
-// RegisterRoutes mounts streamable MCP transport routes to shared mux. When
-// cfg.PublicURL is non-empty, the /mcp handler is wrapped in a 401 bearer
-// challenge so spec-compliant MCP clients auto-discover the upstream OIDC
-// provider via RFC 9728 protected-resource metadata. cfg.Verifier is required
-// in that case: bearer JWTs are verified at the edge and rejected with 401
-// on any verification failure (expired, bad signature, wrong audience, etc.).
+// RegisterRoutes mounts streamable MCP transport routes to shared mux.
+// Bearer verification is always enforced for /mcp: bearer JWTs are verified
+// at the edge and rejected with 401 on any verification failure (expired, bad
+// signature, wrong audience, etc.). The challenge metadata URL is derived from
+// cfg.PublicURL, which must be configured.
 func RegisterRoutes(mux *http.ServeMux, core *runtime.Core, cfg StreamConfig) error {
 	if mux == nil {
 		return fmt.Errorf("mcp mux is required")
@@ -84,17 +89,23 @@ func RegisterRoutes(mux *http.ServeMux, core *runtime.Core, cfg StreamConfig) er
 		return fmt.Errorf("mcp runtime core is required")
 	}
 
-	handler := NewStream(core, cfg).Handler()
-
-	if cfg.PublicURL != "" {
-		if cfg.Verifier == nil {
-			return fmt.Errorf("bearer verifier is required")
-		}
-
-		handler = WithBearerVerification(cfg.PublicURL, cfg.Verifier, handler)
+	publicURL := strings.TrimSpace(cfg.PublicURL)
+	if publicURL == "" {
+		return fmt.Errorf("mcp public_url is required")
 	}
 
-	handler = withRequestLogging(handler)
+	if cfg.Verifier == nil {
+		return fmt.Errorf("bearer verifier is required")
+	}
+
+	handler := NewStream(core, cfg).Handler()
+
+	handler = WithBearerVerification(publicURL, cfg.Verifier, handler)
+	if cfg.CheckAPIKey {
+		handler = WithAPIKey(cfg.APIKeySum, handler)
+	}
+
+	handler = withRequestLogging(handler, core.LogToolBody)
 	mux.Handle("/mcp", handler)
 
 	return nil

@@ -7,7 +7,6 @@ import (
 
 	"github.com/pmsshintegration/privx-mcp/internal/auth"
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
-	"github.com/pmsshintegration/privx-mcp/internal/service/logging"
 	apiservice "github.com/pmsshintegration/privx-mcp/internal/service/privx_api"
 	"github.com/pmsshintegration/privx-mcp/internal/service/security"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
@@ -54,10 +53,8 @@ func infoHandler(snapshot InstanceSnapshot) registry.ToolHandler {
 			Name:  authCtx.Username,
 			Roles: roles,
 		}
-		if term, blocked := prepareUser(&caller); blocked {
-			logging.Warn("blocked tool call output", "type", toolName, "term", term)
-			return registry.ErrorResult(security.OutputRejectedMessage()), nil
-		}
+		filter := security.FilterFromContext(ctx)
+		prepareUser(filter, &caller)
 
 		out["user"] = caller
 		out["privx"] = snapshot.toPrivXInfo()
@@ -74,10 +71,7 @@ func infoHandler(snapshot InstanceSnapshot) registry.ToolHandler {
 					return clientOrOpError(err)
 				}
 
-				if term, blocked := prepareRequestableRoles(available); blocked {
-					logging.Warn("blocked tool call output", "type", toolName, "term", term)
-					return registry.ErrorResult(security.OutputRejectedMessage()), nil
-				}
+				prepareRequestableRoles(filter, available)
 
 				loaded[contextKeyAvailableRoles] = available
 			}
@@ -110,29 +104,19 @@ func clientOrOpError(err error) (*registry.ToolResult, error) {
 
 // mcp-info is a trusted tool, so the runtime does not inspect its payload. The
 // caller name and role names below come from PrivX and are user-controlled, so
-// they are sanitized and blacklist-checked here instead.
-func prepareUser(caller *userInfo) (string, bool) {
-	if term, blocked := security.PrepareStrings(security.DefaultOverrides["principal"], &caller.Name); blocked {
-		return term, true
-	}
+// they are sanitized and word-filtered here instead.
+func prepareUser(filter security.Filter, caller *userInfo) {
+	security.PrepareStrings(filter, &caller.Name)
 
 	for i := range caller.Roles {
-		if term, blocked := security.PrepareStrings(security.DefaultOverrides["name"], &caller.Roles[i].Name); blocked {
-			return term, true
-		}
+		security.PrepareStrings(filter, &caller.Roles[i].Name)
 	}
-
-	return "", false
 }
 
-func prepareRequestableRoles(roles []apiservice.RequestableRole) (string, bool) {
+func prepareRequestableRoles(filter security.Filter, roles []apiservice.RequestableRole) {
 	for i := range roles {
-		if term, blocked := security.PrepareStrings(security.DefaultOverrides["name"], &roles[i].Name); blocked {
-			return term, true
-		}
+		security.PrepareStrings(filter, &roles[i].Name)
 	}
-
-	return "", false
 }
 
 func loadAvailableRoles(authCtx *auth.AuthContext) ([]apiservice.RequestableRole, error) {

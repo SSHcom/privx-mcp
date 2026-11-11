@@ -25,7 +25,7 @@ task build:proxy
 ```
 
 - Start by copying `privx-mcp-proxy-example.toml` and modify as needed.
-- Read more about configuration and how to run from the [privx-mcp-proxy](../manual/reference/clients/privx-mcp-proxy.md) reference document.
+- Read more about configuration and how to run from the [privx-mcp-proxy](../reference/clients/privx-mcp-proxy.md) reference document.
 
 ## Tests
 
@@ -45,7 +45,7 @@ Auth:
 - Client auth: `client_secret_post` or `client_secret_basic`.
 - Loopback callback: `localhost` in `redirect_uri`, bound to `127.0.0.1`.
 - Silent access-token refresh while stdio is up: proactive skew plus one retry on 401.
-- `invalid_grant` deletes the token file; the host must restart the proxy to log in again.
+- `invalid_grant` deletes the token file when it still holds the rejected refresh token. A file another proxy has already replaced is left alone. The host must restart the proxy to log in again. Refreshes share a lock on the token file.
 
 Token storage:
 

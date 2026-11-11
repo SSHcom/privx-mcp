@@ -293,12 +293,23 @@ func (pe *PermissionEngine) resolveUserRoles(_ context.Context, identity *oauth.
 	}
 
 	if cached, ok := pe.sessionService.Get(pe.sessionBaseURL, identity); ok {
+		if cached.NotFound {
+			return userRoleResolution{}, userNotFoundError(identity, pe.sourceType)
+		}
+
 		return userRoleResolution{
 			user:      withUserID(cached.ResolvedRoles, cached.UserID),
 			userID:    cached.UserID,
 			fromCache: true,
 		}, nil
 	}
+
+	logging.Debug(
+		"fetching PrivX users to resolve caller",
+		"email", identity.Email,
+		"upn", identity.UPN,
+		"sub", identity.Subject,
+	)
 
 	users, err := pe.userAPI.SearchAllUsers(rolestore.UserSearch{})
 	if err != nil {
@@ -307,13 +318,9 @@ func (pe *PermissionEngine) resolveUserRoles(_ context.Context, identity *oauth.
 
 	currentUser, ok := resolveCurrentUser(identity, users, pe.sourceType)
 	if !ok {
-		return userRoleResolution{}, fmt.Errorf(
-			"current user not found for claims: email=%q upn=%q subject=%q source_type=%q",
-			identity.Email,
-			identity.UPN,
-			identity.Subject,
-			pe.sourceType,
-		)
+		pe.sessionService.Set(pe.sessionBaseURL, identity, session.CachedUserContext{NotFound: true})
+
+		return userRoleResolution{}, userNotFoundError(identity, pe.sourceType)
 	}
 
 	resolvedRoles, err := pe.fetchAndCacheRoles(identity, currentUser.ID)
@@ -370,6 +377,23 @@ func (pe *PermissionEngine) fetchAndCacheRoles(identity *oauth.IdentityClaims, u
 	})
 
 	return resolvedRoles, nil
+}
+
+func userNotFoundError(identity *oauth.IdentityClaims, sourceType string) error {
+	email, upn, subject := "", "", ""
+	if identity != nil {
+		email = identity.Email
+		upn = identity.UPN
+		subject = identity.Subject
+	}
+
+	return fmt.Errorf(
+		"current user not found for claims: email=%q upn=%q subject=%q source_type=%q",
+		email,
+		upn,
+		subject,
+		sourceType,
+	)
 }
 
 // withUserID ensures the resolved user carries its PrivX ID when the role-store
@@ -486,7 +510,7 @@ func hasPrivxAdminRole(user *rolestore.User) bool {
 	}
 
 	for _, role := range user.Roles {
-		if utils.EqualFoldTrimmed(role.Name, "privx-admin") {
+		if role.Name == "privx-admin" {
 			return true
 		}
 	}

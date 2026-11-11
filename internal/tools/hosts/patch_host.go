@@ -50,6 +50,7 @@ func applyPatchHostPrincipals(current *hoststore.Host, params map[string]any, au
 		return err
 	}
 
+	preserveStoredPrincipalFields(current.Principals, principals)
 	current.Principals = principals
 
 	return nil

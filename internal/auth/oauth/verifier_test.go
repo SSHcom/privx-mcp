@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -351,6 +352,12 @@ func TestJWKSTokenVerifier_WrongAudience(t *testing.T) {
 	if authErr.Reason != "wrong_audience" {
 		t.Errorf("expected reason %q, got %q", "wrong_audience", authErr.Reason)
 	}
+	if authErr.Message != "token audience does not match expected audience" {
+		t.Errorf("unexpected message: %q", authErr.Message)
+	}
+	if strings.Contains(authErr.Message, audience) {
+		t.Errorf("message must not leak expected audience %q", audience)
+	}
 }
 
 func TestJWKSTokenVerifier_WrongIssuer(t *testing.T) {
@@ -397,6 +404,12 @@ func TestJWKSTokenVerifier_WrongIssuer(t *testing.T) {
 	}
 	if authErr.Reason != "wrong_issuer" {
 		t.Errorf("expected reason %q, got %q", "wrong_issuer", authErr.Reason)
+	}
+	if authErr.Message != "token issuer does not match expected issuer" {
+		t.Errorf("unexpected message: %q", authErr.Message)
+	}
+	if strings.Contains(authErr.Message, issuer) {
+		t.Errorf("message must not leak expected issuer %q", issuer)
 	}
 }
 
@@ -449,6 +462,73 @@ func TestJWKSTokenVerifier_InvalidSignature(t *testing.T) {
 	}
 	if authErr.Reason != "invalid_signature" {
 		t.Errorf("expected reason %q, got %q (message: %s)", "invalid_signature", authErr.Reason, authErr.Message)
+	}
+}
+
+func TestJWKSTokenVerifier_DisallowedSigningAlgorithm(t *testing.T) {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("failed to generate RSA key: %v", err)
+	}
+
+	kid := "test-key-1"
+	issuer := "https://test-idp.example.com"
+	audience := "api://test-app"
+	now := time.Now()
+	claims := jwt.MapClaims{
+		"sub": "user123",
+		"iss": issuer,
+		"aud": audience,
+		"exp": jwt.NewNumericDate(now.Add(time.Hour)),
+		"iat": jwt.NewNumericDate(now),
+	}
+
+	hmacToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("not-the-provider-key"))
+	if err != nil {
+		t.Fatalf("failed to sign HMAC token: %v", err)
+	}
+
+	noneToken := jwt.NewWithClaims(jwt.SigningMethodNone, claims)
+	noneToken.Header["kid"] = kid
+	unsigned, err := noneToken.SignedString(jwt.UnsafeAllowNoneSignatureType)
+	if err != nil {
+		t.Fatalf("failed to sign none token: %v", err)
+	}
+
+	jwksServer := testJWKSServer(t, &privateKey.PublicKey, kid)
+	verifier, err := NewJWKSTokenVerifier(JWKSTokenVerifierConfig{
+		JWKSURI:          jwksServer.URL,
+		ExpectedIssuer:   issuer,
+		ExpectedAudience: audience,
+		CacheTTL:         5 * time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("failed to create verifier: %v", err)
+	}
+	defer verifier.Close()
+
+	tests := []struct {
+		name  string
+		token string
+	}{
+		{name: "HS256", token: hmacToken},
+		{name: "none", token: unsigned},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := verifier.Verify(context.Background(), tt.token)
+			if err == nil {
+				t.Fatal("expected error for disallowed signing algorithm, got nil")
+			}
+
+			var authErr *VerificationError
+			if !errors.As(err, &authErr) {
+				t.Fatalf("expected *VerificationError, got %T: %v", err, err)
+			}
+			if authErr.Reason != "invalid_signature" {
+				t.Errorf("expected reason %q, got %q (message: %s)", "invalid_signature", authErr.Reason, authErr.Message)
+			}
+		})
 	}
 }
 
@@ -516,6 +596,15 @@ func TestNewJWKSTokenVerifier_MissingConfig(t *testing.T) {
 			name:   "missing expected audience",
 			cfg:    JWKSTokenVerifierConfig{JWKSURI: "http://x", ExpectedIssuer: "y"},
 			errMsg: "expected audience is required",
+		},
+		{
+			name: "non-loopback http JWKS",
+			cfg: JWKSTokenVerifierConfig{
+				JWKSURI:          "http://203.0.113.10/jwks",
+				ExpectedIssuer:   "https://idp.example",
+				ExpectedAudience: "mcp",
+			},
+			errMsg: `JWKS URI: refusing http URL "http://203.0.113.10/jwks" (allow_http is false)`,
 		},
 	}
 

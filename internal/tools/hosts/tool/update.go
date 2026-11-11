@@ -9,7 +9,6 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/hosts"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // Update returns the host-update tool definition.
@@ -18,11 +17,15 @@ import (
 // store. The handler fetches the current host, overlays caller-supplied
 // overrides for every editable field, and PUTs the full host back. Sensitive
 // fields (passwords, certificates, host keys) and server-managed fields are
-// never accepted as input but are preserved from the fetched copy. Services
-// and principals, when supplied, wholesale-replace the existing arrays.
+// never accepted as input but are preserved from the fetched copy. Services,
+// when supplied, wholesale-replace the existing array. Principals, when
+// supplied, replace the list; settings the schema does not accept, including
+// command restrictions, are copied from the existing principal with the same
+// name.
 func Update() registry.Tool {
 	description := "Update an existing PrivX host by id; only supplied fields are changed. " +
-		"When provided, services and principals wholesale-replace existing arrays (omit them to preserve advanced settings). " +
+		"When provided, services wholesale-replace the existing array (omit them to preserve advanced service settings). " +
+		"When provided, principals replace the list; command restrictions and other settings not in this schema stay on principals with the same name. " +
 		"Does not change deployable or disabled status. " +
 		common.PresentationGuidance
 
@@ -60,9 +63,9 @@ func updateHostHandler(ctx context.Context, params map[string]any) (*registry.To
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	hostID := utils.StringFromMap(params, "id")
-	if hostID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	hostID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := hoststore.New(authCtx.Connector)

@@ -58,11 +58,12 @@ func Dir() (string, error) {
 }
 
 // Key is hex SHA-256 of mcp_url, resource, and client_id (newline-separated).
+// A trailing slash on either URL is ignored so the same login shares one file.
 func Key(mcpURL, resource, clientID string) string {
 	h := sha256.New()
-	_, _ = io.WriteString(h, mcpURL)
+	_, _ = io.WriteString(h, strings.TrimRight(mcpURL, "/"))
 	_, _ = io.WriteString(h, "\n")
-	_, _ = io.WriteString(h, resource)
+	_, _ = io.WriteString(h, strings.TrimRight(resource, "/"))
 	_, _ = io.WriteString(h, "\n")
 	_, _ = io.WriteString(h, clientID)
 
@@ -92,8 +93,8 @@ func Load(dir, key string) (Tokens, error) {
 
 // Save writes {key}_tokens.json atomically with mode 0600.
 func Save(dir, key string, tok Tokens) error {
-	if err := os.MkdirAll(dir, tokenDirMod); err != nil {
-		return fmt.Errorf("create token dir: %w", err)
+	if err := ensureTokenDir(dir); err != nil {
+		return err
 	}
 
 	body, err := json.MarshalIndent(tok, "", "  ")
@@ -153,6 +154,40 @@ func Delete(dir, key string) error {
 	return nil
 }
 
+// DeleteIfRefreshToken removes the token file when it still stores refreshToken.
+// A different refresh token was written by another proxy and is left in place.
+// Call it while holding WithLock.
+func DeleteIfRefreshToken(dir, key, refreshToken string) error {
+	tok, err := Load(dir, key)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return nil
+		}
+
+		return err
+	}
+
+	if tok.RefreshToken != refreshToken {
+		return nil
+	}
+
+	return Delete(dir, key)
+}
+
 func tokenPath(dir, key string) string {
 	return filepath.Join(dir, key+"_tokens.json")
+}
+
+// ensureTokenDir creates dir and tightens an existing directory to 0700.
+// MkdirAll leaves the mode of a directory that is already there unchanged.
+func ensureTokenDir(dir string) error {
+	if err := os.MkdirAll(dir, tokenDirMod); err != nil {
+		return fmt.Errorf("create token dir: %w", err)
+	}
+
+	if err := os.Chmod(dir, tokenDirMod); err != nil {
+		return fmt.Errorf("chmod token dir: %w", err)
+	}
+
+	return nil
 }

@@ -64,9 +64,9 @@ func updateHandler(ctx context.Context, params map[string]any) (*registry.ToolRe
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	whitelistID := utils.StringFromMap(params, "id")
-	if whitelistID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	whitelistID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := hoststore.New(authCtx.Connector)

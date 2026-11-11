@@ -42,11 +42,7 @@ func List() registry.Tool {
 			"default":     false,
 			"description": "Return api-target objects without field projection. Sensitive fields are omitted. WARNING: this can return a very large payload and significantly increase token usage in the MCP client response.",
 		}).
-		Set("limit", map[string]any{
-			"type":        "integer",
-			"minimum":     1,
-			"description": fmt.Sprintf("Maximum number of API targets to return. Defaults to %d.", common.APITargetsListLimit),
-		}).
+		Set("limit", common.LimitSchema(common.APITargetsListLimit, common.APITargetsListMax, "")).
 		Set("offset", map[string]any{
 			"type":        "integer",
 			"minimum":     0,
@@ -74,7 +70,7 @@ func listAPITargetsHandler(ctx context.Context, params map[string]any) (*registr
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	paging, errResult := common.ParsePaging(params, common.APITargetsListLimit)
+	paging, errResult := common.ParsePaging(params, common.APITargetsListLimit, common.APITargetsListMax)
 	if errResult != nil {
 		return errResult, nil
 	}

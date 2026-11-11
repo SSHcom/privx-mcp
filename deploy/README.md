@@ -35,4 +35,4 @@ See [k8s/README.md](./k8s/README.md) for the manifests, and [k8s/EKS-DEPLOYMENT.
 
 ---
 
-**Overview**: [Documents Hub](../docs/README.md) | [Manual](../docs/manual/README.md)
+**Overview**: [Documents Hub](../docs/README.md) | [Guide](../docs/README.md#guide)

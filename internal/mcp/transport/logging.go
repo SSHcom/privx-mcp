@@ -3,6 +3,8 @@ package transport
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -11,13 +13,18 @@ import (
 	"time"
 
 	applog "github.com/pmsshintegration/privx-mcp/internal/service/logging"
+	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // withRequestLogging wraps an http.Handler with a single-line log per
 // incoming request, including method, path, remote addr, and the resulting
-// status code / duration. For POST /mcp it also captures and logs the
-// JSON-RPC request and response bodies to aid debugging.
-func withRequestLogging(next http.Handler) http.Handler {
+// status code / duration. For POST /mcp it also logs the JSON-RPC method and,
+// for tools/call, the tool name. The request body is included only when
+// logToolBody reports that the named tool is registered and not sensitive.
+// Every other POST is logged as a byte count. Response bodies are not kept;
+// the tool handler logs those. A POST body above utils.MaxRequestBody is
+// rejected with 413 before the next handler runs.
+func withRequestLogging(next http.Handler, logToolBody func(name string) bool) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		hasSessionID := requestHasSessionID(r)
@@ -25,12 +32,19 @@ func withRequestLogging(next http.Handler) http.Handler {
 
 		// Capture request body for POST so we can see the JSON-RPC method.
 		var reqBody []byte
+
 		if r.Method == http.MethodPost {
-			reqBody, _ = io.ReadAll(r.Body)
+			body, err := utils.ReadLimitedBody(w, r)
+			if err != nil {
+				writeRequestBodyError(w, err)
+				return
+			}
+
+			reqBody = body
 			r.Body = io.NopCloser(bytes.NewReader(reqBody))
 		}
 
-		rr := &statusRecorder{ResponseWriter: w, status: http.StatusOK, body: &bytes.Buffer{}}
+		rr := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 		next.ServeHTTP(rr, r)
 
 		applog.Debug(
@@ -45,10 +59,65 @@ func withRequestLogging(next http.Handler) http.Handler {
 		)
 
 		if r.Method == http.MethodPost {
-			applog.Debug("http request body", "body", string(truncate(reqBody, 2000)))
-			applog.Debug("http response body", "body", string(truncate(rr.body.Bytes(), 2000)))
+			debugBody("http request body", classifyPostBody(reqBody, logToolBody), reqBody)
 		}
 	})
+}
+
+type postCall struct {
+	method  string
+	tool    string
+	logBody bool
+}
+
+func classifyPostBody(body []byte, logToolBody func(name string) bool) postCall {
+	var msg struct {
+		Method string `json:"method"`
+		Params struct {
+			Name string `json:"name"`
+		} `json:"params"`
+	}
+	if err := json.Unmarshal(body, &msg); err != nil {
+		return postCall{}
+	}
+
+	call := postCall{method: msg.Method}
+	if msg.Method != "tools/call" {
+		return call
+	}
+
+	call.tool = msg.Params.Name
+	if msg.Params.Name == "" || logToolBody == nil {
+		return call
+	}
+
+	call.logBody = logToolBody(msg.Params.Name)
+
+	return call
+}
+
+func debugBody(msg string, call postCall, body []byte) {
+	attrs := []any{"method", call.method}
+	if call.tool != "" {
+		attrs = append(attrs, "tool", call.tool)
+	}
+
+	if call.logBody {
+		attrs = append(attrs, "body", string(truncate(body, 2000)))
+	} else {
+		attrs = append(attrs, "bytes", len(body))
+	}
+
+	applog.Debug(msg, attrs...)
+}
+
+func writeRequestBodyError(w http.ResponseWriter, err error) {
+	if errors.Is(err, utils.ErrBodyTooLarge) {
+		http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+		return
+	}
+
+	http.Error(w, "failed to read request body", http.StatusBadRequest)
 }
 
 func requestHasSessionID(r *http.Request) bool {
@@ -79,7 +148,6 @@ type statusRecorder struct {
 	http.ResponseWriter
 	status      int
 	wroteHeader bool
-	body        *bytes.Buffer
 }
 
 func (s *statusRecorder) WriteHeader(code int) {
@@ -93,7 +161,6 @@ func (s *statusRecorder) WriteHeader(code int) {
 }
 
 func (s *statusRecorder) Write(p []byte) (int, error) {
-	s.body.Write(p)
 	return s.ResponseWriter.Write(p)
 }
 

@@ -9,8 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/SSHcom/privx-sdk-go/v2/restapi"
+	"github.com/golang-jwt/jwt/v5"
+
 	"github.com/pmsshintegration/privx-mcp/internal/config"
 )
 
@@ -172,7 +175,7 @@ name = "privx-mcp-server"
 version = "test"
 public_url = "https://127.0.0.1:8181"
 auth_mode = "m2m"
-service_secrets = "svc-ci %s"
+m2m_identity_mapper = "svc-ci %s"
 
 [privx_auth]
 privx_base_url = "https://privx.example.com"
@@ -228,10 +231,125 @@ source_type = "AD"
 	}
 }
 
+func TestNewServer_M2MJWT(t *testing.T) {
+	originalConnect := connectWithAPICredentials
+	connectWithAPICredentials = func(*config.Config) (restapi.Connector, error) {
+		return stubConnector{}, nil
+	}
+	defer func() {
+		connectWithAPICredentials = originalConnect
+	}()
+
+	keyFile := writeKeyFile(t)
+	apiKey := "0123456789abcdef"
+	configPath := filepath.Join(t.TempDir(), "config.toml")
+	configBody := fmt.Sprintf(`
+[server]
+name = "privx-mcp-server"
+version = "test"
+public_url = "http://127.0.0.1:8181"
+auth_mode = "m2m-jwt"
+m2m_jwt_key = "%s"
+m2m_jwt_issuer = "https://idp.example"
+m2m_jwt_identity_mapper = "preferred_username jdone john.done"
+
+[privx_auth]
+privx_base_url = "https://privx.example.com"
+rsa_key_file = "%s"
+rsa_key_id = "test-kid"
+audience = "privx-mcp-client"
+token_issuer = "privx-mcp"
+api_oauth_client_id = "privx-external"
+api_oauth_client_secret = "oauth-secret"
+api_client_id = "api-client-id"
+api_client_secret = "api-client-secret"
+
+[permissions]
+default_read_only = true
+source_type = "AD"
+`, apiKey, keyFile)
+	if err := os.WriteFile(configPath, []byte(configBody), 0o600); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	server, cleanup, err := NewServer(configPath)
+	if err != nil {
+		t.Fatalf("NewServer: %v", err)
+	}
+	defer cleanup()
+
+	valid := m2mJWT(t, jwt.MapClaims{
+		"iss":                "https://idp.example",
+		"preferred_username": "jdone",
+		"exp":                jwt.NewNumericDate(time.Now().Add(time.Hour)),
+	})
+	post := func(apiKey, bearer string) int {
+		t.Helper()
+
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/mcp", http.NoBody)
+		if apiKey != "" {
+			req.Header.Set("X-API-KEY", apiKey)
+		}
+
+		if bearer != "" {
+			req.Header.Set("Authorization", "Bearer "+bearer)
+		}
+
+		server.Handler.ServeHTTP(rec, req)
+
+		return rec.Code
+	}
+
+	if got := post("wrong-api-key!!", valid); got != http.StatusUnauthorized {
+		t.Fatalf("wrong api key: got %d", got)
+	}
+
+	if got := post(apiKey, valid); got == http.StatusUnauthorized {
+		t.Fatal("mapped jwt rejected")
+	}
+
+	expired := m2mJWT(t, jwt.MapClaims{
+		"iss":                "https://idp.example",
+		"preferred_username": "jdone",
+		"exp":                jwt.NewNumericDate(time.Now().Add(-time.Hour)),
+	})
+	if got := post(apiKey, expired); got != http.StatusUnauthorized {
+		t.Fatalf("expired jwt: got %d", got)
+	}
+
+	unmapped := m2mJWT(t, jwt.MapClaims{
+		"iss":                "https://idp.example",
+		"preferred_username": "nobody",
+		"exp":                jwt.NewNumericDate(time.Now().Add(time.Hour)),
+	})
+	if got := post(apiKey, unmapped); got != http.StatusUnauthorized {
+		t.Fatalf("unmapped jwt: got %d", got)
+	}
+
+	wk := httptest.NewRecorder()
+	server.Handler.ServeHTTP(wk, httptest.NewRequest(http.MethodGet, "/.well-known/oauth-protected-resource", http.NoBody))
+	if wk.Code != http.StatusNotFound {
+		t.Fatalf("well-known: got %d", wk.Code)
+	}
+}
+
+func m2mJWT(t *testing.T, claims jwt.MapClaims) string {
+	t.Helper()
+
+	raw, err := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte("not-checked"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return raw
+}
+
 func TestResolveVerifierEndpoints_ConfiguredURI(t *testing.T) {
 	issuer, jwks, err := resolveVerifierEndpoints(
 		"https://issuer.example.com",
 		"https://issuer.example.com/jwks",
+		false,
 	)
 	if err != nil {
 		t.Fatalf("resolveVerifierEndpoints: %v", err)
@@ -245,41 +363,72 @@ func TestResolveVerifierEndpoints_ConfiguredURI(t *testing.T) {
 }
 
 func TestDiscoverJWKSURI_Success(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/.well-known/openid-configuration" {
 			http.NotFound(w, r)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{
-			"issuer":"https://issuer.example.com",
+		_, _ = fmt.Fprintf(w, `{
+			"issuer":%q,
 			"jwks_uri":"https://issuer.example.com/keys"
-		}`))
+		}`, server.URL+"/")
 	}))
 	defer server.Close()
 
-	issuer, jwks, err := discoverJWKSURI(server.URL)
+	jwks, err := discoverJWKSURI(server.URL+"/", false)
 	if err != nil {
 		t.Fatalf("discoverJWKSURI: %v", err)
-	}
-	if issuer != "https://issuer.example.com" {
-		t.Fatalf("issuer = %q", issuer)
 	}
 	if jwks != "https://issuer.example.com/keys" {
 		t.Fatalf("jwks = %q", jwks)
 	}
 
-	resolvedIssuer, resolvedJWKS, err := resolveVerifierEndpoints(server.URL, "")
+	configured := server.URL + "/"
+	resolvedIssuer, resolvedJWKS, err := resolveVerifierEndpoints(configured, "", false)
 	if err != nil {
 		t.Fatalf("resolveVerifierEndpoints: %v", err)
 	}
-	if resolvedIssuer != issuer || resolvedJWKS != jwks {
+	if resolvedIssuer != configured || resolvedJWKS != jwks {
 		t.Fatalf("resolved = %q %q", resolvedIssuer, resolvedJWKS)
 	}
 }
 
+func TestDiscoverJWKSURI_RejectsIssuerMismatch(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"issuer":"https://other.example",
+			"jwks_uri":"https://other.example/keys"
+		}`))
+	}))
+	defer server.Close()
+
+	_, err := discoverJWKSURI(server.URL, false)
+	if err == nil || !strings.Contains(err.Error(), "does not match") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestResolveVerifierEndpoints_RejectsNonLoopbackHTTP(t *testing.T) {
+	_, _, err := resolveVerifierEndpoints("http://idp.example/realms/mcp", "", false)
+	if err == nil || !strings.Contains(err.Error(), "allow_http is false") {
+		t.Fatalf("issuer error = %v", err)
+	}
+
+	_, _, err = resolveVerifierEndpoints(
+		"https://idp.example/realms/mcp",
+		"http://idp.example/jwks",
+		false,
+	)
+	if err == nil || !strings.Contains(err.Error(), "oauth.jwks_uri") {
+		t.Fatalf("jwks error = %v", err)
+	}
+}
+
 func TestDiscoverJWKSURI_MalformedIssuer(t *testing.T) {
-	_, _, err := discoverJWKSURI("")
+	_, err := discoverJWKSURI("", false)
 	if err == nil {
 		t.Fatal("expected error for empty issuer")
 	}
@@ -287,7 +436,7 @@ func TestDiscoverJWKSURI_MalformedIssuer(t *testing.T) {
 		t.Fatalf("got %v", err)
 	}
 
-	_, _, err = resolveVerifierEndpoints("", "")
+	_, _, err = resolveVerifierEndpoints("", "", false)
 	if err == nil {
 		t.Fatal("expected error when issuer and jwks are both empty")
 	}
@@ -299,7 +448,7 @@ func TestDiscoverJWKSURI_DiscoveryFailure(t *testing.T) {
 	}))
 	defer server.Close()
 
-	_, _, err := discoverJWKSURI(server.URL)
+	_, err := discoverJWKSURI(server.URL, false)
 	if err == nil {
 		t.Fatal("expected discovery failure")
 	}
@@ -323,7 +472,7 @@ func TestNewServer_DCRMetadataRewritesIssuerAndOmitsProtectedResourceScopes(t *t
 		case "/.well-known/openid-configuration":
 			w.Header().Set("Content-Type", "application/json")
 			_, _ = w.Write([]byte(`{
-				"issuer":"https://sts.windows.net/test-tenant/",
+				"issuer":"` + upstream.URL + `",
 				"authorization_endpoint":"https://login.microsoftonline.com/test-tenant/oauth2/v2.0/authorize",
 				"token_endpoint":"https://login.microsoftonline.com/test-tenant/oauth2/v2.0/token",
 				"jwks_uri":"` + upstream.URL + `/jwks",

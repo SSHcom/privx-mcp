@@ -3,13 +3,14 @@
 // Request pipeline:
 //  1. Transport edge (HTTP): verify Bearer JWT and inject claims into context
 //  2. ClaimsSource: read verified identity
-//  3. RateLimiter: per-identity tool-call quota (optional), before PrivX login
+//  3. RateLimiter: per-identity quota (optional), before PrivX login or lookup
 //  4. Authenticator: exchange identity for a PrivX user connector
 //  5. PermissionEngine: evaluate required PrivX scopes / roles
 //  6. Tool handler: invoke the registered tool and map errors to MCP results
 //
-// tools/list uses ClaimsSource + PermissionEngine only (via receiving
-// middleware that filters ListToolsResult). tools/call runs the full pipeline
+// tools/list checks the same RateLimiter, then uses ClaimsSource +
+// PermissionEngine (via receiving middleware that filters ListToolsResult).
+// A refused list does not resolve the user. tools/call runs the full pipeline
 // (via authMiddleware around each tool handler).
 package runtime
 
@@ -23,6 +24,7 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/auth/oauth"
 	"github.com/pmsshintegration/privx-mcp/internal/config"
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
+	"github.com/pmsshintegration/privx-mcp/internal/service/security"
 	"github.com/pmsshintegration/privx-mcp/internal/service/session"
 )
 
@@ -51,12 +53,26 @@ type Core struct {
 	claimsSource   ClaimsSource
 	rateLimiter    *session.RateLimiter
 	sessionBaseURL string
+	responseFilter security.Filter
 }
 
 // CoreOption configures optional Core behavior.
 type CoreOption func(*Core)
 
-// WithRateLimiter attaches a per-identity tool-call rate limiter.
+// WithResponseFilter replaces configured whole words in successful tool
+// responses. The zero filter replaces nothing. Sensitive tools and tools
+// named whitelist-* skip replacement.
+func WithResponseFilter(filter security.Filter) CoreOption {
+	return func(c *Core) {
+		if c == nil {
+			return
+		}
+
+		c.responseFilter = filter
+	}
+}
+
+// WithRateLimiter attaches a per-identity quota shared by tools/list and tools/call.
 func WithRateLimiter(limiter *session.RateLimiter, baseURL string) CoreOption {
 	return func(c *Core) {
 		if c == nil {
@@ -118,15 +134,36 @@ func (c *Core) registerTools() {
 // Server returns the underlying MCP server the transport serves.
 func (c *Core) Server() *mcp.Server { return c.mcpServer }
 
+// LogToolBody reports whether a tools/call for name may include its request
+// body in the HTTP debug log. Sensitive tools and unknown names are refused.
+func (c *Core) LogToolBody(name string) bool {
+	if c == nil || c.registry == nil || name == "" {
+		return false
+	}
+
+	tool, ok := c.registry.Get(name)
+	if !ok {
+		return false
+	}
+
+	return !tool.Sensitive
+}
+
 // ServerInfo returns the server name and version as a display string.
 func (c *Core) ServerInfo() string { return fmt.Sprintf("%s v%s", c.cfg.Name, c.cfg.Version) }
 
 // receivingMiddleware copies identity claims from the SDK request extra onto
-// the handler context, then hides tools the caller is not allowed to invoke
-// from tools/list results.
+// the handler context, applies the list quota, then hides tools the caller
+// is not allowed to invoke from tools/list results.
 func (c *Core) receivingMiddleware(next mcp.MethodHandler) mcp.MethodHandler {
 	return func(ctx context.Context, method string, req mcp.Request) (mcp.Result, error) {
 		ctx = bindIdentityContext(ctx, req)
+
+		if method == methodListTools {
+			if err := c.limitList(ctx); err != nil {
+				return nil, err
+			}
+		}
 
 		result, err := next(ctx, method, req)
 		if err != nil || method != methodListTools {

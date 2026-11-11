@@ -40,11 +40,7 @@ func List() registry.Tool {
 			"default":     false,
 			"description": "Return access-request objects without field projection. WARNING: this can return a large payload and significantly increase token usage in the MCP client response.",
 		}).
-		Set("limit", map[string]any{
-			"type":        "integer",
-			"minimum":     1,
-			"description": fmt.Sprintf("Maximum number of requests to return. Defaults to %d.", common.RequestsListLimit),
-		}).
+		Set("limit", common.LimitSchema(common.RequestsListLimit, common.RequestsListMax, "")).
 		Set("offset", map[string]any{
 			"type":        "integer",
 			"minimum":     0,
@@ -72,7 +68,7 @@ func listRequestsHandler(ctx context.Context, params map[string]any) (*registry.
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	paging, errResult := common.ParsePaging(params, common.RequestsListLimit)
+	paging, errResult := common.ParsePaging(params, common.RequestsListLimit, common.RequestsListMax)
 	if errResult != nil {
 		return errResult, nil
 	}

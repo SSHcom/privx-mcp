@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -27,8 +28,11 @@ type tomlConfig struct {
 		LogFile  string `toml:"log_file"`
 		LogLevel string `toml:"log_level"`
 
-		AuthMode       string `toml:"auth_mode"`
-		ServiceSecrets string `toml:"service_secrets"`
+		AuthMode             string `toml:"auth_mode"`
+		M2MIdentityMapper    string `toml:"m2m_identity_mapper"`
+		M2MJWTKey            string `toml:"m2m_jwt_key"`
+		M2MJWTIdentityMapper string `toml:"m2m_jwt_identity_mapper"`
+		M2MJWTIssuer         string `toml:"m2m_jwt_issuer"`
 	} `toml:"server"`
 
 	PrivXAuth struct {
@@ -50,16 +54,21 @@ type tomlConfig struct {
 		DefaultReadOnly        bool     `toml:"default_read_only"`
 		Whitelist              []string `toml:"whitelist"`
 		Blacklist              []string `toml:"blacklist"`
+		ResponseFilter         []string `toml:"response_filter"`
 		SessionCacheTTL        string   `toml:"session_cache_ttl"`
 		RefreshCooldown        string   `toml:"refresh_cooldown"`
 		SourceType             string   `toml:"source_type"`
 		RequestWindowSeconds   int      `toml:"request_window_seconds"`
 		MaxRequestsPerWindow   int      `toml:"max_requests_per_window"`
 		MaxedWindowWaitSeconds int      `toml:"maxed_window_wait_seconds"`
+		// Intentionally undocumented in the example config; see security.md.
+		EnableSensitiveDataTools        bool `toml:"enable_sensitive_data_tools"`
+		SensitiveDataToolsAllowNonAdmin bool `toml:"sensitive_data_tools_allow_non_admin"`
 	} `toml:"permissions"`
 
 	OAuth struct {
 		IssuerURL    string   `toml:"issuer_url"`
+		AllowHTTP    bool     `toml:"allow_http"`
 		Scopes       []string `toml:"scopes"`
 		JWKSURI      string   `toml:"jwks_uri"`
 		Audience     string   `toml:"audience"`
@@ -98,9 +107,16 @@ func LoadConfig(path string) (*Config, error) {
 		}
 	}
 
-	cfg := tomlToConfig(&tc)
+	cfg, err := tomlToConfig(&tc)
+	if err != nil {
+		return nil, err
+	}
+
 	applyDefaults(cfg, meta)
-	applyEnvOverrides(cfg)
+
+	if err := applyEnvOverrides(cfg); err != nil {
+		return nil, err
+	}
 
 	if err := validate(cfg); err != nil {
 		return nil, err
@@ -123,7 +139,7 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 // tomlToConfig converts the TOML intermediate struct to the public Config type.
-func tomlToConfig(tc *tomlConfig) *Config {
+func tomlToConfig(tc *tomlConfig) (*Config, error) {
 	cfg := &Config{
 		Server: ServerConfig{
 			Name:                       tc.Server.Name,
@@ -137,7 +153,10 @@ func tomlToConfig(tc *tomlConfig) *Config {
 			LogFile:                    tc.Server.LogFile,
 			LogLevel:                   tc.Server.LogLevel,
 			AuthMode:                   tc.Server.AuthMode,
-			serviceSecretsRaw:          tc.Server.ServiceSecrets,
+			m2mIdentityMapperRaw:       tc.Server.M2MIdentityMapper,
+			m2mJWTKeyRaw:               tc.Server.M2MJWTKey,
+			m2mJWTIdentityMapperRaw:    tc.Server.M2MJWTIdentityMapper,
+			M2MJWTIssuer:               tc.Server.M2MJWTIssuer,
 		},
 		PrivXAuth: PrivXAuthConfig{
 			PrivXBaseURL:         tc.PrivXAuth.PrivXBaseURL,
@@ -146,7 +165,7 @@ func tomlToConfig(tc *tomlConfig) *Config {
 			RSAPublicKeyFile:     tc.PrivXAuth.RSAPublicKeyFile,
 			RSAKeyID:             tc.PrivXAuth.RSAKeyID,
 			TokenIssuer:          tc.PrivXAuth.TokenIssuer,
-			SubjectFormat:        tc.PrivXAuth.SubjectFormat,
+			SubjectFormat:        strings.TrimSpace(tc.PrivXAuth.SubjectFormat),
 			APIOAuthClientID:     tc.PrivXAuth.APIOAuthClientID,
 			APIOAuthClientSecret: tc.PrivXAuth.APIOAuthClientSecret,
 			APIClientID:          tc.PrivXAuth.APIClientID,
@@ -155,41 +174,122 @@ func tomlToConfig(tc *tomlConfig) *Config {
 		},
 		Permissions: PermissionsConfig{
 			DefaultReadOnly:        tc.Permissions.DefaultReadOnly,
-			Whitelist:              tc.Permissions.Whitelist,
-			Blacklist:              tc.Permissions.Blacklist,
 			SourceType:             tc.Permissions.SourceType,
 			RequestWindowSeconds:   tc.Permissions.RequestWindowSeconds,
 			MaxRequestsPerWindow:   tc.Permissions.MaxRequestsPerWindow,
 			MaxedWindowWaitSeconds: tc.Permissions.MaxedWindowWaitSeconds,
+
+			EnableSensitiveDataTools:        tc.Permissions.EnableSensitiveDataTools,
+			SensitiveDataToolsAllowNonAdmin: tc.Permissions.SensitiveDataToolsAllowNonAdmin,
 		},
 		OAuth: OAuthConfig{
 			IssuerURL:           tc.OAuth.IssuerURL,
-			Scopes:              tc.OAuth.Scopes,
+			AllowHTTP:           tc.OAuth.AllowHTTP,
 			JWKSURI:             tc.OAuth.JWKSURI,
 			ExpectedAudience:    tc.OAuth.Audience,
 			IdentityClaimField:  tc.OAuth.IdentityClaimField,
-			IdentityMappingRule: tc.OAuth.IdentityMappingRule,
+			IdentityMappingRule: strings.TrimSpace(tc.OAuth.IdentityMappingRule),
 			DCRStubClientID:     tc.OAuth.DCRStubClientID,
 			DCRStubClientSecret: tc.OAuth.DCRStubClientSecret,
 		},
 	}
 
-	parseDurationIfSet(tc.OAuth.JWKSCacheTTL, &cfg.OAuth.JWKSCacheTTL)
-	parseDurationIfSet(tc.Permissions.SessionCacheTTL, &cfg.Permissions.SessionCacheTTL)
-	parseDurationIfSet(tc.Permissions.RefreshCooldown, &cfg.Permissions.RefreshCooldown)
+	if err := assignTrimmedList("permissions.whitelist", tc.Permissions.Whitelist, &cfg.Permissions.Whitelist); err != nil {
+		return nil, err
+	}
 
-	return cfg
+	if err := assignTrimmedList("permissions.blacklist", tc.Permissions.Blacklist, &cfg.Permissions.Blacklist); err != nil {
+		return nil, err
+	}
+
+	if err := assignTrimmedList("permissions.response_filter", tc.Permissions.ResponseFilter, &cfg.Permissions.ResponseFilter); err != nil {
+		return nil, err
+	}
+
+	if err := assignTrimmedList("oauth.scopes", tc.OAuth.Scopes, &cfg.OAuth.Scopes); err != nil {
+		return nil, err
+	}
+
+	if err := parseDurationIfSet(
+		"oauth.jwks_cache_ttl",
+		tc.OAuth.JWKSCacheTTL,
+		&cfg.OAuth.JWKSCacheTTL,
+	); err != nil {
+		return nil, err
+	}
+
+	if err := parseDurationIfSet(
+		"permissions.session_cache_ttl",
+		tc.Permissions.SessionCacheTTL,
+		&cfg.Permissions.SessionCacheTTL,
+	); err != nil {
+		return nil, err
+	}
+
+	if err := parseDurationIfSet(
+		"permissions.refresh_cooldown",
+		tc.Permissions.RefreshCooldown,
+		&cfg.Permissions.RefreshCooldown,
+	); err != nil {
+		return nil, err
+	}
+
+	return cfg, nil
 }
 
-func parseDurationIfSet(s string, target *time.Duration) {
+// assignTrimmedList trims items into dest. A blank or whitespace-only entry is an error
+// that names the field. A nil or empty input is stored unchanged.
+func assignTrimmedList(field string, items []string, dest *[]string) error {
+	trimmed, err := trimList(field, items)
+	if err != nil {
+		return err
+	}
+
+	*dest = trimmed
+
+	return nil
+}
+
+// trimList trims each entry. A blank or whitespace-only entry is an error that names the field.
+// A nil or empty input is returned unchanged.
+func trimList(field string, items []string) ([]string, error) {
+	if len(items) == 0 {
+		return items, nil
+	}
+
+	out := make([]string, 0, len(items))
+	for _, item := range items {
+		item = strings.TrimSpace(item)
+		if item == "" {
+			return nil, fmt.Errorf("%s contains a blank entry", field)
+		}
+
+		out = append(out, item)
+	}
+
+	return out, nil
+}
+
+// parseDurationIfSet parses raw into target when it is set.
+// A bare "0" is accepted because session_cache_ttl and refresh_cooldown use it
+// to disable the feature, and time.ParseDuration requires a unit.
+func parseDurationIfSet(field, raw string, target *time.Duration) error {
+	s := strings.TrimSpace(raw)
 	if s == "" {
-		return
+		return nil
+	}
+
+	if s == "0" {
+		*target = 0
+		return nil
 	}
 
 	d, err := time.ParseDuration(s)
 	if err != nil {
-		return
+		return fmt.Errorf("invalid %s %q: %w", field, raw, err)
 	}
 
 	*target = d
+
+	return nil
 }

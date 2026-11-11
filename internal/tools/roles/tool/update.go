@@ -48,7 +48,10 @@ func Update() registry.Tool {
 		Set("permit_agent", map[string]any{
 			"type":        "boolean",
 			"description": "Whether SSH agent forwarding is permitted.",
-		})
+		}).
+		Set("context", roleContextProperty(
+			"Contextual restrictions to change. Only supplied fields are written; omitted fields keep the role's current values.",
+		))
 
 	inputSchema := registry.NewOrderedMap().
 		Set("type", "object").
@@ -71,9 +74,9 @@ func updateRoleHandler(ctx context.Context, params map[string]any) (*registry.To
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	roleID := utils.StringFromMap(params, "id")
-	if roleID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	roleID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := rolestore.New(authCtx.Connector)
@@ -128,8 +131,8 @@ func updateRoleHandler(ctx context.Context, params map[string]any) (*registry.To
 	}
 
 	if raw, ok := params["context"]; ok {
-		if ctxMap, ok := raw.(map[string]any); ok {
-			current.Context = parseRoleContext(ctxMap)
+		if err := mergeRoleContext(&current.Context, raw); err != nil {
+			return registry.ErrorResult("validation error: " + err.Error()), nil
 		}
 	}
 

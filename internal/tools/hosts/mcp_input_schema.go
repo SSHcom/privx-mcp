@@ -54,9 +54,12 @@ func HostPrincipalItemSchema() *registry.OrderedMap {
 
 // HostEditProperties returns the OrderedMap of editable host properties used
 // by the host-update input schema. It contains every editable scalar/object
-// field plus the services and principals arrays (wholesale-replace semantics).
-// Sensitive and server-managed fields are intentionally absent; they are
-// preserved from the fetched host by the update handler.
+// field plus the services and principals arrays. Services, when present,
+// wholesale-replace the existing array. Principals, when present, replace the
+// list; settings this schema does not accept are kept from the existing
+// principal with the same name. Sensitive and server-managed fields are
+// intentionally absent; they are preserved from the fetched host by the
+// update handler.
 func HostEditProperties() *registry.OrderedMap {
 	return registry.NewOrderedMap().
 		Set("common_name", map[string]any{
@@ -78,7 +81,7 @@ func HostEditProperties() *registry.OrderedMap {
 		Set("principals", map[string]any{
 			"type":        "array",
 			"items":       HostPrincipalItemSchema(),
-			"description": "Principals on the host. When present, wholesale-replaces the existing principals array; advanced per-principal settings not included in this schema reset to PrivX defaults. Omit the array to preserve existing principals.",
+			"description": "Principals on the host. When present, replaces the principal list. Each entry sets the account name and roles. Command restrictions, the target domain, and other settings not in this schema are kept from the existing principal with the same name. A new name starts without those settings. Omit the array to leave principals unchanged.",
 		}).
 		Set("organization", map[string]any{
 			"type":        "string",

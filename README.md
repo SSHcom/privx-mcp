@@ -4,7 +4,13 @@ An MCP (Model Context Protocol) server written in Go providing agents secure acc
 
 Secure access starts with identity. The server runs in `oauth` or `m2m` (machine-to-machine) mode: an IdP token or a service secret is mapped to a PrivX user, and that user's roles decide which resources they can see, add, or update.
 
-An [mcp proxy](docs/manual/reference/clients/privx-mcp-proxy.md) is also available for clients that have issues with streaming, OAuth, etc.
+The MCP server has been tested with PrivX v45, v44 & v43.
+
+An [mcp proxy](docs/reference/clients/privx-mcp-proxy.md) is also available for clients that have issues with streaming, OAuth, etc.
+
+> **Warning**
+>
+> Agents act on your PrivX instance with a mapped user's roles, so unintended changes or data loss are possible if the server is used carelessly. We recommend getting familiar with the server in a test environment before using it in production.
 
 ## Architecture
 
@@ -27,12 +33,8 @@ Machine-to-machine mode is for automated clients with no interactive sign-in. Th
 ## Prerequisites
 
 - Go 1.26.5+
-- A PrivX instance with API Client and External Token Authentication configured
-- Tested with PrivX v45, v44 & v43
-- An RSA key pair (the public key registered in PrivX External Token configuration)
-- For `oauth`: an IdP issuing OIDC tokens
-
-
+- A PrivX instance with an API client, which the server uses to look up users, roles, and permissions, and an [external token provider](docs/reference/server/privx-token-provider.md), which lets tools call PrivX as the signed-in user. See [PrivX configuration](docs/reference/server/privx.md).
+- For OAuth: an IdP issuing OIDC tokens
 
 ## Security Precautions
 
@@ -44,18 +46,18 @@ The server fronts PrivX, a privileged access management platform. Anyone who can
 - **Keep the server on the local network** where possible, rather than exposing it to the internet.
 - **Use** `m2m` **mode only for automated access.** Interactive users should sign in through `oauth` mode so that actions are tied to their own identity.
 
+## Sensitive data tools
 
+Some tools can return secrets or raw session content. These need to be enabled by configuration. See [Sensitive data tools](docs/reference/security/security.md#sensitive-data-tools) for more information.
 
 ## Documentation
 
 - [Documents Hub](docs/README.md)
-- [Manual](docs/manual/README.md)
-- [Developer guide](docs/development/DEVELOPMENT.md)
-- [Deployment](deploy/README.md)
-  - Examples of how to deploy (Docker, Systemd)
-  - Doing a local deployment (Docker + Keycloak) for evaluation purposes
-
-
+  - [Guide](docs/README.md#guide) – A guided reading path of the installation and configuration
+  - [Reference](docs/README.md#reference) - In-dept instructions and descriptions
+  - [Development](docs/development/DEVELOPMENT.md) – Development HowTos
+  - [Diagrams](docs/diagrams/) - Architectural diagrams (Browser based)
+- [Deployment](deploy/README.md) – Deployment Examples (Docker, Systemd, Keycloak)
 
 ## **Support & Commercial Services**
 

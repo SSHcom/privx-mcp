@@ -33,11 +33,7 @@ func List() registry.Tool {
 			"default":     false,
 			"description": "Return network-target objects without field projection. WARNING: this can return a very large payload and significantly increase token usage in the MCP client response.",
 		}).
-		Set("limit", map[string]any{
-			"type":        "integer",
-			"minimum":     1,
-			"description": fmt.Sprintf("Maximum number of network targets to return. Defaults to %d.", common.NetworkTargetsListLimit),
-		}).
+		Set("limit", common.LimitSchema(common.NetworkTargetsListLimit, common.NetworkTargetsListMax, "")).
 		Set("offset", map[string]any{
 			"type":        "integer",
 			"minimum":     0,
@@ -65,7 +61,7 @@ func listNetworkTargetsHandler(ctx context.Context, params map[string]any) (*reg
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	paging, errResult := common.ParsePaging(params, common.NetworkTargetsListLimit)
+	paging, errResult := common.ParsePaging(params, common.NetworkTargetsListLimit, common.NetworkTargetsListMax)
 	if errResult != nil {
 		return errResult, nil
 	}

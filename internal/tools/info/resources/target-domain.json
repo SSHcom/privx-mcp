@@ -1,0 +1,54 @@
+{
+  "author": "00000000-0000-4000-8000-000000000003",
+  "auto_onboarding": true,
+  "auto_onboarding_policy": {
+    "id": "00000000-0000-4000-8000-000000000070",
+    "name": "example-policy"
+  },
+  "comment": "",
+  "created": "2026-01-01T12:00:00.000000Z",
+  "domain_name": "example.com",
+  "enabled": true,
+  "endpoints": [
+    {
+      "attribute_mapping": {
+        "email": "mail",
+        "full_name": "displayName",
+        "username": "sAMAccountName"
+      },
+      "ldap_address": "ad.example.com",
+      "ldap_base_dn": "CN=Users,DC=example,DC=com",
+      "ldap_bind_dn": "ldapuser@example.com",
+      "ldap_port": 389,
+      "ldap_protocol": "STARTTLS",
+      "ldap_root_certificates": "-----BEGIN CERTIFICATE-----\nexample\n-----END CERTIFICATE-----",
+      "ldap_skip_strict_cert_check": false,
+      "ldap_user_filter": "(&(objectClass=user)(objectCategory=person))",
+      "rotation_priority": 1,
+      "scan_priority": 1,
+      "type": "AD"
+    },
+    {
+      "entra_base_url": "https://graph.microsoft.com",
+      "entra_batch_size": 20,
+      "entra_client_id": "00000000-0000-4000-8000-000000000062",
+      "entra_group_filter": [
+        "example-group"
+      ],
+      "entra_page_size": 100,
+      "entra_tenant_id": "00000000-0000-4000-8000-000000000061",
+      "rotation_priority": 1,
+      "scan_priority": 2,
+      "type": "Entra"
+    }
+  ],
+  "id": "00000000-0000-4000-8000-000000000060",
+  "last_scanned": "2026-01-01T12:05:00.000000Z",
+  "name": "example-target-domain",
+  "periodic_scan": false,
+  "periodic_scan_interval": 900,
+  "scan_message": "1 account scanned",
+  "scan_status": "SCAN_COMPLETED",
+  "updated": "2026-01-01T12:05:00.000000Z",
+  "updated_by": "00000000-0000-4000-8000-000000000003"
+}

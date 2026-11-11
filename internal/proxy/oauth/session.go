@@ -16,6 +16,11 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/proxy/store"
 )
 
+// refreshTimeout bounds a token refresh after it is detached from the caller.
+// Detach keeps one cancelled MCP request from aborting a token rotation that
+// other requests are waiting on.
+const refreshTimeout = 15 * time.Second
+
 // Session holds in-memory OAuth tokens and refreshes them for MCP traffic.
 type Session struct {
 	mu sync.Mutex
@@ -32,6 +37,9 @@ type Session struct {
 	ephemeral bool
 
 	inflight *refreshWait
+	// onRefreshWait, when set, runs after this call joins an in-flight refresh.
+	// Tests use it to observe that join. Production leaves it nil.
+	onRefreshWait func()
 }
 
 type refreshWait struct {
@@ -204,7 +212,12 @@ func (s *Session) doRefresh(ctx context.Context, onlyIfStale bool, sentAccess st
 
 	if s.inflight != nil {
 		wait := s.inflight
+		joined := s.onRefreshWait
 		s.mu.Unlock()
+
+		if joined != nil {
+			joined()
+		}
 
 		select {
 		case <-ctx.Done():
@@ -235,15 +248,12 @@ func (s *Session) doRefresh(ctx context.Context, onlyIfStale bool, sentAccess st
 	wait := &refreshWait{done: make(chan struct{})}
 	s.inflight = wait
 	rt := s.tokens.RefreshToken
-	tokenURL := s.tokenURL
-	auth := s.auth
-	resource := s.resource
-	httpClient := s.http
-	dir := s.dir
-	key := s.key
 	s.mu.Unlock()
 
-	tok, err := refreshTokens(ctx, httpClient, tokenURL, auth, rt, resource)
+	refreshCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), refreshTimeout)
+	defer cancel()
+
+	tok, refreshed, err := s.refreshShared(refreshCtx, rt, sentAccess)
 
 	s.mu.Lock()
 	s.inflight = nil
@@ -254,41 +264,103 @@ func (s *Session) doRefresh(ctx context.Context, onlyIfStale bool, sentAccess st
 			s.dead = true
 		}
 
-		wait.err = s.invalidateOnGrant(err, dir, key)
+		wait.err = s.invalidateOnGrant(err)
 		s.mu.Unlock()
 		close(wait.done)
 
 		return wait.err
 	}
 
-	if !s.ephemeral {
-		if err := store.Save(dir, key, tok); err != nil {
-			wait.err = err
-			s.mu.Unlock()
-			close(wait.done)
-
-			return err
-		}
-	}
-
 	s.tokens = tok
 	s.mu.Unlock()
 	close(wait.done)
 
-	slog.Info("oauth token refresh complete", "expires_at", tok.ExpiresAt.Format(time.RFC3339))
+	if refreshed {
+		slog.Info("oauth token refresh complete", "expires_at", tok.ExpiresAt.Format(time.RFC3339))
+	} else {
+		slog.Info("using stored oauth tokens", "expires_at", tok.ExpiresAt.Format(time.RFC3339))
+	}
 
 	return nil
 }
 
-func (s *Session) invalidateOnGrant(err error, dir, key string) error {
-	if !errors.Is(err, ErrInvalidGrant) {
-		return err
+// refreshShared refreshes rt. A shared token file is locked for the request
+// and the save or delete. A usable file written by another proxy is adopted.
+// sentAccess is the bearer that received 401; an unchanged stored access token
+// is refreshed instead of adopted.
+func (s *Session) refreshShared(ctx context.Context, rt, sentAccess string) (store.Tokens, bool, error) {
+	if s.ephemeral {
+		tok, err := refreshTokens(
+			ctx,
+			s.http,
+			s.tokenURL,
+			s.auth,
+			rt,
+			s.resource,
+		)
+
+		return tok, err == nil, err
 	}
 
-	if !s.ephemeral {
-		if delErr := store.Delete(dir, key); delErr != nil {
-			slog.Warn("failed to delete invalid stored tokens", "err", delErr)
+	var (
+		out       store.Tokens
+		refreshed bool
+	)
+
+	err := store.WithLock(s.dir, s.key, func() error {
+		disk, loadErr := store.Load(s.dir, s.key)
+		if loadErr != nil && !errors.Is(loadErr, store.ErrNotFound) {
+			return loadErr
 		}
+
+		diskUsable := loadErr == nil && disk.Usable(s.now())
+		rejectedCurrent := sentAccess != "" && disk.AccessToken == sentAccess
+
+		if diskUsable && !rejectedCurrent {
+			out = disk
+
+			return nil
+		}
+
+		useRT := rt
+		if loadErr == nil && disk.RefreshToken != "" {
+			useRT = disk.RefreshToken
+		}
+
+		tok, err := refreshTokens(
+			ctx,
+			s.http,
+			s.tokenURL,
+			s.auth,
+			useRT,
+			s.resource,
+		)
+		if err != nil {
+			if errors.Is(err, ErrInvalidGrant) {
+				if delErr := store.DeleteIfRefreshToken(s.dir, s.key, useRT); delErr != nil {
+					slog.Warn("failed to delete invalid stored tokens", "err", delErr)
+				}
+			}
+
+			return err
+		}
+
+		if err := store.Save(s.dir, s.key, tok); err != nil {
+			return err
+		}
+
+		out = tok
+		refreshed = true
+
+		return nil
+	})
+
+	return out, refreshed, err
+}
+
+func (s *Session) invalidateOnGrant(err error) error {
+	if !errors.Is(err, ErrInvalidGrant) {
+		return err
 	}
 
 	slog.Error("oauth refresh token rejected; restart the MCP server to log in again")

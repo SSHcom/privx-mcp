@@ -8,6 +8,7 @@ func All() []registry.Tool {
 		List(),
 		Get(),
 		Search(),
+		TrailGet(),
 		Terminate(),
 	}
 }

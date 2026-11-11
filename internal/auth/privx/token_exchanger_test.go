@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestPrivXTokenExchanger_NewRequiresBaseURL(t *testing.T) {
@@ -204,6 +205,39 @@ func TestPrivXTokenExchanger_ExchangeWithoutScope(t *testing.T) {
 	}
 	if connector == nil {
 		t.Fatal("expected non-nil connector")
+	}
+}
+
+func TestPrivXTokenExchanger_ExchangeTimeout(t *testing.T) {
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-release
+	}))
+	defer server.Close()
+	defer close(release)
+
+	previous := privxHTTPTimeout
+	privxHTTPTimeout = 200 * time.Millisecond
+	defer func() { privxHTTPTimeout = previous }()
+
+	exchanger, err := NewPrivXTokenExchanger(ExchangerConfig{PrivXBaseURL: server.URL})
+	if err != nil {
+		t.Fatalf("unexpected error creating exchanger: %v", err)
+	}
+
+	started := time.Now()
+	_, err = exchanger.Exchange(context.Background(), "test-jwt")
+	elapsed := time.Since(started)
+	if err == nil {
+		t.Fatal("expected timeout error")
+	}
+
+	var netErr *NetworkError
+	if !errors.As(err, &netErr) {
+		t.Fatalf("expected NetworkError, got %T: %v", err, err)
+	}
+	if elapsed > 2*time.Second {
+		t.Fatalf("exchange took %s, want it to stop on the request timeout", elapsed)
 	}
 }
 

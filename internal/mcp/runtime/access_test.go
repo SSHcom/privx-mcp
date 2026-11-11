@@ -157,6 +157,68 @@ func TestAuthMiddleware_DeniesWhenToolMissingFromRegistry(t *testing.T) {
 	}
 }
 
+func TestToolFilter_RateLimitStopsDirectorySearch(t *testing.T) {
+	identity := &oauth.IdentityClaims{
+		Issuer:  "https://issuer.example.com",
+		Subject: "subject-1",
+		Email:   "alice@example.com",
+	}
+
+	api := &stubPermissionUserAPI{
+		searchUsersResult: []rolestore.User{
+			{
+				ID:         "user-1",
+				Email:      "alice@example.com",
+				Principal:  "alice",
+				SourceType: "AD",
+			},
+		},
+		resolveByID: map[string]*rolestore.User{
+			"user-1": {Permissions: []string{"hosts-view"}},
+		},
+	}
+	reg := registry.NewRegistry()
+	reg.Register(registry.Tool{
+		Name:                "host-list",
+		Description:         "list hosts",
+		RequiredPermissions: []string{"hosts-view"},
+		InputSchema:         map[string]any{"type": "object"},
+	})
+
+	limiter := session.NewRateLimiter(60, 2, 0)
+	core := NewCore(
+		config.ServerConfig{Name: "test", Version: "test"},
+		stubAuth{authCtx: &auth.AuthContext{Username: "alice"}},
+		reg,
+		&PermissionEngine{userAPI: api, sourceType: "AD"},
+		stubClaimsSource{claims: identity},
+		WithRateLimiter(limiter, "https://privx.example.com"),
+	)
+
+	for i := 0; i < 2; i++ {
+		session := connectMemoryClient(t, core.Server())
+		listed, err := session.ListTools(context.Background(), nil)
+		if err != nil {
+			t.Fatalf("list %d: %v", i+1, err)
+		}
+		if len(listed.Tools) != 1 {
+			t.Fatalf("list %d: expected 1 tool, got %d", i+1, len(listed.Tools))
+		}
+	}
+	if api.searchCalls != 2 {
+		t.Fatalf("expected one PrivX user search per allowed list, got %d", api.searchCalls)
+	}
+
+	blocked := connectMemoryClient(t, core.Server())
+	_, err := blocked.ListTools(context.Background(), nil)
+	if err == nil || !strings.Contains(err.Error(), rateLimitExceededMessage) {
+		t.Fatalf("expected rate limit on the third list, got %v", err)
+	}
+	if api.searchCalls != 2 {
+		t.Fatalf("expected no PrivX user search after the list quota, got %d", api.searchCalls)
+	}
+}
+
 func TestAuthMiddleware_RateLimitExceeded(t *testing.T) {
 	identity := &oauth.IdentityClaims{
 		Issuer:  "https://issuer.example.com",
@@ -181,11 +243,28 @@ func TestAuthMiddleware_RateLimitExceeded(t *testing.T) {
 
 	limiter := session.NewRateLimiter(60, 1, 0)
 	authCalls := 0
+	api := &stubPermissionUserAPI{
+		searchUsersResult: []rolestore.User{
+			{
+				ID:         "user-1",
+				Email:      "alice@example.com",
+				Principal:  "alice",
+				SourceType: "AD",
+			},
+		},
+		resolveByID: map[string]*rolestore.User{
+			"user-1": {Permissions: []string{"hosts-view"}},
+		},
+	}
+	pe := &PermissionEngine{
+		userAPI:    api,
+		sourceType: "AD",
+	}
 	core := NewCore(
 		config.ServerConfig{Name: "test", Version: "test"},
 		stubAuth{authCtx: &auth.AuthContext{Username: "alice"}, calls: &authCalls},
 		reg,
-		NewPermissionEngine(),
+		pe,
 		stubClaimsSource{claims: identity},
 		WithRateLimiter(limiter, "https://privx.example.com"),
 	)
@@ -248,7 +327,23 @@ func TestAuthMiddleware_RejectsChangedIssuerSubject(t *testing.T) {
 		},
 	})
 
-	pe := NewPermissionEngine()
+	api := &stubPermissionUserAPI{
+		searchUsersResult: []rolestore.User{
+			{
+				ID:         "user-1",
+				Email:      "alice@example.com",
+				Principal:  "alice",
+				SourceType: "AD",
+			},
+		},
+		resolveByID: map[string]*rolestore.User{
+			"user-1": {Permissions: []string{"hosts-view"}},
+		},
+	}
+	pe := &PermissionEngine{
+		userAPI:    api,
+		sourceType: "AD",
+	}
 	pe.sessionService = session.NewService(time.Minute)
 	pe.sessionBaseURL = "https://privx.example.com"
 
@@ -363,7 +458,7 @@ func TestAuthMiddleware_PopulatesActiveRolesOnAuthContext(t *testing.T) {
 	}
 }
 
-func TestAuthMiddleware_AuthenticatedToolAllowsWithEmptyRolesWhenResolveFails(t *testing.T) {
+func TestAuthMiddleware_AuthenticatedToolDeniesWhenResolveFails(t *testing.T) {
 	identity := &oauth.IdentityClaims{
 		Issuer:  "https://issuer.example.com",
 		Subject: "user",
@@ -400,17 +495,14 @@ func TestAuthMiddleware_AuthenticatedToolAllowsWithEmptyRolesWhenResolveFails(t 
 	if err != nil {
 		t.Fatalf("expected no middleware error, got: %v", err)
 	}
-	if result == nil || result.IsError {
-		t.Fatalf("expected authenticated tool to be allowed, got %#v", result)
+	if result == nil || !result.IsError {
+		t.Fatalf("expected authenticated tool to be denied, got %#v", result)
 	}
-	if got == nil {
-		t.Fatal("expected AuthContext in handler")
+	if callToolText(t, result) != "authentication failed: unable to resolve authorized user" {
+		t.Fatalf("unexpected denial message: %q", callToolText(t, result))
 	}
-	if len(got.Roles) != 0 {
-		t.Fatalf("expected empty Roles when resolve fails, got %v", got.Roles)
-	}
-	if got.UserID != "" {
-		t.Fatalf("expected empty UserID when resolve fails, got %q", got.UserID)
+	if got != nil {
+		t.Fatal("expected handler not to run when resolve fails")
 	}
 }
 
@@ -1053,5 +1145,39 @@ func assertScopeDeniedJSON(t *testing.T, result *mcp.CallToolResult, toolName, e
 	}
 	if !strings.Contains(text.Text, scopeDeniedRestartMessage) {
 		t.Fatalf("expected restart message in JSON, got %q", text.Text)
+	}
+}
+
+func TestListDenyReason(t *testing.T) {
+	identity := &oauth.IdentityClaims{Email: "alice@example.com"}
+
+	if got := listDenyReason(identity, &rolestore.User{
+		Permissions: []string{"target-domains-view"},
+	}, []string{"target-domains-manage"}, false); got != "missing target-domains-manage" {
+		t.Fatalf("missing scope: %q", got)
+	}
+
+	if got := listDenyReason(identity, &rolestore.User{
+		Roles: []rolestore.Role{{Name: "privx-admin"}},
+	}, []string{"target-domains-manage"}, false); got != "" {
+		t.Fatalf("admin role should allow, got %q", got)
+	}
+
+	if got := listDenyReason(
+		nil,
+		nil,
+		[]string{"target-domains-manage"},
+		false,
+	); got != "missing identity" {
+		t.Fatalf("missing identity: %q", got)
+	}
+
+	if got := listDenyReason(
+		identity,
+		nil,
+		[]string{"target-domains-manage"},
+		true,
+	); got != "permission resolution failed" {
+		t.Fatalf("resolve failure: %q", got)
 	}
 }

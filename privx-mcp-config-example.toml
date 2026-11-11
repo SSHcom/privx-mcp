@@ -14,20 +14,32 @@
 name = "privx-mcp-server"
 version = "dev"
 
-# auth_mode is "oauth" (default) or "m2m". One process uses one mode.
-# oauth requires [oauth] issuer_url and audience, and service_secrets must be empty.
-# m2m requires service_secrets and forbids issuer_url, audience, jwks_uri, scopes,
-# and the DCR stub settings. An http public_url is allowed in both modes
-# (for example TLS terminated at a proxy) and logs a startup warning.
+# auth_mode is "oauth" (default), "m2m", or "m2m-jwt". One process uses one mode.
+# oauth requires [oauth] issuer_url and audience. The m2m keys below must be empty.
+# m2m and m2m-jwt forbid issuer_url, audience, jwks_uri, scopes, and the DCR stub settings.
+# An http public_url is allowed in every mode and logs a startup warning.
 # auth_mode = "oauth"
 
-# service_secrets binds each PrivX username to one secret of at least 32 characters.
+# --- auth_mode = "m2m" ---
+# m2m_identity_mapper binds each PrivX username to one secret of at least 32 characters.
 # "|" separates mappings. The first space separates the username from the secret.
+# The client sends that secret as Authorization: Bearer.
 # The same username may appear twice, for rotation. The same secret may not.
 # Usernames and secrets cannot contain a space or "|".
-# Prefer SERVER_SERVICE_SECRETS so the value stays out of this file.
+# Prefer SERVER_M2M_IDENTITY_MAPPER so the value stays out of this file.
 # openssl rand -hex 32
-# service_secrets = "svc-ci <secret>|svc-nightly <secret>"
+# m2m_identity_mapper = "svc-ci <secret>|svc-nightly <secret>"
+
+# --- auth_mode = "m2m-jwt" ---
+# The client sends X-API-KEY and Authorization: Bearer <jwt>.
+# m2m_jwt_key is one shared key of at least 12 characters. Prefer SERVER_M2M_JWT_KEY.
+# m2m_jwt_issuer is an optional exact match on jwt.iss.
+# m2m_jwt_identity_mapper maps a JWT claim to a PrivX username.
+# "|" separates records. A space separates claim, claim value, and PrivX username.
+# claim is preferred_username or email.
+# m2m_jwt_key = "<at least 12 characters>"
+# m2m_jwt_issuer = "https://keycloak-example/realms/example"
+# m2m_jwt_identity_mapper = "preferred_username jdone john.done|email john.done@leonardo.com john.done"
 
 # Externally reachable base URL for this server.
 # Preferably use https or put behind a reverse proxy
@@ -38,6 +50,7 @@ public_url = "http://localhost:8181"
 # could trick your browser into sending requests to the server.
 # Disable only if you understand and accept this risk.
 disable_localhost_protection = false
+
 
 # Serve /mcp as stateless streamable HTTP.
 stateless = true
@@ -96,26 +109,26 @@ rsa_key_file = "/path/to/private-key.pem"
 # rsa_public_key_file = "/path/to/public-key.pem"
 
 # kid header placed in minted JWTs.
-# Must match the Key ID configured in the PrivX External Token Provider.
+# Taken from the external token provider Key ID.
+# See docs/reference/server/privx-token-provider.md.
 #
 rsa_key_id = "privx-mcp-key-1"
 
-# audience and token_issuer are placed into minted JWTs.
-# Both must match the PrivX External Token Provider configuration in the
-# PrivX admin UI.
+# audience and token_issuer also come from that provider.
 #
 audience = "privx-mcp-client"
 token_issuer = "privx-mcp"
 
-# Subject format for minted JWTs.
+# Subject format for minted JWTs. Comes from the provider's Subject Type.
 # Allowed values: "plain" | "dn"
 #
 subject_format = "plain"
 
-# ------- API credentials flow --------
+# ------- PrivX API client --------
 #
-# Separate from the external JWT exchange path.
-# Leave commented unless you explicitly use ConnectWithAPICredentials.
+# Required. Separate from the external token provider above: the server uses
+# this client to look up users, roles, and permissions, not to run tools.
+# The client's role needs users-view and roles-view.
 #
 api_oauth_client_id = "privx-external"
 api_oauth_client_secret = "replace-with-secret"
@@ -134,9 +147,15 @@ api_client_secret = "replace-with-api-client-secret"
 
 # OIDC discovery URL of the upstream IdP (Keycloak realm, Auth0 tenant, etc.).
 # Advertised via /.well-known/oauth-protected-resource and enforced as the
-# expected `iss` claim on incoming bearer JWTs.
+# expected `iss` claim on incoming bearer JWTs. The discovery document's
+# issuer must match this value.
 #
 issuer_url = "https://idp.example.com"
+
+# When false (default), issuer_url and jwks_uri may use http:// only for
+# localhost and 127.0.0.1. Set true to allow plain HTTP to other IdP hosts.
+#
+# allow_http = false
 
 # Optional compatibility hint for MCP clients. Not used for token verification.
 # Clients may still choose their own scopes; this is only a fallback hint.
@@ -218,9 +237,15 @@ identity_mapping_rule = "as-is"
 # Only tools that survive this filter are listed or callable.
 #
 # Resolve order (first to last; each step filters the previous result):
-#   1. default_read_only — when true, drop all write tools
-#   2. whitelist         — keep only tools matching a prefix (empty = no filter)
-#   3. blacklist         — drop tools matching a prefix (empty = no filter)
+#   1. sensitive gate    — drop tools that can surface secrets unless
+#                          enable_sensitive_data_tools is set. See
+#                          docs/reference/security/security.md.
+#   2. default_read_only — when true, drop all write tools
+#   3. whitelist         — keep only tools matching a prefix (empty = no filter)
+#   4. blacklist         — drop tools matching a prefix (empty = no filter)
+#
+# A blank or whitespace-only entry in whitelist, blacklist, response_filter,
+# or oauth scopes is a configuration error. Omit the key, or use [], for no filter.
 #
 # Priority notes:
 #   - default_read_only supersedes whitelist: write tools are removed before
@@ -243,9 +268,25 @@ whitelist = ["-list", "-get", "-search", "echo", "mcp-info"]
 #          user-get and user-search remain but user-list is dropped.
 blacklist = ["-delete"]
 
+# Replace these whole words with "[redacted]" in successful tool responses
+# and in error messages. This list is the only word list; there is no
+# built-in list. Leave empty or commented out to replace nothing.
+# Only full words are replaced: "sh" does not hit "ssh" and "delete" does not hit "deleted".
+#
+# Responses and error messages from the following tools are exempt from replacement:
+#   - whitelist-            SSH command whitelist tools. The payload is the command list.
+#   - target-domain-        every target-domain tool, including checkout.
+#   - connection-trail-get  recorded session commands.
+#   - user-secret-          vault secrets, including secret data.
+#
+# Create and update tools, and request-set-decision, reject a value that
+# contains "[redacted]", including the tools above. Other tools do not.
+response_filter = ["sudo", "chmod", "chown", "curl", "wget", "ping", "nslookup", "sh", "bash", "zsh", "cmd", "exec", "eval"]
+
 # PrivX user directory used when resolving the authenticated identity to a
-# PrivX user. Required. When the same identifier exists in multiple sources,
-# only the user whose source_type matches this value is selected.
+# PrivX user. Required. This is the Users Directory type from the external
+# token provider. When the same identifier exists in multiple sources, only
+# the user whose source_type matches this value is selected.
 # Typical values: "AD", "LOCAL", "MICROSOFTGRAPH".
 #
 source_type = "MICROSOFTGRAPH"
@@ -263,7 +304,8 @@ session_cache_ttl = "30s"
 #
 refresh_cooldown = "1m"
 
-# Per-identity tool-call rate limit (fixed window).
+# Per-identity rate limit (fixed window) for tools/list and tools/call.
+# Both count toward the same quota.
 # request_window_seconds and max_requests_per_window must both be > 0 to
 # enable; leave at 0 (or omit) to disable.
 #

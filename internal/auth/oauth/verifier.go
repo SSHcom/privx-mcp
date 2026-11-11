@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/MicahParks/keyfunc/v2"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/pmsshintegration/privx-mcp/internal/service/jwtcheck"
 	"github.com/pmsshintegration/privx-mcp/internal/service/logging"
+	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // IdentityTokenVerifier verifies external OIDC identity tokens.
@@ -43,6 +44,24 @@ type JWKSTokenVerifierConfig struct {
 	ExpectedIssuer   string
 	ExpectedAudience string
 	CacheTTL         time.Duration
+	// AllowHTTP permits a non-loopback http JWKS URL. When false, plain HTTP
+	// is limited to localhost and loopback addresses.
+	AllowHTTP bool
+}
+
+// allowedSigningAlgorithms are the asymmetric JWS algorithms OIDC providers sign with.
+// HMAC and none are excluded: the token header chooses the method, and those do not use the provider's public key.
+var allowedSigningAlgorithms = []string{
+	jwt.SigningMethodRS256.Alg(),
+	jwt.SigningMethodRS384.Alg(),
+	jwt.SigningMethodRS512.Alg(),
+	jwt.SigningMethodPS256.Alg(),
+	jwt.SigningMethodPS384.Alg(),
+	jwt.SigningMethodPS512.Alg(),
+	jwt.SigningMethodES256.Alg(),
+	jwt.SigningMethodES384.Alg(),
+	jwt.SigningMethodES512.Alg(),
+	jwt.SigningMethodEdDSA.Alg(),
 }
 
 // JWKSTokenVerifier verifies identity tokens using keys from a JWKS endpoint.
@@ -66,12 +85,17 @@ func NewJWKSTokenVerifier(cfg JWKSTokenVerifierConfig) (*JWKSTokenVerifier, erro
 		return nil, fmt.Errorf("expected audience is required")
 	}
 
+	if _, err := utils.RequireHTTPURL(cfg.JWKSURI, cfg.AllowHTTP); err != nil {
+		return nil, fmt.Errorf("JWKS URI: %w", err)
+	}
+
 	refreshInterval := cfg.CacheTTL
 	if refreshInterval == 0 {
 		refreshInterval = 1 * time.Hour
 	}
 
 	options := keyfunc.Options{
+		Client:          utils.NewHTTPClient(cfg.AllowHTTP),
 		RefreshInterval: refreshInterval,
 		RefreshErrorHandler: func(err error) {
 			logging.Warn(
@@ -94,15 +118,14 @@ func NewJWKSTokenVerifier(cfg JWKSTokenVerifierConfig) (*JWKSTokenVerifier, erro
 	}, nil
 }
 
-// Verify parses and validates the given raw JWT token string.
+// Verify checks the JWT signature, then expiry, issuer, audience, and claims.
 func (v *JWKSTokenVerifier) Verify(_ context.Context, rawToken string) (*IdentityClaims, error) {
-	parserOpts := []jwt.ParserOption{
-		jwt.WithIssuer(v.expectedIssuer),
-		jwt.WithAudience(v.expectedAudience),
-		jwt.WithExpirationRequired(),
-	}
-
-	token, err := jwt.Parse(rawToken, v.jwks.Keyfunc, parserOpts...)
+	token, err := jwt.Parse(
+		rawToken,
+		v.jwks.Keyfunc,
+		jwt.WithoutClaimsValidation(),
+		jwt.WithValidMethods(allowedSigningAlgorithms),
+	)
 	if err != nil {
 		authErr := v.classifyError(err)
 		v.logTokenTiming(rawToken, authErr)
@@ -125,27 +148,41 @@ func (v *JWKSTokenVerifier) Verify(_ context.Context, rawToken string) (*Identit
 		}
 	}
 
-	idClaims, err := v.extractClaims(claims)
+	err = jwtcheck.Validate(claims, jwtcheck.Options{
+		ExpectedIssuer:   v.expectedIssuer,
+		ExpectedAudience: v.expectedAudience,
+	})
 	if err != nil {
-		var authErr *VerificationError
-		if errors.As(err, &authErr) {
-			v.logTokenTimingFromClaims(claims, authErr)
-		}
+		authErr := v.classifyError(err)
+		v.logTokenTimingFromClaims(claims, authErr)
 
-		return nil, err
+		return nil, authErr
+	}
+
+	extracted, err := jwtcheck.Extract(claims)
+	if err != nil {
+		authErr := extractError(err)
+		v.logTokenTimingFromClaims(claims, authErr)
+
+		return nil, authErr
 	}
 
 	v.logTokenTimingFromClaims(claims, nil)
 
-	return idClaims, nil
+	return &IdentityClaims{
+		Subject:   extracted.Subject,
+		Email:     extracted.Email,
+		UPN:       extracted.PreferredUsername,
+		Issuer:    extracted.Issuer,
+		Audience:  extracted.Audience,
+		RawClaims: extracted.Raw,
+	}, nil
 }
 
 // logTokenTiming reads exp/iat without validating the token so expiration can be
 // inspected even when verification fails (e.g. expired → 401).
 func (v *JWKSTokenVerifier) logTokenTiming(rawToken string, authErr *VerificationError) {
-	parser := jwt.NewParser()
-
-	token, _, err := parser.ParseUnverified(rawToken, jwt.MapClaims{})
+	claims, err := jwtcheck.ParseUnverified(rawToken)
 	if err != nil {
 		reason := "unknown"
 		if authErr != nil {
@@ -154,11 +191,6 @@ func (v *JWKSTokenVerifier) logTokenTiming(rawToken string, authErr *Verificatio
 
 		logging.Debug("token verification claims parse failed", "reason", reason, "err", err)
 
-		return
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
 		return
 	}
 
@@ -229,12 +261,12 @@ func (v *JWKSTokenVerifier) classifyError(err error) *VerificationError {
 	case errors.Is(err, jwt.ErrTokenInvalidAudience):
 		return &VerificationError{
 			Reason:  "wrong_audience",
-			Message: fmt.Sprintf("token audience does not match expected audience %q", v.expectedAudience),
+			Message: "token audience does not match expected audience",
 		}
 	case errors.Is(err, jwt.ErrTokenInvalidIssuer):
 		return &VerificationError{
 			Reason:  "wrong_issuer",
-			Message: fmt.Sprintf("token issuer does not match expected issuer %q", v.expectedIssuer),
+			Message: "token issuer does not match expected issuer",
 		}
 	}
 
@@ -244,55 +276,22 @@ func (v *JWKSTokenVerifier) classifyError(err error) *VerificationError {
 	}
 }
 
-func (v *JWKSTokenVerifier) extractClaims(claims jwt.MapClaims) (*IdentityClaims, error) {
-	idClaims := &IdentityClaims{
-		RawClaims: make(map[string]any, len(claims)),
-	}
-
-	for k, v := range claims {
-		idClaims.RawClaims[k] = v
-	}
-
-	sub, ok := claims["sub"].(string)
-	if !ok || strings.TrimSpace(sub) == "" {
-		return nil, &VerificationError{
+func extractError(err error) *VerificationError {
+	switch {
+	case errors.Is(err, jwtcheck.ErrMissingSubject):
+		return &VerificationError{
 			Reason:  "missing_subject",
 			Message: "token subject is required",
 		}
-	}
-
-	idClaims.Subject = sub
-
-	if email, ok := claims["email"].(string); ok {
-		idClaims.Email = email
-	}
-
-	if upn, ok := claims["preferred_username"].(string); ok {
-		idClaims.UPN = upn
-	} else if upn, ok := claims["upn"].(string); ok {
-		idClaims.UPN = upn
-	}
-
-	iss, ok := claims["iss"].(string)
-	if !ok || strings.TrimSpace(iss) == "" {
-		return nil, &VerificationError{
+	case errors.Is(err, jwtcheck.ErrMissingIssuer):
+		return &VerificationError{
 			Reason:  "missing_issuer",
 			Message: "token issuer is required",
 		}
-	}
-
-	idClaims.Issuer = iss
-
-	switch aud := claims["aud"].(type) {
-	case string:
-		idClaims.Audience = []string{aud}
-	case []interface{}:
-		for _, a := range aud {
-			if s, ok := a.(string); ok {
-				idClaims.Audience = append(idClaims.Audience, s)
-			}
+	default:
+		return &VerificationError{
+			Reason:  "invalid_token",
+			Message: fmt.Sprintf("token verification failed: %v", err),
 		}
 	}
-
-	return idClaims, nil
 }

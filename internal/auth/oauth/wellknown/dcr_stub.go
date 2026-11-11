@@ -2,10 +2,12 @@ package wellknown
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
+
+	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // DCRStubConfig holds the static client credentials returned by the stub
@@ -39,7 +41,17 @@ func RegisterDCRStub(mux *http.ServeMux, cfg DCRStubConfig) error {
 		}
 
 		// Parse the DCR request to extract redirect_uris.
-		body, _ := io.ReadAll(r.Body)
+		body, err := utils.ReadLimitedBody(w, r)
+		if err != nil {
+			if errors.Is(err, utils.ErrBodyTooLarge) {
+				http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+				return
+			}
+
+			http.Error(w, "failed to read request body", http.StatusBadRequest)
+
+			return
+		}
 
 		var dcrRequest map[string]any
 

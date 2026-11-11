@@ -13,6 +13,8 @@ import (
 func validate(cfg *Config) error {
 	var missing []string
 
+	cfg.Server.PublicURL = strings.TrimSpace(cfg.Server.PublicURL)
+
 	if cfg.PrivXAuth.PrivXBaseURL == "" {
 		missing = append(missing, "privx_auth.privx_base_url")
 	}
@@ -43,9 +45,9 @@ func validate(cfg *Config) error {
 		if cfg.OAuth.ExpectedAudience == "" {
 			missing = append(missing, "oauth.audience")
 		}
-	case "m2m":
+	case "m2m", "m2m-jwt":
 	default:
-		return fmt.Errorf("server.auth_mode must be oauth or m2m (got %q)", cfg.Server.AuthMode)
+		return fmt.Errorf("server.auth_mode must be oauth, m2m, or m2m-jwt (got %q)", cfg.Server.AuthMode)
 	}
 
 	if cfg.Server.PublicURL == "" {
@@ -72,6 +74,16 @@ func validate(cfg *Config) error {
 
 	if cfg.Permissions.RefreshCooldown < 0 {
 		return fmt.Errorf("permissions.refresh_cooldown must be non-negative")
+	}
+
+	if cfg.OAuth.JWKSCacheTTL < 0 {
+		return fmt.Errorf("oauth.jwks_cache_ttl must be non-negative")
+	}
+
+	switch cfg.PrivXAuth.SubjectFormat {
+	case "plain", "dn":
+	default:
+		return fmt.Errorf("privx_auth.subject_format must be plain or dn (got %q)", cfg.PrivXAuth.SubjectFormat)
 	}
 
 	if cfg.Permissions.RequestWindowSeconds < 0 {
@@ -145,25 +157,67 @@ func validate(cfg *Config) error {
 		}
 	}
 
-	if err := applyServiceSecrets(cfg); err != nil {
+	if err := applyM2MIdentityMapper(cfg); err != nil {
+		return err
+	}
+
+	if err := applyM2MJWT(cfg); err != nil {
 		return err
 	}
 
 	switch mode {
 	case "oauth":
-		if len(cfg.Server.ServiceSecrets) > 0 {
-			return fmt.Errorf("server.service_secrets must be empty when server.auth_mode is oauth")
+		switch cfg.OAuth.IdentityMappingRule {
+		case "as-is", "strip-domain":
+		default:
+			return fmt.Errorf("oauth.identity_mapping_rule must be as-is or strip-domain (got %q)", cfg.OAuth.IdentityMappingRule)
+		}
+
+		if len(cfg.Server.M2MIdentityMapper) > 0 {
+			return fmt.Errorf("server.m2m_identity_mapper must be empty when server.auth_mode is oauth")
+		}
+
+		if err := m2mJWTMustBeEmpty(cfg); err != nil {
+			return err
+		}
+
+		if err := validateOAuthHTTPURLs(cfg); err != nil {
+			return err
 		}
 	case "m2m":
-		if len(cfg.Server.ServiceSecrets) == 0 {
-			return fmt.Errorf("server.service_secrets is required when server.auth_mode is m2m")
+		if len(cfg.Server.M2MIdentityMapper) == 0 {
+			return fmt.Errorf("server.m2m_identity_mapper is required when server.auth_mode is m2m")
 		}
 
 		if err := oauthFieldsSetInM2M(cfg); err != nil {
 			return err
 		}
 
-		if err := validateM2MPublicURL(cfg.Server.PublicURL); err != nil {
+		if err := m2mJWTMustBeEmpty(cfg); err != nil {
+			return err
+		}
+
+		if err := validateM2MPublicURL(cfg.Server.PublicURL, mode); err != nil {
+			return err
+		}
+	case "m2m-jwt":
+		if !cfg.Server.M2MJWTKeySet {
+			return fmt.Errorf("server.m2m_jwt_key is required when server.auth_mode is m2m-jwt")
+		}
+
+		if len(cfg.Server.M2MJWTIdentityMapper) == 0 {
+			return fmt.Errorf("server.m2m_jwt_identity_mapper is required when server.auth_mode is m2m-jwt")
+		}
+
+		if len(cfg.Server.M2MIdentityMapper) > 0 {
+			return fmt.Errorf("server.m2m_identity_mapper must be empty when server.auth_mode is m2m-jwt")
+		}
+
+		if err := oauthFieldsSetInM2M(cfg); err != nil {
+			return err
+		}
+
+		if err := validateM2MPublicURL(cfg.Server.PublicURL, mode); err != nil {
 			return err
 		}
 	}
@@ -175,6 +229,25 @@ func validate(cfg *Config) error {
 func PublicURLIsHTTPS(raw string) bool {
 	u, err := url.Parse(raw)
 	return err == nil && strings.EqualFold(u.Scheme, "https") && u.Hostname() != ""
+}
+
+func validateOAuthHTTPURLs(cfg *Config) error {
+	cfg.OAuth.IssuerURL = strings.TrimSpace(cfg.OAuth.IssuerURL)
+	cfg.OAuth.JWKSURI = strings.TrimSpace(cfg.OAuth.JWKSURI)
+
+	if _, err := utils.RequireHTTPURL(cfg.OAuth.IssuerURL, cfg.OAuth.AllowHTTP); err != nil {
+		return fmt.Errorf("oauth.issuer_url: %w", err)
+	}
+
+	if cfg.OAuth.JWKSURI == "" {
+		return nil
+	}
+
+	if _, err := utils.RequireHTTPURL(cfg.OAuth.JWKSURI, cfg.OAuth.AllowHTTP); err != nil {
+		return fmt.Errorf("oauth.jwks_uri: %w", err)
+	}
+
+	return nil
 }
 
 func oauthFieldsSetInM2M(cfg *Config) error {
@@ -207,10 +280,31 @@ func oauthFieldsSetInM2M(cfg *Config) error {
 		return nil
 	}
 
-	return fmt.Errorf("%s must be empty when server.auth_mode is m2m", strings.Join(set, ", "))
+	return fmt.Errorf("%s must be empty when server.auth_mode is %s", strings.Join(set, ", "), cfg.Server.AuthMode)
 }
 
-func validateM2MPublicURL(raw string) error {
+func m2mJWTMustBeEmpty(cfg *Config) error {
+	set := []string{}
+	if cfg.Server.M2MJWTKeySet {
+		set = append(set, "server.m2m_jwt_key")
+	}
+
+	if len(cfg.Server.M2MJWTIdentityMapper) > 0 {
+		set = append(set, "server.m2m_jwt_identity_mapper")
+	}
+
+	if cfg.Server.M2MJWTIssuer != "" {
+		set = append(set, "server.m2m_jwt_issuer")
+	}
+
+	if len(set) == 0 {
+		return nil
+	}
+
+	return fmt.Errorf("%s must be empty when server.auth_mode is %s", strings.Join(set, ", "), cfg.Server.AuthMode)
+}
+
+func validateM2MPublicURL(raw, mode string) error {
 	u, err := url.Parse(raw)
 	if err != nil || u.Hostname() == "" {
 		return fmt.Errorf("server.public_url %q is not a valid URL", raw)
@@ -220,6 +314,6 @@ func validateM2MPublicURL(raw string) error {
 	case "https", "http":
 		return nil
 	default:
-		return fmt.Errorf("server.public_url must use http or https when server.auth_mode is m2m (got %q)", raw)
+		return fmt.Errorf("server.public_url must use http or https when server.auth_mode is %s (got %q)", mode, raw)
 	}
 }

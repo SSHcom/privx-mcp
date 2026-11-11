@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -119,6 +120,64 @@ func TestWithBearerOmitsEmptyToken(t *testing.T) {
 	}
 }
 
+func TestRequireHTTPURLRejectsFile(t *testing.T) {
+	t.Parallel()
+
+	for _, raw := range []string{
+		"file:///etc/passwd",
+		"file://localhost/etc/passwd",
+		"vscode://file/etc/passwd",
+	} {
+		if _, err := RequireHTTPURL(raw, true); err == nil {
+			t.Fatalf("RequireHTTPURL(%q) error = nil", raw)
+		}
+	}
+
+	u, err := RequireHTTPURL("https://idp.example/authorize", false)
+	if err != nil {
+		t.Fatalf("https: %v", err)
+	}
+
+	if u.Host != "idp.example" {
+		t.Fatalf("host = %q", u.Host)
+	}
+}
+
+func TestNewClientRejectsPlainHTTPRequest(t *testing.T) {
+	t.Parallel()
+
+	resp, err := NewClient(false).Get("http://203.0.113.10/token")
+	if err == nil {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		t.Fatal("error = nil")
+	}
+
+	if !strings.Contains(err.Error(), "allow_http is false") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestNewClientRejectsFileRedirect(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "file://localhost/etc/passwd", http.StatusFound)
+	}))
+	t.Cleanup(srv.Close)
+
+	resp, err := NewClient(true).Get(srv.URL)
+	if err == nil {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		t.Fatal("error = nil")
+	}
+
+	if !strings.Contains(err.Error(), "http or https") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestNewClientRejectsInsecureRedirect(t *testing.T) {
 	t.Parallel()
 
@@ -140,7 +199,7 @@ func TestNewClientRejectsInsecureRedirect(t *testing.T) {
 	}
 }
 
-func TestNewClientAllowsInsecureRedirectWhenEnabled(t *testing.T) {
+func TestNewClientRejectsCrossHostRedirect(t *testing.T) {
 	t.Parallel()
 
 	var hits int
@@ -156,8 +215,41 @@ func TestNewClientAllowsInsecureRedirectWhenEnabled(t *testing.T) {
 	}))
 	t.Cleanup(src.Close)
 
-	client := NewClient(true)
+	client := WithBearer(NewClient(true), "tok-1")
 	resp, err := client.Get(src.URL)
+	if err == nil {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		_ = resp.Body.Close()
+		t.Fatal("error = nil")
+	}
+
+	if !strings.Contains(err.Error(), "refusing redirect") {
+		t.Fatalf("error = %v", err)
+	}
+
+	if hits != 0 {
+		t.Fatalf("dest hits = %d", hits)
+	}
+}
+
+func TestNewClientFollowsSameHostRedirect(t *testing.T) {
+	t.Parallel()
+
+	var hits int
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/next" {
+			hits++
+			w.WriteHeader(http.StatusNoContent)
+
+			return
+		}
+
+		http.Redirect(w, r, "/next", http.StatusFound)
+	}))
+	t.Cleanup(srv.Close)
+
+	resp, err := NewClient(true).Get(srv.URL)
 	if err != nil {
 		t.Fatalf("get: %v", err)
 	}
@@ -167,4 +259,44 @@ func TestNewClientAllowsInsecureRedirectWhenEnabled(t *testing.T) {
 	if hits != 1 {
 		t.Fatalf("dest hits = %d", hits)
 	}
+}
+
+func TestSameRedirectHost(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		from *url.URL
+		to   *url.URL
+		same bool
+	}{
+		{mustURL(t, "https://MCP.Example/mcp"), mustURL(t, "https://mcp.example/mcp/"), true},
+		{mustURL(t, "https://mcp.example/mcp"), mustURL(t, "https://mcp.example:443/other"), true},
+		{mustURL(t, "http://mcp.example/mcp"), mustURL(t, "http://mcp.example:80/other"), true},
+		{mustURL(t, "http://mcp.example/mcp"), mustURL(t, "https://mcp.example/mcp"), true},
+		{mustURL(t, "https://mcp.example/mcp"), mustURL(t, "https://other.example/mcp"), false},
+		{mustURL(t, "https://mcp.example/mcp"), mustURL(t, "https://api.mcp.example/mcp"), false},
+		{mustURL(t, "https://mcp.example/mcp"), mustURL(t, "https://mcp.example:8443/mcp"), false},
+		{mustURL(t, "http://127.0.0.1:8080/mcp"), mustURL(t, "http://127.0.0.1:8081/mcp"), false},
+	}
+
+	for _, tc := range cases {
+		if got := sameRedirectHost(tc.from, tc.to); got != tc.same {
+			t.Fatalf("sameRedirectHost(%q, %q) = %v", tc.from, tc.to, got)
+		}
+	}
+
+	if sameRedirectHost(nil, mustURL(t, "https://mcp.example")) {
+		t.Fatal("nil from compared equal")
+	}
+}
+
+func mustURL(t *testing.T, raw string) *url.URL {
+	t.Helper()
+
+	u, err := url.Parse(raw)
+	if err != nil {
+		t.Fatalf("parse %q: %v", raw, err)
+	}
+
+	return u
 }

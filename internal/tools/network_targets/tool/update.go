@@ -9,7 +9,6 @@ import (
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/common"
 	"github.com/pmsshintegration/privx-mcp/internal/tools/network_targets"
-	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // Update returns the network-target-update tool definition.
@@ -57,9 +56,9 @@ func updateNetworkTargetHandler(ctx context.Context, params map[string]any) (*re
 		return registry.ErrorResult("authentication error: missing PrivX connector in context"), nil
 	}
 
-	targetID := utils.StringFromMap(params, "id")
-	if targetID == "" {
-		return registry.ErrorResult("validation error: missing required field: id"), nil
+	targetID, errResult := common.RequiredPathID(params, "id")
+	if errResult != nil {
+		return errResult, nil
 	}
 
 	client := networkaccessmanager.New(authCtx.Connector)

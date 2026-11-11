@@ -34,13 +34,31 @@ type Tool struct {
 	RequiredPermissions []string
 	// Trusted marks a tool whose parameters are enumerated server-side and
 	// whose payload the server itself produces (documentation, examples, usage
-	// guidance) rather than reading from PrivX. The runtime exempts such tools
-	// from boundary hardening: no sanitizing, no word blacklist, and no
-	// security envelope, because that text may legitimately read as guidance
-	// and its own keys collide with blacklisted words. PrivX-sourced strings
-	// embedded in a trusted payload must be checked by the tool itself (see
-	// security.PrepareStrings).
+	// guidance) rather than reading from PrivX. The runtime exempts a successful
+	// result from boundary hardening: no sanitizing, no response word filter,
+	// and no security envelope, because that text may legitimately read as
+	// guidance. Error text is still sanitized. The word filter and envelope
+	// stay off for that text. PrivX-sourced strings embedded in a trusted
+	// payload must be checked by the tool itself (see security.PrepareStrings).
+	// Checkout is the exception: its password and the other checkout fields are
+	// returned as PrivX sent them.
 	Trusted bool
+	// Sensitive marks a tool that can surface secrets, credentials, or raw
+	// keystroke/session content captured from PrivX (for example reconstructed
+	// SSH session trails, which may include typed passwords, DB connection
+	// strings, or key material). Such tools are gated off at registration
+	// unless the operator explicitly opts in, and are then restricted to
+	// privx-admin role holders unless non-admin access is also opted in. The
+	// marker is intrinsic to the tool and cannot be cleared by config.
+	// Sensitive skips the response word filter. It does not skip sanitizing;
+	// use Verbatim for values that must stay character-for-character.
+	Sensitive bool
+	// Verbatim lists JSON paths whose values are not sanitized and not
+	// word-filtered, on the way in and on the way out. A path is dot-separated.
+	// A segment ending in [] walks each object in that array. The named value
+	// and every nested string stay as received or as the handler returned them.
+	// Other strings on the same tool are still sanitized.
+	Verbatim []string
 	// InputSchema is the JSON schema for the tool's input. It may be a
 	// map[string]any (keys marshalled in sorted order by encoding/json) or
 	// an *OrderedMap to preserve a specific key order on the wire.

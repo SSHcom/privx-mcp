@@ -28,6 +28,7 @@ const (
 	PermissionConnectionsView      = "connections-view"
 	PermissionConnectionsManage    = "connections-manage"
 	PermissionConnectionsTerminate = "connections-terminate"
+	PermissionConnectionsTrail     = "connections-trail"
 	PermissionPrivxAdmin           = "privx-admin"
 	PermissionLogsView             = "logs-view"
 	PermissionWorkflowsRequests    = "workflows-requests"
@@ -35,7 +36,11 @@ const (
 	PermissionNetworkTargetsManage = "network-targets-manage"
 	PermissionAPITargetsView       = "api-targets-view"
 	PermissionAPITargetsManage     = "api-targets-manage"
+	PermissionTargetDomainsView    = "target-domains-view"
+	PermissionTargetDomainsManage  = "target-domains-manage"
 	PermissionAccessGroupsManage   = "access-groups-manage"
+	PermissionVaultAdd             = "vault-add"
+	PermissionVaultManage          = "vault-manage"
 
 	PermissionAuthenticated = registry.PermissionAuthenticated
 	PermissionPublic        = registry.PermissionPublic
@@ -93,6 +98,12 @@ var (
 	connectionsTerminateTools = []string{
 		"connection-terminate",
 	}
+	// connection-trail-get requires BOTH connections-view and connections-trail
+	// (see trailRequiredPermissionOverrides). It is listed here so the trail
+	// scope grants it and so registration coverage checks pass.
+	connectionsTrailTools = []string{
+		"connection-trail-get",
+	}
 
 	// Logs / audit events and monitor-service status
 	logsViewTools = []string{
@@ -141,6 +152,24 @@ var (
 		"api-target-delete",
 	}
 
+	targetDomainsViewTools = []string{
+		"target-domain-list",
+		"target-domain-get",
+		"target-domain-account-search",
+		"target-domain-managed-account-list",
+		"target-domain-managed-account-get",
+	}
+	targetDomainsWriteTools = []string{
+		"target-domain-create",
+		"target-domain-update",
+		"target-domain-scan",
+		"target-domain-managed-account-create",
+		"target-domain-managed-account-update",
+		"target-domain-managed-account-delete",
+		"target-domain-managed-account-rotate",
+		"target-domain-managed-account-checkout",
+	}
+
 	// Password policies (admin-only, no specific PrivX permission)
 	passwordPoliciesTools = []string{
 		"password-policy-list",
@@ -169,6 +198,17 @@ var (
 		"access-group-update",
 		"access-group-delete",
 	}
+
+	// User secrets. vault-add is create only. vault-manage is list, get, update, and delete.
+	vaultAddTools = []string{
+		"user-secret-create",
+	}
+	vaultManageTools = []string{
+		"user-secret-list",
+		"user-secret-get",
+		"user-secret-update",
+		"user-secret-delete",
+	}
 )
 
 // toolsByPermission maps each permission scope to the MCP tool names it grants
@@ -193,8 +233,9 @@ func init() {
 		PermissionUsersManage: concat(usersWriteTools, usersViewTools),
 
 		PermissionConnectionsView:      connectionsViewTools,
-		PermissionConnectionsManage:    concat(connectionsTerminateTools, connectionsViewTools),
+		PermissionConnectionsManage:    concat(connectionsTerminateTools, connectionsTrailTools, connectionsViewTools),
 		PermissionConnectionsTerminate: connectionsTerminateTools,
+		PermissionConnectionsTrail:     connectionsTrailTools,
 
 		PermissionLogsView: logsViewTools,
 
@@ -206,9 +247,15 @@ func init() {
 		PermissionAPITargetsView:   apiTargetsViewTools,
 		PermissionAPITargetsManage: concat(apiTargetsWriteTools, apiTargetsViewTools),
 
+		PermissionTargetDomainsView:   targetDomainsViewTools,
+		PermissionTargetDomainsManage: concat(targetDomainsWriteTools, targetDomainsViewTools),
+
 		PermissionPrivxAdmin: concat(passwordPoliciesTools, commandWhitelistsTools),
 
 		PermissionAccessGroupsManage: accessGroupsTools,
+
+		PermissionVaultAdd:    vaultAddTools,
+		PermissionVaultManage: vaultManageTools,
 
 		PermissionAuthenticated: {
 			"mcp-info",
@@ -217,6 +264,22 @@ func init() {
 	}
 
 	toolRequiredPermissions = buildToolRequiredPermissions(toolsByPermission)
+
+	// Apply explicit multi-scope requirements. buildToolRequiredPermissions
+	// derives a single least-privilege scope per tool, so tools that require
+	// more than one scope (AND semantics, enforced by the runtime) are declared
+	// here and override the derived value.
+	for name, scopes := range toolRequiredPermissionOverrides {
+		toolRequiredPermissions[name] = append([]string(nil), scopes...)
+	}
+}
+
+// toolRequiredPermissionOverrides declares tools that require more than one
+// permission scope. The runtime requires ALL listed scopes (AND). connection-
+// trail-get needs connections-view (to find/read the connection) plus
+// connections-trail (to read its recorded session content).
+var toolRequiredPermissionOverrides = map[string][]string{
+	"connection-trail-get": {PermissionConnectionsView, PermissionConnectionsTrail},
 }
 
 // buildToolRequiredPermissions builds tool → required-scope. When a tool
