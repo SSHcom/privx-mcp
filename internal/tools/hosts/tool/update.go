@@ -19,13 +19,13 @@ import (
 // fields (passwords, certificates, host keys) and server-managed fields are
 // never accepted as input but are preserved from the fetched copy. Services,
 // when supplied, wholesale-replace the existing array. Principals, when
-// supplied, replace the list; settings the schema does not accept, including
-// command restrictions, are copied from the existing principal with the same
-// name.
+// supplied, replace the list; service options are overlaid on the existing
+// principal with the same name, and settings the schema does not accept,
+// including command restrictions, are copied from it.
 func Update() registry.Tool {
 	description := "Update an existing PrivX host by id; only supplied fields are changed. " +
 		"When provided, services wholesale-replace the existing array (omit them to preserve advanced service settings). " +
-		"When provided, principals replace the list; command restrictions and other settings not in this schema stay on principals with the same name. " +
+		"When provided, principals replace the list; per-principal service_options (ssh, rdp, web, vnc, db) can be set, and options you omit, command restrictions, and other settings not in this schema stay on principals with the same name. " +
 		"Does not change deployable or disabled status. " +
 		common.PresentationGuidance
 

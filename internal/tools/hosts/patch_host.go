@@ -45,7 +45,7 @@ func applyPatchHostPrincipals(current *hoststore.Host, params map[string]any, au
 		return fmt.Errorf("validation error: principals must be an array")
 	}
 
-	principals, err := ResolvePrincipals(principalsRaw, authCtx.Connector)
+	principals, err := ResolvePrincipals(principalsRaw, authCtx.Connector, current.Principals)
 	if err != nil {
 		return err
 	}

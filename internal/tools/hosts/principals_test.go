@@ -20,7 +20,7 @@ func TestResolvePrincipals(t *testing.T) {
 
 		principals, err := ResolvePrincipals([]any{
 			map[string]any{"principal": "root", "roles": []any{"admin"}},
-		}, conn)
+		}, conn, nil)
 		if err != nil {
 			t.Fatalf("err: %v", err)
 		}
@@ -35,7 +35,7 @@ func TestResolvePrincipals(t *testing.T) {
 	t.Run("validation error", func(t *testing.T) {
 		_, err := ResolvePrincipals([]any{
 			map[string]any{"principal": "", "roles": []any{}},
-		}, nil)
+		}, nil, nil)
 		if err == nil || !strings.Contains(err.Error(), "principals[0]") {
 			t.Fatalf("got %v", err)
 		}
@@ -49,7 +49,7 @@ func TestResolvePrincipals(t *testing.T) {
 
 		_, err := ResolvePrincipals([]any{
 			map[string]any{"principal": "root", "roles": []any{"admin"}},
-		}, conn)
+		}, conn, nil)
 		if err == nil || !strings.Contains(err.Error(), "failed to resolve roles") {
 			t.Fatalf("got %v", err)
 		}
