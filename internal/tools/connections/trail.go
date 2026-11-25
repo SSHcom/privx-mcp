@@ -34,21 +34,61 @@ type Trail struct {
 	Channels     []TrailChannel `json:"channels,omitempty"`
 }
 
-// TrailChannel is one channel within an audited connection trail.
+// TrailChannel is one channel within an audited connection trail. A channel of
+// type "sftp" or "scp" carries TransferredFiles; a shell channel does not.
 type TrailChannel struct {
-	ID                  string            `json:"id,omitempty"`
-	Type                string            `json:"type,omitempty"`
-	BytesClientToServer int64             `json:"bytes_client_to_server,omitempty"`
-	BytesServerToClient int64             `json:"bytes_server_to_client,omitempty"`
-	ProtocolFile        TrailProtocolFile `json:"protocol_file,omitempty"`
+	ID                  string                 `json:"id,omitempty"`
+	Type                string                 `json:"type,omitempty"`
+	BytesClientToServer int64                  `json:"bytes_client_to_server,omitempty"`
+	BytesServerToClient int64                  `json:"bytes_server_to_client,omitempty"`
+	ProtocolFile        TrailProtocolFile      `json:"protocol_file,omitempty"`
+	TransferredFiles    []TrailTransferredFile `json:"transferred_files,omitempty"`
 }
 
 // TrailProtocolFile describes the stored trail-log file for a channel.
 type TrailProtocolFile struct {
-	ID     string `json:"id,omitempty"`
-	Name   string `json:"name,omitempty"`
-	Closed bool   `json:"closed,omitempty"`
-	Status string `json:"status,omitempty"`
+	ID        string `json:"id,omitempty"`
+	Name      string `json:"name,omitempty"`
+	Closed    bool   `json:"closed,omitempty"`
+	Status    string `json:"status,omitempty"`
+	OpenTime  string `json:"open_time,omitempty"`
+	CloseTime string `json:"close_time,omitempty"`
+}
+
+// TrailTransferredFile is one file moved over a channel (for example SFTP).
+type TrailTransferredFile struct {
+	ID          string `json:"id,omitempty"`
+	Name        string `json:"name,omitempty"`
+	Direction   int    `json:"direction,omitempty"`
+	OpenTime    string `json:"open_time,omitempty"`
+	CloseTime   string `json:"close_time,omitempty"`
+	PayloadSize int64  `json:"payload_size,omitempty"`
+	Closed      bool   `json:"closed,omitempty"`
+	Status      string `json:"status,omitempty"`
+}
+
+// MaxTrailTransferredFiles caps how many transferred files one response lists.
+// The full count is still reported, so a caller can tell the list was cut.
+const MaxTrailTransferredFiles = 200
+
+// Transfer directions in the PrivX trail schema.
+const (
+	trailDirectionServerToClient = 1
+	trailDirectionClientToServer = 2
+)
+
+// TransferDirection names a transferred file's direction from the user's side.
+// PrivX records 1 for server to client (a download) and 2 for client to server
+// (an upload). Other values are reported as "unknown" rather than guessed.
+func TransferDirection(direction int) string {
+	switch direction {
+	case trailDirectionServerToClient:
+		return "download"
+	case trailDirectionClientToServer:
+		return "upload"
+	default:
+		return "unknown"
+	}
 }
 
 // connectionTrailEnvelope is used to pull the `trail` field out of the raw
@@ -146,6 +186,57 @@ func FormatTrailCommandItems(cmds []TrailCommand) []map[string]any {
 	}
 
 	return out
+}
+
+// FormatTrailChannels summarizes each channel: its type, status, timing, byte
+// counts, and how many files it transferred. This is how a transfer channel
+// shows up even when it produced no commands.
+func FormatTrailChannels(channels []TrailChannel) []map[string]any {
+	out := make([]map[string]any, 0, len(channels))
+	for _, ch := range channels {
+		out = append(out, map[string]any{
+			"channel_id":             ch.ID,
+			"type":                   ch.Type,
+			"status":                 ch.ProtocolFile.Status,
+			"open_time":              ch.ProtocolFile.OpenTime,
+			"close_time":             ch.ProtocolFile.CloseTime,
+			"bytes_client_to_server": ch.BytesClientToServer,
+			"bytes_server_to_client": ch.BytesServerToClient,
+			"transferred_files":      len(ch.TransferredFiles),
+		})
+	}
+
+	return out
+}
+
+// FormatTransferredFiles lists the files moved in the given channels, at most
+// MaxTrailTransferredFiles of them. total is the full number found, so a caller
+// can tell when the list was cut.
+func FormatTransferredFiles(channels []TrailChannel) (items []map[string]any, total int) {
+	items = make([]map[string]any, 0)
+
+	for _, ch := range channels {
+		for _, f := range ch.TransferredFiles {
+			total++
+
+			if len(items) >= MaxTrailTransferredFiles {
+				continue
+			}
+
+			items = append(items, map[string]any{
+				"channel_id":   ch.ID,
+				"channel_type": ch.Type,
+				"name":         f.Name,
+				"direction":    TransferDirection(f.Direction),
+				"size_bytes":   f.PayloadSize,
+				"open_time":    f.OpenTime,
+				"close_time":   f.CloseTime,
+				"status":       f.Status,
+			})
+		}
+	}
+
+	return items, total
 }
 
 // trailLogEvent is one newline-delimited JSON event in a downloaded trail log.
