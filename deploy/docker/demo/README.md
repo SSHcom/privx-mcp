@@ -14,6 +14,22 @@ Run every command from the **repository root**.
 
 These instructions assume everything runs on **localhost**. To access Keycloak from a remote address it must serve HTTPS (requires an SSL certificate) or sit behind an HTTPS proxy such as NGINX. Remote setups are out of scope for this document.
 
+## Before you begin
+
+The demo requires you to clone this repository and change to its directory:
+
+Example:
+
+```bash
+cd ~/src # Create if needed
+git clone https://github.com/SSHcom/privx-mcp.git
+cd privx-mcp
+```
+
+> Note
+>
+> If the current directory is not mentioned in the instructions, assume it's in the repository root (e.g. `~/src/privx-mcp`).
+
 ## 1. Create `.env`
 
 ```bash
@@ -40,11 +56,9 @@ Start only Keycloak first. The MCP server requires the `mcp` realm to exist, so 
 docker compose up --build keycloak
 ```
 
-
 | Service  | URL                                            | Notes                                 |
 | -------- | ---------------------------------------------- | ------------------------------------- |
 | Keycloak | [http://localhost:8080](http://localhost:8080) | Admin user `admin` / password `admin` |
-
 
 You can check the logs, to see if there are issues: `docker logs privx-mcp-server | keycloak`
 
@@ -52,15 +66,19 @@ You can check the logs, to see if there are issues: `docker logs privx-mcp-serve
 
 1. Open [http://localhost:8080](http://localhost:8080) and sign in as `admin`.
 2. Create a new realm named `mcp`.
-3. Open **Realm settings**. From **Action**, choose **Partial import**:
-  ![](images/realm-import-1.png)
-4. Click **Browse...** and select `[deploy/docker/demo/realm-export.json](realm-export.json)`.
-  Check **Clients**, choose **Skip** for existing resources, then **Import**:
+3. Switch to the new realm (refresh if there is not link).
+4. Open **Realm settings**. From **Action**, choose **Partial import**:
+
+   ![](images/realm-import-1.png)
+
+5. Click **Browse...** and select `deploy/docker/demo/realm-export.json`.
+
+   Check **Clients**, choose **Skip** for _"If a resource already exists"_, then **Import**:
    ![](images/realm-import-2.png)
-5. Confirm that `privx-mcp-client` was added:
-  ![](images/realm-import-3.png)
 
+6. Confirm that `privx-mcp-client` was added:
 
+   ![](images/realm-import-3.png)
 
 ## 4. Start all containers
 
@@ -70,18 +88,16 @@ Now that the `mcp` realm exists, start the full stack:
 docker compose up --build
 ```
 
-
 | Service    | URL                                            |
 | ---------- | ---------------------------------------------- |
 | Keycloak   | [http://localhost:8080](http://localhost:8080) |
 | MCP server | [http://localhost:8181](http://localhost:8181) |
 
-
 Check the logs if there are issues: `docker logs privx-mcp-server` or `docker logs keycloak`.
 
 ## 5. Client secret
 
-Open **Clients** → `privx-mcp-client` → **Credentials** and click **Regenerate** to create the secret.
+In Keycloak open **Clients** → `privx-mcp-client` → **Credentials** and click **Regenerate** to create the secret.
 
 ![](images/client-secret.png)
 
@@ -93,33 +109,108 @@ When an AI client asks for a client secret while setting up the MCP server, this
 2. Turn **Email verified** on.
 3. On the **Credentials** tab, set a password and turn **Temporary** off.
 
-
-
 ## 7. PrivX: External Token Provider
 
-The OAuth login (Keycloak) yields a username. The MCP server uses that name to find a matching PrivX user. This demo looks in **Local users**; the same flow works with Entra ID, AD, or another directory.
+The OAuth login (Keycloak) yields a username. The MCP server uses that name to find a matching PrivX user. This demo looks in the **Local users** user directory; the same flow works with Entra ID, AD, or another directory.
 
-To open a PrivX API connection *as that user*, PrivX must trust a short-lived token minted by the MCP server. Register that trust as described in [External token provider](../../../docs/reference/server/privx-token-provider.md).
+To open a PrivX API connection _as that user_, PrivX must trust a short-lived token minted by the MCP server. Register that trust as described in [External token provider](../../../docs/reference/server/privx-token-provider.md).
 
-In PrivX: **Administration** → **Deployment** → **External Token Authentication** → **Add provider**. Name it `mcp-provider` (any name is fine), set Public Key Method to **Use token provider public key**, and paste the full contents of `.pem/public-key.pem`.
+In PrivX: **Administration** → **Deployment** → **External Token Authentication** → **Add provider**.
 
-The provider supplies these configuration values. This demo already sets them in `.env`:
+| Field                          | Value                                                |
+| ------------------------------ | ---------------------------------------------------- |
+| Name                           | mcp-provider                                         |
+| Users Directory                | Local users                                          |
+| Subject Type                   | plain                                                |
+| Public key method              | Use token provider key                               |
+| Key ID                         | privx-aws-mcp-demo                                   |
+| Puiblic key                    | <The full contents of `.pem/public-key.pem`>         |
+| Issuer                         | privx-mcp                                            |
+| Service Name in Audience Claim | privx-mcp-client `<the name of the Keycloak client>` |
 
-- `[privx_auth].subject_format` / `PRIVX_SUBJECT_FORMAT` = `plain`
-- `[privx_auth].rsa_key_id` / `PRIVX_RSA_KEY_ID` = `privx-aws-mcp-demo`
-- `[privx_auth].token_issuer` / `PRIVX_TOKEN_ISSUER` = `privx-mcp`
-- `[privx_auth].audience` / `PRIVX_AUDIENCE` = `privx-mcp-client`
-- `[permissions].source_type` / `PERMISSIONS_SOURCE_TYPE` = `LOCAL` (Users Directory: Local users)
-
-`PRIVX_RSA_KEY_FILE` is the private key from step 1. `[privx_auth].rsa_public_key_file` / `PRIVX_RSA_PUBLIC_KEY_FILE` is an optional path to the public key pasted into the provider. This demo leaves it unset.
-
-
-The import file already includes the Keycloak audience mapper used by this project. If you build clients manually instead of importing, configure it as shown in [Audience mapper](../../../docs/reference/oidc/keycloak.md#audience-mapper).
+> Note
+>
+> The Field values match what is already set in `.env`:
 
 ## 8. Connect an AI client
 
-See [MCP client configuration](../../../docs/reference/clients/CLIENTS.md) for how to point your AI client at this MCP server.
+What you need:
 
-To avoid most OAuth callback issues, put [privx-mcp-proxy](../../../docs/reference/clients/privx-mcp-proxy.md) between the AI client and the MCP server.
+- The URL of the MCP server: `http://localhost:8181/mcp`
+- The name of the Keycloak client: `privx-mcp-client`
+- The Client secret from Keycloak (`Clients` -> `privx-mcp-client` -> `Credendials` -> `Client secret`)
 
-If you connect the client directly (no stdio proxy), it must use a redirect URI that Keycloak allows. The imported `privx-mcp-client` already includes common callback URLs. Add any missing ones on that client's **Settings** tab (**Valid redirect URIs**).
+### Configure your MCP client
+
+See [MCP client configuration](../../../docs/reference/clients/CLIENTS.md) for details about specific clients.
+
+#### OAuth – directly in the client
+
+If supported prefer this option.
+
+Here is an example that works with Cursor. Many clients use an identical or similar (with small variations) configuration.
+
+```
+{
+  "mcpServers": {
+    "mcp-demo": {
+      "url": "http://localhost:8181/mcp",
+      "auth": {
+        "CLIENT_ID": "privx-mcp-client",
+        "CLIENT_SECRET": "<some secret>"
+      }
+    }
+  }
+}
+```
+
+#### PrivX MCP proxy
+
+Use this option if OAuth is not supported or working properly.
+
+This moves OAuth authentication away from the MCP client to a generic proxy client. The MCP client will connect to the proxy using the STDIO method.
+
+To use the proxy, it has to be build
+
+- Install Go version 1.26
+- In the MCP repository root, run...
+  ```bash
+  mkdir -p bin
+  go build -o bin/privx-mcp-proxy ./cmd/privx-mcp-proxy
+  ```
+- The binary should now be available as `<repo-root>/bin/privx-mcp-proxy`
+
+Now create a proxy config file at `<repo-root>/privx-mcp-proxy.toml`
+
+```toml
+mcp_url = "http://localhost:8181/mcp"
+allow_http = true
+log_level = "info"
+
+[callback]
+host = "localhost"
+port = 28828             # Requires "http://localhost:<port>/oauth/callback"
+path = "/oauth/callback" # redirect URI in Keycloak
+auth_timeout_seconds = 60
+
+[client]
+client_id = "privx-mcp-client"
+client_secret = "TYvB8dydUUy3waDvv9HuGhDdPTqLOiOD"
+token_endpoint_auth_method = "client_secret_post"
+scopes = []
+```
+
+In your MCP client config, create an entry pointing to the proxy.
+
+```
+{
+  "mcpServers": {
+    "privx-proxy": {
+      "command": "/<repo-root>/bin/privx-mcp-proxy",
+      "args": [
+        "/<repo-root>/privx-mcp-proxy.toml"
+      ]
+    }
+  }
+}
+```
