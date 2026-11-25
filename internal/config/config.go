@@ -100,10 +100,12 @@ type PrivXAuthConfig struct {
 // PermissionsConfig holds global tool access control settings.
 type PermissionsConfig struct {
 	DefaultReadOnly bool // If true, deny write tools even when whitelist matches.
-	// Whitelist is a prefix allow-list for tool names, e.g. ["host-", "user-", "test-"].
+	// Whitelist is an allow-list of tool-name patterns, e.g. ["host-*", "*-list", "mcp-info"].
+	// A '*' matches any run of characters; a pattern without '*' matches the whole name.
 	// Empty means no whitelist filtering. Applied before Blacklist.
 	Whitelist []string
-	// Blacklist is a prefix deny-list for tool names, e.g. ["host-delete", "user-delete-"].
+	// Blacklist is a deny-list of tool-name patterns, e.g. ["*-delete", "user-create*"].
+	// Same pattern syntax as Whitelist.
 	// Empty means no blacklist filtering. Applied after Whitelist.
 	Blacklist []string
 	// ResponseFilter lists whole words replaced with [redacted] in successful

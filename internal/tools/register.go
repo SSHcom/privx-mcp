@@ -2,8 +2,6 @@
 package tools
 
 import (
-	"strings"
-
 	"github.com/pmsshintegration/privx-mcp/internal/config"
 	"github.com/pmsshintegration/privx-mcp/internal/mcp/registry"
 	accessgrouptools "github.com/pmsshintegration/privx-mcp/internal/tools/access_groups/tool"
@@ -22,6 +20,7 @@ import (
 	usersecrettools "github.com/pmsshintegration/privx-mcp/internal/tools/user_secrets/tool"
 	userstools "github.com/pmsshintegration/privx-mcp/internal/tools/users/tool"
 	whitelisttools "github.com/pmsshintegration/privx-mcp/internal/tools/whitelists/tool"
+	"github.com/pmsshintegration/privx-mcp/internal/utils"
 )
 
 // Register adds all tool topics to the registry.
@@ -81,9 +80,9 @@ func filterTools(all []registry.Tool, permissions config.PermissionsConfig) []re
 	// Resolve order: sensitive gate → default_read_only → whitelist → blacklist.
 	sensitiveFiltered := filterSensitiveTools(all, permissions.EnableSensitiveDataTools)
 	readFiltered := filterReadOnlyTools(sensitiveFiltered, permissions.DefaultReadOnly)
-	whitelisted := filterWhitelistedPrefixes(readFiltered, permissions.Whitelist)
+	whitelisted := filterWhitelisted(readFiltered, permissions.Whitelist)
 
-	return filterBlacklistedPrefixes(whitelisted, permissions.Blacklist)
+	return filterBlacklisted(whitelisted, permissions.Blacklist)
 }
 
 // filterSensitiveTools drops tools marked Sensitive unless the operator has
@@ -123,14 +122,15 @@ func filterReadOnlyTools(all []registry.Tool, defaultReadOnly bool) []registry.T
 	return filtered
 }
 
-func filterWhitelistedPrefixes(all []registry.Tool, whitelist []string) []registry.Tool {
+func filterWhitelisted(all []registry.Tool, whitelist []string) []registry.Tool {
+	whitelist = utils.UsableWildcards(whitelist)
 	if len(whitelist) == 0 {
 		return all
 	}
 
 	filtered := make([]registry.Tool, 0, len(all))
 	for _, tool := range all {
-		if matchesAnyPrefix(tool.Name, whitelist) {
+		if utils.MatchAnyWildcard(tool.Name, whitelist) {
 			filtered = append(filtered, tool)
 		}
 	}
@@ -138,14 +138,15 @@ func filterWhitelistedPrefixes(all []registry.Tool, whitelist []string) []regist
 	return filtered
 }
 
-func filterBlacklistedPrefixes(all []registry.Tool, blacklist []string) []registry.Tool {
+func filterBlacklisted(all []registry.Tool, blacklist []string) []registry.Tool {
+	blacklist = utils.UsableWildcards(blacklist)
 	if len(blacklist) == 0 {
 		return all
 	}
 
 	filtered := make([]registry.Tool, 0, len(all))
 	for _, tool := range all {
-		if matchesAnyPrefix(tool.Name, blacklist) {
+		if utils.MatchAnyWildcard(tool.Name, blacklist) {
 			continue
 		}
 
@@ -153,14 +154,4 @@ func filterBlacklistedPrefixes(all []registry.Tool, blacklist []string) []regist
 	}
 
 	return filtered
-}
-
-func matchesAnyPrefix(toolName string, prefixes []string) bool {
-	for _, prefix := range prefixes {
-		if strings.HasPrefix(toolName, prefix) {
-			return true
-		}
-	}
-
-	return false
 }

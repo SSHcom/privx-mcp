@@ -26,7 +26,7 @@ func TestRegister_DefaultReadOnlySkipsWriteTools(t *testing.T) {
 
 	registerWithPermissions(reg, config.PermissionsConfig{
 		DefaultReadOnly: true,
-		Whitelist:       []string{"host-", "user-", "echo"},
+		Whitelist:       []string{"host-*", "user-*", "echo"},
 	})
 
 	_, hasCreateHost := reg.Get("host-create")
@@ -61,7 +61,7 @@ func TestRegister_DefaultReadOnlyDisabledKeepsWriteTools(t *testing.T) {
 	}
 }
 
-func TestRegister_EmptyWhitelistSkipsPrefixFiltering(t *testing.T) {
+func TestRegister_EmptyWhitelistSkipsFiltering(t *testing.T) {
 	reg := registry.NewRegistry()
 
 	registerWithPermissions(reg, config.PermissionsConfig{
@@ -82,7 +82,7 @@ func TestRegister_RequestToolsReadOnlyAndWhitelist(t *testing.T) {
 
 	registerWithPermissions(reg, config.PermissionsConfig{
 		DefaultReadOnly: true,
-		Whitelist:       []string{"request-"},
+		Whitelist:       []string{"request-*"},
 	})
 
 	if _, ok := reg.Get("request-list"); !ok {
@@ -156,7 +156,7 @@ func TestRegister_BlacklistAlone(t *testing.T) {
 
 	registerWithPermissions(reg, config.PermissionsConfig{
 		DefaultReadOnly: false,
-		Blacklist:       []string{"host-delete", "host-create", "user-delete-", "user-create-"},
+		Blacklist:       []string{"host-delete", "host-create", "user-delete*", "user-create*"},
 	})
 
 	if _, hasListHosts := reg.Get("host-list"); !hasListHosts {
@@ -252,7 +252,7 @@ func TestRegister_SensitiveToolDisabledByDefault(t *testing.T) {
 	reg := registry.NewRegistry()
 	registerWithPermissions(reg, config.PermissionsConfig{
 		DefaultReadOnly: false,
-		Whitelist:       []string{"connection-"},
+		Whitelist:       []string{"connection-*"},
 	})
 
 	if _, ok := reg.Get("connection-trail-get"); ok {
@@ -306,5 +306,85 @@ func TestRegister_SensitiveToolNonAdminUsesGranularScopes(t *testing.T) {
 	// Sanity: the granular set is the two connection scopes, not privx-admin.
 	if len(want) != 2 {
 		t.Fatalf("expected 2 granular scopes, got %v", want)
+	}
+}
+
+func TestRegister_WildcardSuffixPatterns(t *testing.T) {
+	reg := registry.NewRegistry()
+
+	registerWithPermissions(reg, config.PermissionsConfig{
+		DefaultReadOnly: false,
+		Whitelist:       []string{"*-list", "*-get", "mcp-info"},
+		Blacklist:       []string{"user-*"},
+	})
+
+	if _, ok := reg.Get("host-list"); !ok {
+		t.Fatal("expected host-list to match *-list")
+	}
+	if _, ok := reg.Get("host-get"); !ok {
+		t.Fatal("expected host-get to match *-get")
+	}
+	if _, ok := reg.Get("mcp-info"); !ok {
+		t.Fatal("expected mcp-info to match exactly")
+	}
+	if _, ok := reg.Get("host-search"); ok {
+		t.Fatal("expected host-search not to match the whitelist")
+	}
+	if _, ok := reg.Get("user-list"); ok {
+		t.Fatal("expected user-list to be removed by user-*")
+	}
+}
+
+func TestRegister_PatternWithoutWildcardMatchesWholeName(t *testing.T) {
+	reg := registry.NewRegistry()
+
+	registerWithPermissions(reg, config.PermissionsConfig{
+		DefaultReadOnly: false,
+		Whitelist:       []string{"host-", "user-get"},
+	})
+
+	if _, ok := reg.Get("host-list"); ok {
+		t.Fatal("expected host- not to match host-list without a wildcard")
+	}
+	if _, ok := reg.Get("user-get"); !ok {
+		t.Fatal("expected user-get to match exactly")
+	}
+	if _, ok := reg.Get("user-get-roles"); ok {
+		t.Fatal("expected user-get not to match user-get-roles")
+	}
+}
+
+func TestRegister_IgnoredWildcardPatterns(t *testing.T) {
+	reg := registry.NewRegistry()
+
+	// "*" and short wildcard patterns are ignored. The blacklist entries all
+	// drop out, and the whitelist keeps only its usable entry.
+	registerWithPermissions(reg, config.PermissionsConfig{
+		DefaultReadOnly: false,
+		Whitelist:       []string{"*", "h*", "host-*"},
+		Blacklist:       []string{"*", "**", "*-x"},
+	})
+
+	if _, ok := reg.Get("host-list"); !ok {
+		t.Fatal("expected host-list to match host-*")
+	}
+	if _, ok := reg.Get("host-delete"); !ok {
+		t.Fatal("expected host-delete to survive an ignored blacklist")
+	}
+	if _, ok := reg.Get("user-list"); ok {
+		t.Fatal("expected user-list to be dropped: \"*\" and \"h*\" are ignored")
+	}
+}
+
+func TestRegister_WhitelistOfIgnoredPatternsIsNoFilter(t *testing.T) {
+	reg := registry.NewRegistry()
+
+	registerWithPermissions(reg, config.PermissionsConfig{
+		DefaultReadOnly: false,
+		Whitelist:       []string{"*"},
+	})
+
+	if _, ok := reg.Get("user-list"); !ok {
+		t.Fatal("expected a whitelist with only ignored patterns to keep all tools")
 	}
 }
