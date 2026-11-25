@@ -102,8 +102,10 @@ Before per-user checks run, the server decides which tools are available in this
 | Config                          | Effect                                                                                                 |
 | ------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `permissions.default_read_only` | When `true`, write-capable tools (`Writes: true`) are not registered.                                  |
-| `permissions.whitelist`         | Only tool names with one of these left-to-right prefixes are registered. Empty means no prefix filter. |
-| `permissions.blacklist`         | Tool names matching one of these prefixes are dropped after the whitelist. Empty means no deny filter. |
+| `permissions.whitelist`         | Only tool names matching one of these patterns are registered. Empty means no allow filter.            |
+| `permissions.blacklist`         | Tool names matching one of these patterns are dropped after the whitelist. Empty means no deny filter. |
+
+Patterns match the whole tool name. A `*` matches any run of characters, including none, so `host-*` selects a resource group and `*-delete` selects an operation. A pattern without `*` must equal the tool name: `host-` matches nothing.
 
 These are operator controls for the deployment, independent of any user's PrivX roles. Empty lists mean no filtering at that stage.
 
@@ -111,24 +113,25 @@ These are operator controls for the deployment, independent of any user's PrivX 
 
 ```toml
 default_read_only = true
-whitelist = ["role-", "connection-", "request-", "password-policy-", "whitelist-", "access-group-"]
+whitelist = ["role-*", "connection-*", "password-policy-*", "whitelist-*", "access-group-*"]
 ```
 
-1. `default_read_only` drops every `Writes: true` tool, which here removes the `*-create`, `*-update`, `*-delete`, `*-grant`, and `*-revoke` tools.
-2. The whitelist keeps only tools whose names start with one of the prefixes.
+`default_read_only` drops every `Writes: true` tool, which here removes the `*-create`, `*-update`, `*-delete`, `*-grant`, and `*-revoke` tools.
 
-The result is the read tools matching those prefixes. With `default_read_only = false` and the same whitelist, the matching write tools survive too. Adding `blacklist = ["access-group-delete"]` drops that one tool by name prefix while keeping the rest.
+1. The whitelist keeps only tools whose names match one of the patterns.
+
+The result is the read tools matching those prefixes. With `default_read_only = false` and the same whitelist, the matching write tools survive too. Adding `blacklist = ["access-group-delete"]` drops that one tool by exact name while keeping the rest.
 
 ## What each tool requires
 
 Each MCP tool is mapped to a required PrivX permission scope in `internal/tools/permissions.go`. Examples:
 
-| Scope                   | Example tools                                                                                                         |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `hosts-view`            | `host-list`, `host-get`                                                                                               |
-| `hosts-manage`          | `host-create`, `host-update`, `host-delete` (also includes view tools)                                                |
-| `authenticated`         | Tools available to any signed-in user (`mcp-info`, `host-search`)                                                     |
-| _(none / public)_       | Tools with no permission requirement                                                                                  |
+| Scope             | Example tools                                                          |
+| ----------------- | ---------------------------------------------------------------------- |
+| `hosts-view`      | `host-list`, `host-get`                                                |
+| `hosts-manage`    | `host-create`, `host-update`, `host-delete` (also includes view tools) |
+| `authenticated`   | Tools available to any signed-in user (`mcp-info`, `host-search`)      |
+| _(none / public)_ | Tools with no permission requirement                                   |
 
 The full tool-to-scope listing is in [MCP tools](../user/tools.md).
 
@@ -177,7 +180,7 @@ Listing and calling share the identity mapping, the required scopes, the effecti
 | User sees almost no tools                                            | Identity did not map to a PrivX user, wrong `source_type`, or the user lacks the needed PrivX permissions.                                                                                                                                                                 |
 | Log mentions non-matching `source_type` candidates                   | The identifier matched users in other directories. Set `permissions.source_type` to the directory used by the PrivX external connection, not just any directory that contains the user.                                                                                    |
 | Permissions resolve, but PrivX actions fail or act as the wrong user | `source_type` does not match the user directory bound to the PrivX external connection.                                                                                                                                                                                    |
-| Write tools never appear for anyone                                  | `default_read_only = true`, or the `whitelist` / `blacklist` prefixes exclude them.                                                                                                                                                                                        |
+| Write tools never appear for anyone                                  | `default_read_only = true`, or the `whitelist` / `blacklist` patterns exclude them.                                                                                                                                                                                        |
 | Tool appears but call is denied                                      | The client may still show a stale catalog, see [Role changes during an open session](#role-changes-during-an-open-session). Also check rate limiting, a cooldown-skipped refresh, an expired session cache against a role window, or permissions that changed mid-session. |
 | Everything works for `privx-admin` only                              | Expected when other users lack the specific PrivX scopes the tools require.                                                                                                                                                                                                |
 

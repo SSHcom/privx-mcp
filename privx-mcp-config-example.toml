@@ -234,39 +234,34 @@ identity_mapping_rule = "as-is"
 [permissions]
 
 # Tool-name guards applied at registration time (independent of PrivX roles).
-# Only tools that survive this filter are listed or callable.
+# Only tools that survive every step below are listed or callable.
 #
-# Resolve order (first to last; each step filters the previous result):
+# Steps, in order (each filters the previous result):
 #   1. sensitive gate    — drop tools that can surface secrets unless
 #                          enable_sensitive_data_tools is set. See
 #                          docs/reference/security/security.md.
-#   2. default_read_only — when true, drop all write tools
-#   3. whitelist         — keep only tools matching a prefix (empty = no filter)
-#   4. blacklist         — drop tools matching a prefix (empty = no filter)
+#   2. default_read_only — when true, drop all write tools (a write tool in
+#                          whitelist has no effect)
+#   3. whitelist         — keep only matching tools
+#   4. blacklist         — drop matching tools
+# An empty list means no filter. A blank entry is a configuration error.
 #
-# A blank or whitespace-only entry in whitelist, blacklist, response_filter,
-# or oauth scopes is a configuration error. Omit the key, or use [], for no filter.
+# Patterns match the whole tool name. Tool names are resource-first
+# (host-list, user-get), so "host-*" selects a resource and "*-list" an operation.
+#   "host-list"  exactly host-list
+#   "host-*"     every tool starting with "host-"
+#   "*-list"     every tool ending with "-list"
+#   "*secret*"   every tool containing "secret"
+# '*' matches any run of characters. A pattern containing '*' must have at least
+# 3 other characters, or it is ignored (so "*" and "*-x" never match).
 #
-# Priority notes:
-#   - default_read_only supersedes whitelist: write tools are removed before
-#     whitelist is applied, so a write tool prefix in whitelist (e.g. "host-create")
-#     has no effect while default_read_only = true.
-#   - blacklist is applied on top of the whitelist result.
-#
-# Tool names are resource-first (e.g. host-list, user-get, request-list),
-# so prefixes typically select a resource group ("host-", "user-", "request-")
-# rather than an operation ("list-", "get-").
+# Use whitelist to enable a few tools, blacklist to drop a few. Combined,
+# whitelist = ["user-*"] with blacklist = ["user-list"] leaves user-get and
+# user-search.
 #
 default_read_only = true
-
-# Prefix whitelist matched left-to-right against tool names.
-# With default_read_only = true above, write tools are already dropped.
-whitelist = ["-list", "-get", "-search", "echo", "mcp-info"]
-
-# Prefix blacklist matched left-to-right against tool names.
-# Example: with whitelist = ["-list", "-get", "-search"] and blacklist = ["user-list"],
-#          user-get and user-search remain but user-list is dropped.
-blacklist = ["-delete"]
+# whitelist = ["host-*", "role-*", "mcp-info"]
+blacklist = ["*-delete"]
 
 # Replace these whole words with "[redacted]" in successful tool responses
 # and in error messages. This list is the only word list; there is no

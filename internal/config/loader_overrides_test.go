@@ -186,7 +186,7 @@ func TestApplyPermissionsWhitelistEnvOverrides(t *testing.T) {
 	}
 
 	if len(cfg.Permissions.Whitelist) != 3 {
-		t.Fatalf("expected 3 prefixes, got %d", len(cfg.Permissions.Whitelist))
+		t.Fatalf("expected 3 patterns, got %d", len(cfg.Permissions.Whitelist))
 	}
 	if cfg.Permissions.Whitelist[0] != "host-" || cfg.Permissions.Whitelist[1] != "user-" || cfg.Permissions.Whitelist[2] != "test-" {
 		t.Fatalf("unexpected whitelist: %v", cfg.Permissions.Whitelist)
@@ -212,7 +212,7 @@ func TestApplyPermissionsBlacklistEnvOverrides(t *testing.T) {
 	}
 
 	if len(cfg.Permissions.Blacklist) != 2 {
-		t.Fatalf("expected 2 prefixes, got %d", len(cfg.Permissions.Blacklist))
+		t.Fatalf("expected 2 patterns, got %d", len(cfg.Permissions.Blacklist))
 	}
 	if cfg.Permissions.Blacklist[0] != "host-delete" || cfg.Permissions.Blacklist[1] != "user-delete-" {
 		t.Fatalf("unexpected blacklist: %v", cfg.Permissions.Blacklist)

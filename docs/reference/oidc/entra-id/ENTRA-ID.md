@@ -129,7 +129,6 @@ api_client_secret = "..."
 
 [permissions]
 default_read_only = true
-whitelist = ["host-", "user-", "workflow-", "test-"]
 session_cache_ttl = "30s"
 
 [oauth]
