@@ -21,7 +21,8 @@ import (
 // added later via the upcoming host-update tool.
 func Create() registry.Tool {
 	description := "Create a PrivX host with common_name, addresses, services, and principals. " +
-		"Principal roles may be role names or UUIDs. Returns the created host id; use host-update for further edits. " +
+		"Principal roles may be role names or UUIDs. Each principal may set optional service_options (ssh, rdp, web, vnc, db); SSH options you omit stay enabled, so set only the ones you want off. " +
+		"Returns the created host id; use host-update for further edits. " +
 		common.PresentationGuidance
 
 	serviceItem := hosts.HostServiceItemSchema()
@@ -103,7 +104,7 @@ func createHostHandler(ctx context.Context, params map[string]any) (*registry.To
 		return registry.ErrorResult("validation error: principals must be a non-empty array"), nil
 	}
 
-	principals, err := hosts.ResolvePrincipals(principalsRaw, authCtx.Connector)
+	principals, err := hosts.ResolvePrincipals(principalsRaw, authCtx.Connector, nil)
 	if err != nil {
 		return registry.ErrorResult(err.Error()), nil
 	}

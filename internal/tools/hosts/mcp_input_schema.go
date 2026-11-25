@@ -31,7 +31,8 @@ func HostServiceItemSchema() *registry.OrderedMap {
 }
 
 // HostPrincipalItemSchema returns the JSON schema for a single host principal
-// object (principal/roles). Shared by host-create and host-update.
+// object (principal/roles/service_options). Shared by host-create and
+// host-update.
 func HostPrincipalItemSchema() *registry.OrderedMap {
 	principalProps := registry.NewOrderedMap().
 		Set("principal", map[string]any{
@@ -43,12 +44,84 @@ func HostPrincipalItemSchema() *registry.OrderedMap {
 			"type":        "array",
 			"items":       map[string]any{"type": "string"},
 			"description": "Roles granted to this principal. Each item is a role name or a role UUID. May be empty.",
-		})
+		}).
+		Set("service_options", HostPrincipalServiceOptionsSchema())
 
 	return registry.NewOrderedMap().
 		Set("type", "object").
 		Set("properties", principalProps).
 		Set("required", []string{"principal", "roles"}).
+		Set("additionalProperties", false)
+}
+
+// boolOption returns the schema for one boolean service option.
+func boolOption(description string) map[string]any {
+	return map[string]any{"type": "boolean", "description": description}
+}
+
+// protocolOptionsSchema wraps a set of option properties in a closed object.
+func protocolOptionsSchema(description string, props *registry.OrderedMap) *registry.OrderedMap {
+	return registry.NewOrderedMap().
+		Set("type", "object").
+		Set("description", description).
+		Set("properties", props).
+		Set("additionalProperties", false)
+}
+
+// HostPrincipalServiceOptionsSchema returns the JSON schema for the optional
+// per-principal service_options object. Every protocol and every field is
+// optional. Shared by host-create and host-update through the principal item.
+func HostPrincipalServiceOptionsSchema() *registry.OrderedMap {
+	ssh := registry.NewOrderedMap().
+		Set("shell", boolOption("Allow interactive shell sessions.")).
+		Set("file_transfer", boolOption("Allow file transfer (SFTP/SCP).")).
+		Set("exec", boolOption("Allow remote command execution.")).
+		Set("tunnels", boolOption("Allow port forwarding tunnels.")).
+		Set("x11", boolOption("Allow X11 forwarding.")).
+		Set("other", boolOption("Allow other SSH channel types."))
+
+	rdp := registry.NewOrderedMap().
+		Set("file_transfer", boolOption("Allow file transfer.")).
+		Set("audio", boolOption("Allow audio redirection.")).
+		Set("clipboard", boolOption("Allow clipboard sharing."))
+
+	web := registry.NewOrderedMap().
+		Set("file_transfer", boolOption("Allow file transfer.")).
+		Set("audio", boolOption("Allow audio.")).
+		Set("clipboard", boolOption("Allow clipboard sharing."))
+
+	vnc := registry.NewOrderedMap().
+		Set("file_transfer", boolOption("Allow file transfer.")).
+		Set("clipboard", boolOption("Allow clipboard sharing."))
+
+	db := registry.NewOrderedMap().
+		Set("max_bytes_upload", map[string]any{
+			"type":        "integer",
+			"minimum":     0,
+			"description": "Maximum bytes the user may upload in a session.",
+		}).
+		Set("max_bytes_download", map[string]any{
+			"type":        "integer",
+			"minimum":     0,
+			"description": "Maximum bytes the user may download in a session.",
+		})
+
+	protocols := registry.NewOrderedMap().
+		Set("ssh", protocolOptionsSchema("SSH options for this principal.", ssh)).
+		Set("rdp", protocolOptionsSchema("RDP options for this principal.", rdp)).
+		Set("web", protocolOptionsSchema("Web options for this principal.", web)).
+		Set("vnc", protocolOptionsSchema("VNC options for this principal.", vnc)).
+		Set("db", protocolOptionsSchema("Database options for this principal.", db))
+
+	return registry.NewOrderedMap().
+		Set("type", "object").
+		Set("description", "Optional per-principal protocol options. "+
+			"Every protocol and field is optional; omit the object to leave options unset on create or unchanged on update. "+
+			"Only the fields you supply are applied. On update, a field you omit keeps its stored value. "+
+			"On create, SSH options you omit stay enabled (all six are on by default), so set only the ones you want off. "+
+			"Omitted rdp, web, vnc and db fields are false (or 0). "+
+			"An empty protocol object changes nothing.").
+		Set("properties", protocols).
 		Set("additionalProperties", false)
 }
 
@@ -81,7 +154,7 @@ func HostEditProperties() *registry.OrderedMap {
 		Set("principals", map[string]any{
 			"type":        "array",
 			"items":       HostPrincipalItemSchema(),
-			"description": "Principals on the host. When present, replaces the principal list. Each entry sets the account name and roles. Command restrictions, the target domain, and other settings not in this schema are kept from the existing principal with the same name. A new name starts without those settings. Omit the array to leave principals unchanged.",
+			"description": "Principals on the host. When present, replaces the principal list. Each entry sets the account name, roles, and optionally service_options. Service options you omit are kept from the existing principal with the same name, and options you supply are applied on top of them. Command restrictions, the target domain, and other settings not in this schema are also kept from the existing principal with the same name. A new name starts without those settings. Omit the array to leave principals unchanged.",
 		}).
 		Set("organization", map[string]any{
 			"type":        "string",
