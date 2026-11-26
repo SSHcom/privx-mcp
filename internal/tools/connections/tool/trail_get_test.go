@@ -35,6 +35,21 @@ func execLine(ts, cmd string) string {
 func setupTrail(t *testing.T, conn *testconn.FakeConnector, c connectionmanager.Connection, logLines []string) {
 	t.Helper()
 
+	setupTrailChannels(t, conn, c, []map[string]any{
+		{
+			"id":            "ch1",
+			"type":          "shell",
+			"protocol_file": map[string]any{"status": "OK"},
+		},
+	}, logLines)
+}
+
+// setupTrailChannels is setupTrail with caller-supplied raw trail channels. The
+// fake returns the same log for every channel, so tests that care about
+// commands should use a single channel.
+func setupTrailChannels(t *testing.T, conn *testconn.FakeConnector, c connectionmanager.Connection, channels []map[string]any, logLines []string) {
+	t.Helper()
+
 	conn.Handle("GET", "/connection-manager/api/v1/connections/:id", func(any) (any, error) {
 		return c, nil
 	})
@@ -45,13 +60,7 @@ func setupTrail(t *testing.T, conn *testconn.FakeConnector, c connectionmanager.
 		"audit_enabled": c.AuditEnabled,
 		"trail": map[string]any{
 			"connection_id": c.ID,
-			"channels": []map[string]any{
-				{
-					"id":            "ch1",
-					"type":          "shell",
-					"protocol_file": map[string]any{"status": "OK"},
-				},
-			},
+			"channels":      channels,
 		},
 	}
 	conn.HandleFetch("/connection-manager/api/v1/connections/:id", func() ([]byte, error) {
@@ -223,5 +232,172 @@ func TestTrailGetHandler_RawIncludesConnectionMeta(t *testing.T) {
 	}
 	if connMeta["trail_id"] != "t1" || connMeta["session_id"] != "s1" {
 		t.Errorf("connection meta = %v", connMeta)
+	}
+}
+
+// shellAndSFTPChannels mirrors a real PrivX trail: a shell channel and an sftp
+// channel that uploaded one file (direction 2 = client to server).
+func shellAndSFTPChannels() []map[string]any {
+	return []map[string]any{
+		{
+			"id":   "0",
+			"type": "shell",
+			"protocol_file": map[string]any{
+				"id": "p0", "direction": 3, "status": "OK", "closed": true,
+				"open_time":  "2026-11-25T08:53:54.681658511Z",
+				"close_time": "2026-11-25T08:54:11.613634716Z",
+			},
+			"bytes_client_to_server": 373,
+			"bytes_server_to_client": 1110,
+		},
+		{
+			"id":   "1",
+			"type": "sftp",
+			"protocol_file": map[string]any{
+				"id": "p1", "direction": 3, "status": "OK", "closed": true,
+				"open_time":  "2026-11-25T08:54:05.712132474Z",
+				"close_time": "2026-11-25T08:54:14.326616062Z",
+			},
+			"transferred_files": []map[string]any{
+				{
+					"id":           "f1",
+					"name":         "/home/rocky/privx-0.1.0-2026-11-13.spl",
+					"direction":    2,
+					"open_time":    "2026-11-25T08:54:08.627028823Z",
+					"close_time":   "2026-11-25T08:54:08.686443525Z",
+					"payload_size": 2096,
+					"closed":       true,
+					"status":       "OK",
+				},
+			},
+			"bytes_client_to_server": 47,
+		},
+	}
+}
+
+func TestTrailGetHandler_ReportsTransferredFiles(t *testing.T) {
+	conn := testconn.New(t)
+	// No log lines: the sftp channel yields no commands, which is the case that
+	// used to hide the transfer entirely.
+	setupTrailChannels(t, conn,
+		connectionmanager.Connection{ID: "c1", Type: "SSH", AuditEnabled: true},
+		shellAndSFTPChannels(), nil)
+
+	res, err := trailGetHandler(testconn.CtxWithAuth(conn), map[string]any{"id": "c1"})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("unexpected error: %s", res.Content[0].Text)
+	}
+
+	m := testconn.DecodeResult(t, res.Content[0].Text)
+
+	if m["count"].(float64) != 0 {
+		t.Errorf("count = %v, want 0 commands", m["count"])
+	}
+
+	if m["transferred_files_total"].(float64) != 1 {
+		t.Errorf("transferred_files_total = %v", m["transferred_files_total"])
+	}
+
+	files := m["transferred_files"].([]any)
+	if len(files) != 1 {
+		t.Fatalf("transferred_files = %v", files)
+	}
+
+	f := files[0].(map[string]any)
+	if f["name"] != "/home/rocky/privx-0.1.0-2026-11-13.spl" {
+		t.Errorf("name = %v", f["name"])
+	}
+	if f["direction"] != "upload" {
+		t.Errorf("direction = %v, want upload (PrivX direction 2 = client to server)", f["direction"])
+	}
+	if f["size_bytes"].(float64) != 2096 || f["status"] != "OK" || f["channel_type"] != "sftp" {
+		t.Errorf("file = %v", f)
+	}
+
+	channels := m["channels"].([]any)
+	if len(channels) != 2 {
+		t.Fatalf("channels = %v", channels)
+	}
+
+	shell, sftp := channels[0].(map[string]any), channels[1].(map[string]any)
+	if shell["type"] != "shell" || shell["transferred_files"].(float64) != 0 {
+		t.Errorf("shell channel = %v", shell)
+	}
+	if sftp["type"] != "sftp" || sftp["transferred_files"].(float64) != 1 {
+		t.Errorf("sftp channel = %v", sftp)
+	}
+	if sftp["bytes_client_to_server"].(float64) != 47 {
+		t.Errorf("sftp bytes_client_to_server = %v", sftp["bytes_client_to_server"])
+	}
+}
+
+func TestTrailGetHandler_NoTransfersReportsEmptyList(t *testing.T) {
+	conn := testconn.New(t)
+	setupTrail(t, conn,
+		connectionmanager.Connection{ID: "c1", Type: "SSH", AuditEnabled: true},
+		[]string{stdinLine("2026-01-01T00:00:01Z", "uptime\r")},
+	)
+
+	res, err := trailGetHandler(testconn.CtxWithAuth(conn), map[string]any{"id": "c1"})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	m := testconn.DecodeResult(t, res.Content[0].Text)
+
+	files, ok := m["transferred_files"].([]any)
+	if !ok || len(files) != 0 {
+		t.Fatalf("transferred_files = %v, want an explicit empty list", m["transferred_files"])
+	}
+
+	if m["transferred_files_total"].(float64) != 0 {
+		t.Errorf("transferred_files_total = %v", m["transferred_files_total"])
+	}
+}
+
+func TestTrailGetHandler_ChannelFilterLimitsTransfers(t *testing.T) {
+	conn := testconn.New(t)
+	setupTrailChannels(t, conn,
+		connectionmanager.Connection{ID: "c1", Type: "SSH", AuditEnabled: true},
+		shellAndSFTPChannels(), nil)
+
+	// Asking for the shell channel only must not report the sftp upload.
+	res, err := trailGetHandler(testconn.CtxWithAuth(conn), map[string]any{"id": "c1", "channel_id": "0"})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if res.IsError {
+		t.Fatalf("unexpected error: %s", res.Content[0].Text)
+	}
+
+	m := testconn.DecodeResult(t, res.Content[0].Text)
+
+	if m["transferred_files_total"].(float64) != 0 {
+		t.Errorf("transferred_files_total = %v, want 0 for the shell channel", m["transferred_files_total"])
+	}
+
+	if channels := m["channels"].([]any); len(channels) != 1 {
+		t.Errorf("channels = %v, want only the shell channel", channels)
+	}
+}
+
+func TestTrailGetHandler_KeywordsDoNotHideTransfers(t *testing.T) {
+	conn := testconn.New(t)
+	setupTrailChannels(t, conn,
+		connectionmanager.Connection{ID: "c1", Type: "SSH", AuditEnabled: true},
+		shellAndSFTPChannels(), nil)
+
+	res, err := trailGetHandler(testconn.CtxWithAuth(conn), map[string]any{"id": "c1", "keywords": "nomatch"})
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+
+	m := testconn.DecodeResult(t, res.Content[0].Text)
+
+	if m["transferred_files_total"].(float64) != 1 {
+		t.Errorf("a command keyword must not hide transferred files, total = %v", m["transferred_files_total"])
 	}
 }

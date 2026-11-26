@@ -23,6 +23,7 @@ OAUTH_SCOPES=openid,profile,email,offline_access
 OAUTH_AUDIENCE=privx-mcp-client
 OAUTH_ID_CLAIM_FIELD=preferred_username
 OAUTH_ID_MAPPING_RULE=as-is
+OAUTH_ALLOW_HTTP=true
 
 # [permissions]
 PERMISSIONS_DEFAULT_READ_ONLY=false

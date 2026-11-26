@@ -25,6 +25,10 @@ import (
 func TrailGet() registry.Tool {
 	description := "Get the recorded session trail for an SSH connection: the actual commands " +
 		"executed in the connection, reconstructed from the downloaded session trail logs. " +
+		"The response also lists every channel (shell, exec, sftp, scp) and the files transferred over them, " +
+		"each marked as an upload (client to server) or a download (server to client); " +
+		"use it to answer whether files were transferred during a session. " +
+		"At most 200 transferred files are listed; transferred_files_total gives the full count. " +
 		"Prerequisites: the connection type must be SSH and session recording (audit) must be enabled. " +
 		"The trail is only readable after the session has disconnected. " +
 		"Use connection-list or connection-search first to find a connection id. " +
@@ -38,11 +42,11 @@ func TrailGet() registry.Tool {
 		}).
 		Set("channel_id", map[string]any{
 			"type":        "string",
-			"description": "Restrict the trail to a single connection channel. Defaults to all channels.",
+			"description": "Restrict the commands, channel list, and transferred files to a single connection channel. Defaults to all channels.",
 		}).
 		Set("keywords", map[string]any{
 			"type":        "string",
-			"description": "Case-insensitive substring filter applied to reconstructed commands.",
+			"description": "Case-insensitive substring filter applied to reconstructed commands only; it does not filter channels or transferred files.",
 		}).
 		Set("limit", common.LimitSchema(common.ConnectionTrailListLimit, common.ConnectionTrailListMax, "")).
 		Set("offset", map[string]any{
@@ -140,9 +144,16 @@ func trailGetHandler(ctx context.Context, params map[string]any) (*registry.Tool
 	total := len(commands)
 	page := pageTrailCommands(commands, paging.Offset, paging.Limit)
 
+	// Channel types and transferred files come from the trail metadata, not the
+	// logs, so a transfer channel is visible even when it produced no commands.
+	files, filesTotal := connections.FormatTransferredFiles(channels)
+
 	opts := []common.PageOption{
 		common.WithReturned(len(page)),
 		common.WithNextOffset(),
+		common.WithExtra("channels", connections.FormatTrailChannels(channels)),
+		common.WithExtra("transferred_files", files),
+		common.WithExtra("transferred_files_total", filesTotal),
 	}
 	if raw {
 		opts = append(opts, common.WithExtra("connection", connections.FormatConnectionTrailMeta(conn)))
