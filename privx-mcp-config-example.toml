@@ -28,7 +28,7 @@ version = "dev"
 # Usernames and secrets cannot contain a space or "|".
 # Prefer SERVER_M2M_IDENTITY_MAPPER so the value stays out of this file.
 # openssl rand -hex 32
-# m2m_identity_mapper = "svc-ci <secret>|svc-nightly <secret>"
+# m2m_identity_mapper = "privx-user-name <secret>|other-privx-user-name <secret>"
 
 # --- auth_mode = "m2m-jwt" ---
 # The client sends X-API-KEY and Authorization: Bearer <jwt>.
@@ -39,7 +39,7 @@ version = "dev"
 # claim is preferred_username or email.
 # m2m_jwt_key = "<at least 12 characters>"
 # m2m_jwt_issuer = "https://keycloak-example/realms/example"
-# m2m_jwt_identity_mapper = "preferred_username jdone john.done|email john.done@leonardo.com john.done"
+# m2m_jwt_identity_mapper = "preferred_username john.done privx-user-name|email john.done@company.com other-privx-user-name"
 
 # Externally reachable base URL for this server.
 # Preferably use https or put behind a reverse proxy
