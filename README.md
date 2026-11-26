@@ -12,6 +12,10 @@ An [mcp proxy](docs/reference/clients/privx-mcp-proxy.md) is also available for 
 >
 > Agents act on your PrivX instance with a mapped user's roles, so unintended changes or data loss are possible if the server is used carelessly. We recommend getting familiar with the server in a test environment before using it in production.
 
+> **Quick Start**
+>
+> If your primary goal is to evaluate the MCP server. We recommend setting up the MCP server in a Docker environment. See [Local Docker demo](deploy/docker/demo/README.md) for instructions.
+
 ## Architecture
 
 The MCP server uses the [official MCP Go SDK](https://github.com/modelcontextprotocol/go-sdk). While other good libraries exist, we use the official SDK to more easily adapt to protocol changes. The server supports both stateless and session-based operation: it creates a session when a session ID is received, otherwise it runs stateless.
